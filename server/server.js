@@ -10,9 +10,10 @@ const path = require('path');
 
 const PORT = process.env.PORT || 3000;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const CLIENT_URL_EN = process.env.CLIENT_URL_EN || 'http://localhost:5173';
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
 const cors_options = {
-    origin: [CLIENT_URL, SERVER_URL],
+    origin: [CLIENT_URL, CLIENT_URL_EN, SERVER_URL],
     methods: ['GET', 'POST'],
     credentials: true
 }
@@ -54,8 +55,11 @@ app.get('/quick-join', (req, res) => {
     // Pick a random room
     const [roomId] = publicRooms[Math.floor(Math.random() * publicRooms.length)];
 
+    // Determine the base URL based on language parameter
+    const baseUrl = req.query.lang === 'en' ? CLIENT_URL_EN : CLIENT_URL;
+
     // Construct the URL for the client to join
-    const url = `${CLIENT_URL}/multiplayer/${roomId}`;
+    const url = `${baseUrl}/multiplayer/${roomId}`;
     res.json({ url });
 });
 
