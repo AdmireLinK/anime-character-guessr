@@ -164,7 +164,7 @@ function setupSocket(io, rooms) {
             // Check for duplicate avatarId (only for active players)
             if (avatarId !== undefined) {
                 const isAvatarTaken = room.players.some(player => 
-                    !player.disconnected && String(player.avatarId) === String(avatarId)
+                    player.avatarId !== undefined && String(player.avatarId)!=='0' && String(player.avatarId) === String(avatarId)
                 );
                 if (isAvatarTaken) {
                     console.log(`[ERROR][joinRoom][${socket.id}] 头像已被选用`);
