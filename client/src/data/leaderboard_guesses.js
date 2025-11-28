@@ -1,214 +1,40 @@
-const leaderboardCharacters = [
-  {
-    rank: 1,
-    name: '高松燈',
-    nameCn: '高松灯',
-    image: 'https://lain.bgm.tv/r/400/pic/crt/l/d8/94/127790_crt_Bky9e.jpg?r=1754976105',
-    link: 'https://bgm.tv/character/127790',
-  },
-  {
-    rank: 2,
-    name: 'アスナ / 結城明日奈',
-    nameCn: '亚丝娜／结城明日奈',
-    image: 'https://lain.bgm.tv/r/400/pic/crt/l/58/bd/16490_crt_SBFfb.jpg?r=1606208307',
-    link: 'https://bgm.tv/character/16490',
-  },
-  {
-    rank: 3,
-    name: 'イリヤスフィール・フォン・アインツベルン',
-    nameCn: '伊莉雅斯菲尔·冯·爱因兹贝伦',
-    image: 'https://lain.bgm.tv/r/400/pic/crt/l/4b/c1/3218_crt_uuwa4.jpg',
-    link: 'https://bgm.tv/character/3218',
-  },
-  {
-    rank: 4,
-    name: '千早愛音',
-    nameCn: '千早爱音',
-    image: 'https://lain.bgm.tv/pic/crt/g/87/3b/127791_crt_AnyE0.jpg',
-    link: 'https://bgm.tv/character/127791',
-  },
-  {
-    rank: 5,
-    name: '四宮かぐや',
-    nameCn: '四宫辉夜',
-    image: 'https://lain.bgm.tv/pic/crt/g/9e/72/66899_crt_kNOM3.jpg?r=1547389516',
-    link: 'https://bgm.tv/character/66899',
-  },
-  {
-    rank: 6,
-    name: '涼宮ハルヒ',
-    nameCn: '凉宫春日',
-    image: 'https://lain.bgm.tv/pic/crt/g/67/2b/48_crt_ug7V1.jpg?r=1641211351',
-    link: 'https://bgm.tv/character/48',
-  },
-  {
-    rank: 7,
-    name: '雪ノ下雪乃',
-    nameCn: '雪之下雪乃',
-    image: 'https://lain.bgm.tv/pic/crt/g/7a/02/19040_crt_wQQO2.jpg?r=1515405272',
-    link: 'https://bgm.tv/character/19040',
-  },
-  {
-    rank: 8,
-    name: '豊川祥子',
-    nameCn: '丰川祥子',
-    image: 'https://lain.bgm.tv/pic/crt/g/ae/84/132476_crt_HI5Do.jpg',
-    link: 'https://bgm.tv/character/132476',
-  },
-  {
-    rank: 9,
-    name: '時崎狂三',
-    nameCn: '时崎狂三',
-    image: 'https://lain.bgm.tv/pic/crt/g/49/da/19529_crt_61qzh.jpg?r=1457682259',
-    link: 'https://bgm.tv/character/19529',
-  },
-  {
-    rank: 10,
-    name: '黄前久美子',
-    nameCn: '黄前久美子',
-    image: 'https://lain.bgm.tv/pic/crt/g/48/cc/29282_crt_VJ77t.jpg?r=1754658149',
-    link: 'https://bgm.tv/character/29282',
-  },
-  {
-    rank: 11,
-    name: '平沢唯',
-    nameCn: '平泽唯',
-    image: 'https://lain.bgm.tv/pic/crt/g/17/ad/466_crt_yeyF2.jpg?r=1733754897',
-    link: 'https://bgm.tv/character/466',
-  },
-  {
-    rank: 12,
-    name: '御坂美琴',
-    nameCn: '御坂美琴',
-    image: 'https://lain.bgm.tv/pic/crt/g/c8/f1/3575_crt_F99OI.jpg?r=1559386543',
-    link: 'https://bgm.tv/character/3575',
-  },
-  {
-    rank: 13,
-    name: 'キリト / 桐ヶ谷和人',
-    nameCn: '桐人／桐谷和人',
-    image: 'https://lain.bgm.tv/pic/crt/g/82/4e/16489_crt_mHSx3.jpg?r=1505068032',
-    link: 'https://bgm.tv/character/16489',
-  },
-  {
-    rank: 14,
-    name: '鹿目まどか',
-    nameCn: '鹿目圆',
-    image: 'https://lain.bgm.tv/pic/crt/g/2f/95/10439_crt_gwR7m.jpg',
-    link: 'https://bgm.tv/character/10439',
-  },
-  {
-    rank: 15,
-    name: 'エレン・イェーガー',
-    nameCn: '艾伦·耶格尔',
-    image: 'https://lain.bgm.tv/pic/crt/g/e3/2f/18101_crt_343At.jpg?r=1410320023',
-    link: 'https://bgm.tv/character/18101',
-  },
-  {
-    rank: 16,
-    name: 'フリーレン',
-    nameCn: '芙莉莲',
-    image: 'https://lain.bgm.tv/pic/crt/g/b5/b6/86246_crt_L0Zmt.jpg',
-    link: 'https://bgm.tv/character/86246',
-  },
-  {
-    rank: 17,
-    name: '小鳥遊六花',
-    nameCn: '小鸟游六花',
-    image: 'https://lain.bgm.tv/pic/crt/g/a7/6c/17362_crt_yPAVp.jpg?r=1642151054',
-    link: 'https://bgm.tv/character/17362',
-  },
-  {
-    rank: 18,
-    name: 'めぐみん',
-    nameCn: '惠惠',
-    image: 'https://lain.bgm.tv/pic/crt/g/2e/ba/35681_crt_8rGq5.jpg?r=1715442740',
-    link: 'https://bgm.tv/character/35681',
-  },
-  {
-    rank: 19,
-    name: '桜島麻衣',
-    nameCn: '樱岛麻衣',
-    image: 'https://lain.bgm.tv/pic/crt/g/7d/1c/35980_crt_UaMTM.jpg?r=1753912182',
-    link: 'https://bgm.tv/character/35980',
-  },
-  {
-    rank: 20,
-    name: '後藤ひとり',
-    nameCn: '后藤一里',
-    image: 'https://lain.bgm.tv/pic/crt/g/b1/9c/87968_crt_illf5.jpg?r=1668060514',
-    link: 'https://bgm.tv/character/87968',
-  },
-  {
-    rank: 21,
-    name: '八奈見杏菜',
-    nameCn: '八奈见杏菜',
-    image: 'https://lain.bgm.tv/pic/crt/g/87/fc/111328_crt_mW5Z8.jpg',
-    link: 'https://bgm.tv/character/111328',
-  },
-  {
-    rank: 22,
-    name: 'レム',
-    nameCn: '蕾姆',
-    image: 'https://lain.bgm.tv/pic/crt/g/b4/42/35615_crt_O7WVP.jpg',
-    link: 'https://bgm.tv/character/35615',
-  },
-  {
-    rank: 23,
-    name: '古河渚',
-    nameCn: '古河渚',
-    image: 'https://lain.bgm.tv/pic/crt/g/e9/cf/4_crt_ZeUZW.jpg?r=1692105566',
-    link: 'https://bgm.tv/character/4',
-  },
-  {
-    rank: 24,
-    name: 'アルトリア・ペンドラゴン',
-    nameCn: '阿尔托莉雅·潘德拉贡',
-    image: 'https://lain.bgm.tv/pic/crt/g/7d/58/273_crt_ZD8t5.jpg',
-    link: 'https://bgm.tv/character/273',
-  },
-  {
-    rank: 25,
-    name: 'ルーデウス・グレイラット',
-    nameCn: '鲁迪乌斯·格雷拉特',
-    image: 'https://lain.bgm.tv/pic/crt/g/2b/a4/46462_crt_bwGOt.jpg?r=1711026790',
-    link: 'https://bgm.tv/character/46462',
-  },
-  {
-    rank: 26,
-    name: '戦場ヶ原ひたぎ',
-    nameCn: '战场原黑仪',
-    image: 'https://lain.bgm.tv/pic/crt/g/7d/34/706_crt_4P0VL.jpg?r=1612440775',
-    link: 'https://bgm.tv/character/706',
-  },
-  {
-    rank: 27,
-    name: 'ヴァイオレット・エヴァーガーデン',
-    nameCn: '薇尔莉特·伊芙加登',
-    image: 'https://lain.bgm.tv/pic/crt/g/77/03/37344_crt_QeHnZ.jpg?r=1515695817',
-    link: 'https://bgm.tv/character/37344',
-  },
-  {
-    rank: 28,
-    name: '遠坂凛',
-    nameCn: '远坂凛',
-    image: 'https://lain.bgm.tv/pic/crt/g/79/f0/10596_crt_J4h2w.jpg?r=1675677254',
-    link: 'https://bgm.tv/character/10596',
-  },
-  {
-    rank: 29,
-    name: '加藤恵',
-    nameCn: '加藤惠',
-    image: 'https://lain.bgm.tv/pic/crt/g/d3/57/24094_crt_RYu7a.jpg?r=1674810335',
-    link: 'https://bgm.tv/character/24094',
-  },
-  {
-    rank: 30,
-    name: '空条承太郎',
-    nameCn: '空条承太郎',
-    image: 'https://lain.bgm.tv/pic/crt/g/15/41/878_crt_1DgJ5.jpg?r=1645975679',
-    link: 'https://bgm.tv/character/878',
-  },
-];
+// 由服务端API动态获取猜测排行榜（总榜）
+export async function fetchLeaderboardGuesses(limit = 30) {
+  try {
+    const response = await fetch('/api/leaderboard/guesses?limit=' + limit);
+    if (!response.ok) throw new Error('获取排行榜失败');
+    // 数据格式：[{ _id, count, characterName }]
+    const data = await response.json();
+    return data.map((item, idx) => ({
+      rank: idx + 1,
+      name: item.characterName || '',
+      nameCn: item.characterName || '',
+      image: item.image || '',
+      link: `https://bgm.tv/character/${item._id}`,
+      count: item.count
+    }));
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
 
-export default leaderboardCharacters;
+// 由服务端API动态获取周榜
+export async function fetchLeaderboardWeekly(limit = 30) {
+  try {
+    const response = await fetch('/api/leaderboard/weekly?limit=' + limit);
+    if (!response.ok) throw new Error('获取周榜失败');
+    const data = await response.json();
+    return data.map((item, idx) => ({
+      rank: idx + 1,
+      name: item.characterName || '',
+      nameCn: item.characterName || '',
+      image: item.image || '',
+      link: `https://bgm.tv/character/${item._id}`,
+      count: item.count
+    }));
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
