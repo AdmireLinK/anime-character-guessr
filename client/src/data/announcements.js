@@ -1,3 +1,5 @@
+import { version } from "react";
+
 /**
  * 公告数据
  * 数组中第一个元素会显示在最上面（最新的公告）
@@ -19,6 +21,15 @@ const announcements = [
       服务器的免费流量用完了，在这里放一个打赏码。<br/>
       意思一下就行，多出来的会请开发群的群友喝奶茶。<br/>
       <img src="/assets/tip_code.jpg" alt="Tip Code" style="max-width: 20rem" /><br/>
+    `
+  },
+
+  {
+    version: '1.5.7',
+    date: '2025-11-29',
+    content: `
+      调整排行榜样式，现在会从后端动态获取数据，并增加了次数展示。
+      添加多人模式公开房间列表。
     `
   },
 
