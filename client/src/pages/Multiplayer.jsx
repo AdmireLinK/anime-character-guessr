@@ -36,6 +36,13 @@ const Multiplayer = () => {
   const [isManualMode, setIsManualMode] = useState(false);
   const [answerSetterId, setAnswerSetterId] = useState(null);
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
+  const [roomList, setRoomList] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [roomListExpanded, setRoomListExpanded] = useState(false);
+  const [roomListPage, setRoomListPage] = useState(0);
+  const ROOMS_PER_PAGE = 10;
+  const roomListExpandedRef = useRef(false);
+  const isFirstLoadRoomsRef = useRef(true);
   const [gameSettings, setGameSettings] = useState({
     startYear: new Date().getFullYear()-5,
     endYear: new Date().getFullYear(),
@@ -326,6 +333,21 @@ const Multiplayer = () => {
   useEffect(() => {
     gameSettingsRef.current = gameSettings;
   }, [gameSettings]);
+
+  // 房间列表自动刷新：展开时每5秒刷新一次
+  useEffect(() => {
+    if (!roomListExpanded || isJoined) {
+      return;
+    }
+    
+    const intervalId = setInterval(() => {
+      if (roomListExpandedRef.current && !isJoined) {
+        fetchRoomList();
+      }
+    }, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, [roomListExpanded, isJoined]);
 
   const handleJoinRoom = () => {
     if (!username.trim()) {
@@ -691,6 +713,48 @@ const Multiplayer = () => {
     }
   };
 
+  // 获取房间列表（静默刷新，避免页面抖动）
+  const fetchRoomList = async () => {
+    // 只有首次加载时显示 loading 状态
+    if (isFirstLoadRoomsRef.current) {
+      setLoadingRooms(true);
+    }
+    try {
+      const response = await axios.get(`${SOCKET_URL}/list-rooms`);
+      // 只显示公开房间
+      const publicRooms = response.data.filter(room => room.isPublic);
+      setRoomList(publicRooms);
+      isFirstLoadRoomsRef.current = false;
+    } catch (error) {
+      console.error('获取房间列表失败:', error);
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  // 加入指定房间
+  const handleJoinSpecificRoom = (targetRoomId) => {
+    if (!username.trim()) {
+      alert('请输入用户名');
+      setError('请输入用户名');
+      return;
+    }
+    
+    // 获取头像信息
+    const avatarId = sessionStorage.getItem('avatarId');
+    const avatarImage = sessionStorage.getItem('avatarImage');
+    const avatarPayload = avatarId !== null ? { avatarId, avatarImage } : {};
+    
+    // 直接通过 socket 加入目标房间
+    socketRef.current?.emit('joinRoom', { roomId: targetRoomId, username, ...avatarPayload });
+    socketRef.current?.emit('requestGameSettings', { roomId: targetRoomId });
+    
+    // 更新状态并跳转 URL
+    setIsHost(false);
+    setIsJoined(true);
+    navigate(`/multiplayer/${targetRoomId}`);
+  };
+
   // 创建一个函数显示踢出通知
   const showKickNotification = (message, type = 'kick') => {
     setKickNotification({ message, type });
@@ -748,7 +812,9 @@ const Multiplayer = () => {
         <>
           <div className="join-container">
             <h2>{isHost ? '创建房间' : '加入房间'}</h2>
-            {isHost && !isJoined && <button onClick={handleQuickJoin} className="join-button">快速加入</button>}
+            {isHost && !isJoined && (
+              <button onClick={handleQuickJoin} className="join-button quick-join-btn">快速加入</button>
+            )}
             <input
               type="text"
               placeholder="输入用户名"
@@ -760,9 +826,78 @@ const Multiplayer = () => {
             <button onClick={handleJoinRoom} className="join-button">
               {isHost ? '创建' : '加入'}
             </button>
-            {/* Only show quick-join if not joined and is host, use same style as '创建' */}
             {error && <p className="error-message">{error}</p>}
           </div>
+          
+          {/* 房间列表 - 使用与 Leaderboard 一致的样式 */}
+          <div className="leaderboard-container room-list-wrapper">
+            <div className="leaderboard-header" onClick={() => {
+              const newExpanded = !roomListExpanded;
+              setRoomListExpanded(newExpanded);
+              roomListExpandedRef.current = newExpanded;
+              if (newExpanded) {
+                fetchRoomList();
+              }
+            }}>
+              <h3>公开房间 {roomList.length > 0 && `(${roomList.length})`}</h3>
+              <span className={`expand-icon ${roomListExpanded ? 'expanded' : ''}`}>{roomListExpanded ? '▼' : '▶'}</span>
+            </div>
+            {roomListExpanded && (
+              <div className="leaderboard-content">
+                {loadingRooms ? (
+                  <div className="leaderboard-loading">加载中...</div>
+                ) : roomList.length === 0 ? (
+                  <div className="leaderboard-empty">暂无公开房间</div>
+                ) : (
+                  <>
+                    <div className="leaderboard-list">
+                      {roomList.slice(roomListPage * ROOMS_PER_PAGE, (roomListPage + 1) * ROOMS_PER_PAGE).map(room => (
+                        <div key={room.id} className="leaderboard-list-item room-item">
+                          <div className="room-info">
+                            <span className="room-players-count">
+                              <i className="fas fa-users"></i> {room.playerCount}人
+                            </span>
+                            <span className="room-players-names">
+                              {room.players.slice(0, 3).join(', ')}
+                              {room.players.length > 3 && '...'}
+                            </span>
+                          </div>
+                          <button 
+                            className="join-room-btn"
+                            onClick={() => handleJoinSpecificRoom(room.id)}
+                          >
+                            加入
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="room-list-footer">
+                      <div className="room-list-pagination">
+                        <button
+                          className="pagination-btn"
+                          disabled={roomListPage === 0}
+                          onClick={() => setRoomListPage(prev => Math.max(0, prev - 1))}
+                        >
+                          ◀
+                        </button>
+                        <span className="pagination-info">
+                          {roomListPage + 1} / {Math.max(1, Math.ceil(roomList.length / ROOMS_PER_PAGE))}
+                        </span>
+                        <button
+                          className="pagination-btn"
+                          disabled={(roomListPage + 1) * ROOMS_PER_PAGE >= roomList.length}
+                          onClick={() => setRoomListPage(prev => prev + 1)}
+                        >
+                          ▶
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          
           <Roulette />
           <Leaderboard />
         </>
