@@ -13,7 +13,7 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const CLIENT_URL_EN = process.env.CLIENT_URL_EN || 'http://localhost:5173';
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
 const cors_options = {
-    origin: [CLIENT_URL, CLIENT_URL_EN, SERVER_URL],
+    origin: [CLIENT_URL, CLIENT_URL_EN, SERVER_URL, 'https://anime-character-guessr.netlify.app', 'https://vertikarl.github.io'],
     methods: ['GET', 'POST'],
     credentials: true
 }
