@@ -1,7 +1,9 @@
 // 由服务端API动态获取猜测排行榜（总榜）
+const API_BASE_URL = import.meta.env.VITE_SERVER_URL || '';
+
 export async function fetchLeaderboardGuesses(limit = 30) {
   try {
-    const response = await fetch('/api/leaderboard/guesses?limit=' + limit);
+    const response = await fetch(`${API_BASE_URL}/api/leaderboard/guesses?limit=${limit}`);
     if (!response.ok) throw new Error('获取排行榜失败');
     // 数据格式：[{ _id, count, characterName }]
     const data = await response.json();
@@ -22,7 +24,7 @@ export async function fetchLeaderboardGuesses(limit = 30) {
 // 由服务端API动态获取周榜
 export async function fetchLeaderboardWeekly(limit = 30) {
   try {
-    const response = await fetch('/api/leaderboard/weekly?limit=' + limit);
+    const response = await fetch(`${API_BASE_URL}/api/leaderboard/weekly?limit=${limit}`);
     if (!response.ok) throw new Error('获取周榜失败');
     const data = await response.json();
     return data.map((item, idx) => ({
