@@ -413,7 +413,7 @@ function setupSocket(io, rooms) {
             }
 
             // 同步模式：跟踪玩家完成状态并处理回合同步
-            if (room.currentGame && room.currentGame.settings.syncMode) {
+            if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
                 if (guessResult.isCorrect) {
                     // 玩家猜对了，从同步跟踪中移除
                     room.currentGame.syncPlayersCompleted.delete(socket.id);
@@ -1078,7 +1078,7 @@ function setupSocket(io, rooms) {
             player.guesses += '⏱️';
 
             // 同步模式：超时也视为完成本轮
-            if (room.currentGame && room.currentGame.settings.syncMode) {
+            if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
                 room.currentGame.syncPlayersCompleted.add(socket.id);
                 
                 // 获取所有需要完成本轮的活跃玩家
@@ -1186,7 +1186,7 @@ function setupSocket(io, rooms) {
                         console.log(`Player ${disconnectedPlayer.username} ${disconnectedPlayer.score === 0 ? 'removed from' : 'disconnected from'} room ${roomId}.`);
 
                         // 同步模式：移除断开连接的玩家，并检查是否可以进入下一轮
-                        if (room.currentGame && room.currentGame.settings.syncMode) {
+                        if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
                             room.currentGame.syncPlayersCompleted.delete(socket.id);
                             
                             // 获取所有需要完成本轮的活跃玩家
