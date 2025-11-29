@@ -501,12 +501,14 @@ const Multiplayer = () => {
       });
       // 血战模式下猜对后进入观战状态，但不设置 gameEnd
       setGameEnd(true);
+      setWaitingForSync(false); // 重置同步等待状态
       gameEndedRef.current = true;
       return;
     }
     
     gameEndedRef.current = true;
     setGameEnd(true);
+    setWaitingForSync(false); // 重置同步等待状态
     // Emit game end event to server
     if (answerCharacter && sessionStorage.getItem('avatarId') == answerCharacter.id) {
       socketRef.current?.emit('gameEnd', {
@@ -702,6 +704,8 @@ const Multiplayer = () => {
     if (gameEnd || gameEndedRef.current) return;
     gameEndedRef.current = true;
     setGameEnd(true);
+    // 重置同步等待状态
+    setWaitingForSync(false);
     // Emit game end event with surrender result
     socketRef.current?.emit('gameEnd', {
       roomId,

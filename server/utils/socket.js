@@ -795,6 +795,11 @@ function setupSocket(io, rooms) {
             if (room.currentGame && room.currentGame.settings.syncMode && room.currentGame.syncPlayersCompleted) {
                 room.currentGame.syncPlayersCompleted.delete(socket.id);
                 
+                // 投降/失败后立即更新玩家列表，让其他玩家看到状态变化
+                io.to(roomId).emit('updatePlayers', {
+                    players: room.players
+                });
+                
                 // 获取剩余需要完成本轮的活跃玩家
                 const syncActivePlayers = room.players.filter(p => 
                     !p.isAnswerSetter && 
