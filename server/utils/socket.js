@@ -318,7 +318,7 @@ function setupSocket(io, rooms) {
                 character, // store encrypted character for late joiners
                 settings,
                 guesses: [], // Initialize guesses as an array of objects
-                hints: null // will be set if hints are used
+                hints: null, // will be set if hints are used
                 // 同步模式状态
                 syncRound: 0, // 当前同步轮次
                 syncPlayersCompleted: new Set() // 已完成当前轮次猜测的玩家集合

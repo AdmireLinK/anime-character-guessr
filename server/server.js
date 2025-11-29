@@ -19,14 +19,27 @@ const cors_options = {
     credentials: true
 }
 
-function getCharacterImage(id) {
+// type: 'medium' | 'grid'，默认优先 medium
+function getCharacterImage(id, type = 'medium') {
     const info = characters.find(c => c.id === id);
     if (!info) return '';
-    if (Array.isArray(info.image_medium) && info.image_medium.length > 0) {
-        return info.image_medium[Math.floor(Math.random() * info.image_medium.length)];
-    }
-    if (Array.isArray(info.image_grid) && info.image_grid.length > 0) {
-        return info.image_grid[Math.floor(Math.random() * info.image_grid.length)];
+    
+    if (type === 'grid') {
+        // 优先使用 grid
+        if (Array.isArray(info.image_grid) && info.image_grid.length > 0) {
+            return info.image_grid[Math.floor(Math.random() * info.image_grid.length)];
+        }
+        if (Array.isArray(info.image_medium) && info.image_medium.length > 0) {
+            return info.image_medium[Math.floor(Math.random() * info.image_medium.length)];
+        }
+    } else {
+        // 优先使用 medium
+        if (Array.isArray(info.image_medium) && info.image_medium.length > 0) {
+            return info.image_medium[Math.floor(Math.random() * info.image_medium.length)];
+        }
+        if (Array.isArray(info.image_grid) && info.image_grid.length > 0) {
+            return info.image_grid[Math.floor(Math.random() * info.image_grid.length)];
+        }
     }
     return '';
 }
@@ -94,9 +107,9 @@ app.get('/clean-rooms', (req, res) => {
     let cleaned = 0;
     for (const [roomId, room] of rooms.entries()) {
         if (room.lastActive && now - room.lastActive > 300000 && !room.currentGame) {
-            // 通知房间内所有玩家
+            // Notify all players in the room
             io.to(roomId).emit('roomClosed', {message: '房间因长时间无活动已关闭'});
-            // 删除房间
+            // Delete the room
             rooms.delete(roomId);
             cleaned++;
             console.log(`Room ${roomId} closed due to inactivity.`);
@@ -581,9 +594,9 @@ app.get('/api/leaderboard/characters', async (req, res) => {
             .limit(topN)
             .toArray();
         
-        const withImages = sorted.map(item => ({
+        const withImages = sorted.map((item, idx) => ({
           ...item,
-          image: getCharacterImage(item._id)
+          image: getCharacterImage(item._id, idx < 3 ? 'medium' : 'grid')
         }));
         res.json(withImages);
     } catch (error) {
@@ -605,9 +618,9 @@ app.get('/api/leaderboard/guesses', async (req, res) => {
             .limit(topN)
             .toArray();
         
-        const withImages = sorted.map(item => ({
+        const withImages = sorted.map((item, idx) => ({
           ...item,
-          image: getCharacterImage(item._id)
+          image: getCharacterImage(item._id, idx < 3 ? 'medium' : 'grid')
         }));
         res.json(withImages);
     } catch (error) {
@@ -629,9 +642,9 @@ app.get('/api/leaderboard/weekly', async (req, res) => {
             .limit(topN)
             .toArray();
         
-        const withImages = sorted.map(item => ({
+        const withImages = sorted.map((item, idx) => ({
           ...item,
-          image: getCharacterImage(item._id)
+          image: getCharacterImage(item._id, idx < 3 ? 'medium' : 'grid')
         }));
         res.json(withImages);
     } catch (error) {
