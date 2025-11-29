@@ -64,7 +64,8 @@ const Multiplayer = () => {
     commonTags: true,
     useHints: [],
     useImageHint: 0,
-    imgHint: null
+    imgHint: null,
+    syncMode: false
   });
 
   // Game state
@@ -91,6 +92,8 @@ const Multiplayer = () => {
   const [isAnswerSetter, setIsAnswerSetter] = useState(false);
   const [kickNotification, setKickNotification] = useState(null);
   const [answerViewMode, setAnswerViewMode] = useState('simple'); // 'simple' or 'detailed'
+  const [waitingForSync, setWaitingForSync] = useState(false); // 同步模式：等待其他玩家
+  const [syncStatus, setSyncStatus] = useState({}); // 同步模式：各玩家状态
 
   useEffect(() => {
     // Initialize socket connection
@@ -119,6 +122,24 @@ const Multiplayer = () => {
       if (answerSetterId === newSocket.id) {
         setShowSetAnswerPopup(true);
       }
+    });
+
+    // 同步模式：等待其他玩家
+    newSocket.on('syncWaiting', ({ round, syncStatus, completedCount, totalCount }) => {
+      setSyncStatus({ round, syncStatus, completedCount, totalCount });
+      // 只有当前玩家自己已完成猜测时才进入等待状态
+      const myStatus = syncStatus?.find(p => p.id === newSocket.id);
+      const iAmCompleted = myStatus?.completed || false;
+      setWaitingForSync(iAmCompleted && completedCount < totalCount);
+    });
+
+    // 同步模式：收到服务端通知，开始下一轮
+    newSocket.on('syncRoundStart', ({ round }) => {
+      setWaitingForSync(false);  // 解除等待状态
+      setSyncStatus({});  // 清空同步状态
+      setShouldResetTimer(true);  // 触发计时器重置
+      setTimeout(() => setShouldResetTimer(false), 100);  // 短暂延迟后取消重置标志
+      console.log(`[同步模式] 第 ${round} 轮开始`);
     });
 
     newSocket.on('gameStart', ({ character, settings, players, isPublic, hints = null, isAnswerSetter: isAnswerSetterFlag }) => {
@@ -168,6 +189,9 @@ const Multiplayer = () => {
       setIsGameStarted(true);
       setGameEnd(false);
       setGuesses([]);
+      // 重置同步模式状态
+      setWaitingForSync(false);
+      setSyncStatus({});
     });
 
     newSocket.on('guessHistoryUpdate', ({ guesses }) => {
@@ -307,6 +331,8 @@ const Multiplayer = () => {
       newSocket.off('gameEnded');
       newSocket.off('resetReadyStatus');
       newSocket.off('boardcastTeamGuess');
+      newSocket.off('syncWaiting');
+      newSocket.off('syncRoundStart');
       newSocket.disconnect();
     };
   }, [navigate]);
@@ -432,6 +458,12 @@ const Multiplayer = () => {
 
   const handleCharacterSelect = async (character) => {
     if (isGuessing || !answerCharacter || gameEnd) return;
+
+    // 同步模式：等待其他玩家时不能猜测
+    if (waitingForSync) {
+      alert('【同步模式】请等待其他玩家完成本轮猜测');
+      return;
+    }
 
     if (gameSettings.globalPick) {
       console.log(guessesHistory);
@@ -1008,15 +1040,28 @@ const Multiplayer = () => {
                 <>
                   <SearchBar
                     onCharacterSelect={handleCharacterSelect}
-                    isGuessing={isGuessing}
+                    isGuessing={isGuessing || waitingForSync}
                     gameEnd={gameEnd}
                     subjectSearch={gameSettings.subjectSearch}
                   />
-                  {gameSettings.timeLimit && !gameEnd && (
+                  {/* 同步模式等待提示 */}
+                  {waitingForSync && gameSettings.syncMode && (
+                    <div className="sync-waiting-banner">
+                      <span>等待其他玩家完成本轮猜测 ({syncStatus.completedCount || 0}/{syncStatus.totalCount || 0})</span>
+                      <div className="sync-status">
+                        {syncStatus.syncStatus && syncStatus.syncStatus.map((player) => (
+                          <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
+                            {player.username}: {player.completed ? '✓' : '...'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {gameSettings.timeLimit && !gameEnd && !waitingForSync && (
                     <Timer
                       timeLimit={gameSettings.timeLimit}
                       onTimeUp={handleTimeUp}
-                      isActive={!isGuessing}
+                      isActive={!isGuessing && !waitingForSync}
                       reset={shouldResetTimer}
                     />
                   )}

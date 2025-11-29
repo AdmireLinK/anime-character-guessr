@@ -3,7 +3,15 @@ const axios = require('axios');
 const db = require('./db');
 const PING_INTERVAL = 6 * 60 * 1000; // 6 minutes in milliseconds
 
+// 检查是否为开发者模式
+const isDevMode = () => process.env.DEV_MODE === 'true';
+
 const autoClean = () => {
+  // 开发者模式下跳过自动清理
+  if (isDevMode()) {
+    console.log('[DevMode] 跳过自动清理房间');
+    return;
+  }
   axios.get(`${process.env.SERVER_URL}/clean-rooms`)
     .then(response => console.log('Self-ping successful:', response.status, response.data.message))
     .catch(error => console.error('Self-ping failed:', error.message));
