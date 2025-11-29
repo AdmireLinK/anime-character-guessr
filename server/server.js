@@ -634,19 +634,34 @@ app.get('/api/leaderboard/weekly', async (req, res) => {
         const topN = Number(req.query.limit) || 30;
         const client = db.getClient();
         const database = client.db('stats');
-        const collection = database.collection('weekly_count');
         
-        const sorted = await collection
+        // 先获取猜测榜（guess_count）前 topN 的角色 ID
+        const guessCollection = database.collection('guess_count');
+        const topCharacters = await guessCollection
             .find({ count: { $gt: 0 } })
             .sort({ count: -1 })
             .limit(topN)
             .toArray();
         
-        const withImages = sorted.map((item, idx) => ({
-          ...item,
-          image: getCharacterImage(item._id, idx < 3 ? 'medium' : 'grid')
+        const topCharacterIds = topCharacters.map(item => item._id);
+        
+        // 从周榜中查询这些角色的周数据
+        const weeklyCollection = database.collection('weekly_count');
+        const weeklyData = await weeklyCollection
+            .find({ _id: { $in: topCharacterIds } })
+            .toArray();
+        
+        // 创建周榜数据映射
+        const weeklyMap = new Map(weeklyData.map(item => [item._id, item.count || 0]));
+        
+        // 按猜测榜顺序返回，附加周榜数据
+        const result = topCharacters.map((item, idx) => ({
+            _id: item._id,
+            count: weeklyMap.get(item._id) || 0,
+            image: getCharacterImage(item._id, idx < 3 ? 'medium' : 'grid')
         }));
-        res.json(withImages);
+        
+        res.json(result);
     } catch (error) {
         console.error('Error fetching leaderboard weekly:', error);
         res.status(500).json({ error: 'Failed to fetch leaderboard weekly' });

@@ -26,7 +26,12 @@ const Multiplayer = () => {
   const [isHost, setIsHost] = useState(false);
   const [players, setPlayers] = useState([]);
   const [roomUrl, setRoomUrl] = useState('');
-  const [username, setUsername] = useState('');
+  // 从 cookie 读取保存的用户名
+  const getSavedUsername = () => {
+    const match = document.cookie.match(/(?:^|; )multiplayerUsername=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  };
+  const [username, setUsername] = useState(getSavedUsername);
   const [isJoined, setIsJoined] = useState(false);
   const [socket, setSocket] = useState(null);
   const socketRef = useRef(null);
@@ -65,7 +70,8 @@ const Multiplayer = () => {
     useHints: [],
     useImageHint: 0,
     imgHint: null,
-    syncMode: false
+    syncMode: false,
+    nonstopMode: false  // 血战模式
   });
 
   // Game state
@@ -94,6 +100,7 @@ const Multiplayer = () => {
   const [answerViewMode, setAnswerViewMode] = useState('simple'); // 'simple' or 'detailed'
   const [waitingForSync, setWaitingForSync] = useState(false); // 同步模式：等待其他玩家
   const [syncStatus, setSyncStatus] = useState({}); // 同步模式：各玩家状态
+  const [nonstopProgress, setNonstopProgress] = useState(null); // 血战模式：进度信息
 
   useEffect(() => {
     // Initialize socket connection
@@ -140,6 +147,22 @@ const Multiplayer = () => {
       setShouldResetTimer(true);  // 触发计时器重置
       setTimeout(() => setShouldResetTimer(false), 100);  // 短暂延迟后取消重置标志
       console.log(`[同步模式] 第 ${round} 轮开始`);
+    });
+
+    // 血战模式：进度更新
+    newSocket.on('nonstopProgress', (progress) => {
+      setNonstopProgress(progress);
+      console.log(`[血战模式] 进度更新: ${progress.winners?.length || 0}人猜对，剩余${progress.remainingCount}人`);
+    });
+
+    // 血战模式+同步模式：队友猜对通知
+    newSocket.on('teamWin', ({ winnerName, message }) => {
+      console.log(`[血战模式+同步模式] 队友猜对: ${winnerName}`);
+      // 显示通知
+      showKickNotification(message, 'info');
+      // 标记游戏结束
+      setGameEnd(true);
+      gameEndedRef.current = true;
     });
 
     newSocket.on('gameStart', ({ character, settings, players, isPublic, hints = null, isAnswerSetter: isAnswerSetterFlag }) => {
@@ -192,6 +215,8 @@ const Multiplayer = () => {
       // 重置同步模式状态
       setWaitingForSync(false);
       setSyncStatus({});
+      // 重置血战模式状态
+      setNonstopProgress(null);
     });
 
     newSocket.on('guessHistoryUpdate', ({ guesses }) => {
@@ -333,6 +358,8 @@ const Multiplayer = () => {
       newSocket.off('boardcastTeamGuess');
       newSocket.off('syncWaiting');
       newSocket.off('syncRoundStart');
+      newSocket.off('nonstopProgress');
+      newSocket.off('teamWin');
       newSocket.disconnect();
     };
   }, [navigate]);
@@ -359,6 +386,10 @@ const Multiplayer = () => {
         // 设置用户名并自动加入
         setUsername(pendingUsername);
         setIsHost(false);
+        
+        // 保存用户名到 cookie，有效期 30 天
+        const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = `multiplayerUsername=${encodeURIComponent(pendingUsername)}; expires=${expires}; path=/`;
         
         // 延迟执行加入，确保 socket 已连接
         setTimeout(() => {
@@ -419,6 +450,9 @@ const Multiplayer = () => {
       socketRef.current?.emit('joinRoom', { roomId, username, ...avatarPayload });
       socketRef.current?.emit('requestGameSettings', { roomId });
     }
+    // 保存用户名到 cookie，有效期 30 天
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
+    document.cookie = `multiplayerUsername=${encodeURIComponent(username)}; expires=${expires}; path=/`;
     setIsJoined(true);
   };
 
@@ -439,10 +473,23 @@ const Multiplayer = () => {
 
   const handleGameEnd = (isWin) => {
     if (gameEndedRef.current) return;
+    
+    // 血战模式下，猜对不结束游戏，只发送 nonstopWin 事件
+    if (isWin && gameSettings.nonstopMode) {
+      socketRef.current?.emit('nonstopWin', {
+        roomId,
+        isBigWin: answerCharacter && sessionStorage.getItem('avatarId') == answerCharacter.id
+      });
+      // 血战模式下猜对后进入观战状态，但不设置 gameEnd
+      setGameEnd(true);
+      gameEndedRef.current = true;
+      return;
+    }
+    
     gameEndedRef.current = true;
     setGameEnd(true);
     // Emit game end event to server
-    if (sessionStorage.getItem('avatarId') == answerCharacter.id) {
+    if (answerCharacter && sessionStorage.getItem('avatarId') == answerCharacter.id) {
       socketRef.current?.emit('gameEnd', {
         roomId,
         result: isWin ? 'bigwin' : 'lose'
@@ -472,8 +519,15 @@ const Multiplayer = () => {
         playerHistory.guesses.some(guessEntry => guessEntry?.guessData?.id === character.id)
       );
       if (duplicateInHistory) {
-        alert('【全局BP】已经被别人猜过了！请尝试其他角色');
-        return;
+        // 血战模式下，如果该角色是正确答案（别人猜对了），允许当前玩家继续猜
+        const isCorrectAnswer = character.id === answerCharacter?.id;
+        if (gameSettings.nonstopMode && isCorrectAnswer) {
+          // 血战模式下允许多人猜正确答案
+          console.log('【全局BP】血战模式下允许猜正确答案');
+        } else {
+          alert('【全局BP】已经被别人猜过了！请尝试其他角色');
+          return;
+        }
       }
     }
 
@@ -1057,6 +1111,21 @@ const Multiplayer = () => {
                       </div>
                     </div>
                   )}
+                  {/* 血战模式进度显示 */}
+                  {gameSettings.nonstopMode && nonstopProgress && (
+                    <div className="nonstop-progress-banner">
+                      <span>🔥 血战模式 - 剩余 {nonstopProgress.remainingCount}/{nonstopProgress.totalCount} 人</span>
+                      {nonstopProgress.winners && nonstopProgress.winners.length > 0 && (
+                        <div className="nonstop-winners">
+                          {nonstopProgress.winners.map((winner) => (
+                            <span key={winner.username} className="nonstop-winner">
+                              #{winner.rank} {winner.username} (+{winner.score}分)
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {gameSettings.timeLimit && !gameEnd && !waitingForSync && (
                     <Timer
                       timeLimit={gameSettings.timeLimit}
@@ -1106,6 +1175,34 @@ const Multiplayer = () => {
                       <div>{answerCharacter.nameCn}</div>
                     </div>
                   </div>
+                  {/* 血战模式进度显示（出题人视角） */}
+                  {gameSettings.nonstopMode && nonstopProgress && (
+                    <div className="nonstop-progress-banner">
+                      <span>🔥 血战模式 - 剩余 {nonstopProgress.remainingCount}/{nonstopProgress.totalCount} 人</span>
+                      {nonstopProgress.winners && nonstopProgress.winners.length > 0 && (
+                        <div className="nonstop-winners">
+                          {nonstopProgress.winners.map((winner) => (
+                            <span key={winner.username} className="nonstop-winner">
+                              #{winner.rank} {winner.username} (+{winner.score}分)
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* 同步模式进度显示（出题人/旁观者视角） */}
+                  {gameSettings.syncMode && syncStatus.syncStatus && (
+                    <div className="sync-waiting-banner">
+                      <span>⏳ 同步模式 - 第 {syncStatus.round || 1} 轮 ({syncStatus.completedCount || 0}/{syncStatus.totalCount || 0})</span>
+                      <div className="sync-status">
+                        {syncStatus.syncStatus.map((player) => (
+                          <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
+                            {player.username}: {player.completed ? '✓' : '...'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {/* Switch for 简单/详细 */}
                   <div style={{ margin: '10px 0', textAlign: 'center' }}>
                     <button
@@ -1262,6 +1359,7 @@ const Multiplayer = () => {
               onSettingsChange={handleSettingsChange}
               onClose={() => setShowSettings(false)}
               hideRestart={true}
+              isMultiplayer={true}
             />
           )}
 

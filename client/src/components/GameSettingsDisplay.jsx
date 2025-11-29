@@ -125,6 +125,15 @@ const GameSettingsDisplay = ({
     commonTags: {
       label: '共同标签优先',
       value: boolToText(settings.commonTags)
+    },
+    // 多人模式设置
+    syncMode: {
+      label: '同步模式',
+      value: boolToText(settings.syncMode)
+    },
+    nonstopMode: {
+      label: '血战模式',
+      value: boolToText(settings.nonstopMode)
     }
   };
 
@@ -143,7 +152,7 @@ const GameSettingsDisplay = ({
     '作品范围': ['yearRange', 'topNSubjects', 'useSubjectPerYear', 'metaTags'],
     '目录设置': ['useIndex', 'indexId'],
     '角色设置': ['mainCharacterOnly', 'characterNum', 'characterTagNum'],
-    '游戏规则': ['maxAttempts', 'useHints', 'timeLimit', 'subjectSearch', 'includeGame', 'subjectTagNum', 'commonTags', 'globalPick']
+    '游戏规则': ['maxAttempts', 'useHints', 'timeLimit', 'subjectSearch', 'includeGame', 'subjectTagNum', 'commonTags', 'globalPick', 'syncMode', 'nonstopMode']
   };
 
   const toggleExpand = () => {
