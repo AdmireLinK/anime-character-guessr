@@ -150,6 +150,16 @@ const Multiplayer = () => {
       console.log(`[血战模式] 进度更新: ${progress.winners?.length || 0}人猜对，剩余${progress.remainingCount}人`);
     });
 
+    // 血战模式+同步模式：队友猜对通知
+    newSocket.on('teamWin', ({ winnerName, message }) => {
+      console.log(`[血战模式+同步模式] 队友猜对: ${winnerName}`);
+      // 显示通知
+      showKickNotification(message, 'info');
+      // 标记游戏结束
+      setGameEnd(true);
+      gameEndedRef.current = true;
+    });
+
     newSocket.on('gameStart', ({ character, settings, players, isPublic, hints = null, isAnswerSetter: isAnswerSetterFlag }) => {
       gameEndedRef.current = false;
       const decryptedCharacter = JSON.parse(CryptoJS.AES.decrypt(character, secret).toString(CryptoJS.enc.Utf8));
@@ -344,6 +354,7 @@ const Multiplayer = () => {
       newSocket.off('syncWaiting');
       newSocket.off('syncRoundStart');
       newSocket.off('nonstopProgress');
+      newSocket.off('teamWin');
       newSocket.disconnect();
     };
   }, [navigate]);
