@@ -323,7 +323,9 @@ function setupSocket(io, rooms) {
                 syncRound: 0, // 当前同步轮次
                 syncPlayersCompleted: new Set(), // 已完成当前轮次猜测的玩家集合
                 // 血战模式状态
-                nonstopWinners: [] // 按顺序记录猜对的玩家 [{id, username, isBigWin}]
+                nonstopWinners: [], // 按顺序记录猜对的玩家 [{id, username, isBigWin}]
+                // 普通模式胜者记录（用于并发提交时确定第一个胜者）
+                firstWinner: null // {id, username, isBigWin, timestamp}
             };
     
             // Reset all players' game state
@@ -700,6 +702,16 @@ function setupSocket(io, rooms) {
                     break;
                 case 'win':
                     player.guesses += '✌';
+                    // 记录第一个胜者（用于并发提交时确定真正的胜者）
+                    if (room.currentGame && !room.currentGame.firstWinner) {
+                        room.currentGame.firstWinner = {
+                            id: socket.id,
+                            username: player.username,
+                            isBigWin: false,
+                            timestamp: Date.now()
+                        };
+                        console.log(`[普通模式] 第一个胜者: ${player.username}`);
+                    }
                     // 非血战模式下，一人猜对后同队队友也标记为队伍胜利
                     if (!room.currentGame?.settings?.nonstopMode && player.team && player.team !== '0') {
                         room.players
@@ -722,6 +734,19 @@ function setupSocket(io, rooms) {
                     break;
                 case 'bigwin':
                     player.guesses += '👑';
+                    // 记录第一个胜者（bigwin 优先级更高）
+                    if (room.currentGame) {
+                        // bigwin 会覆盖普通 win，或者作为第一个胜者
+                        if (!room.currentGame.firstWinner || !room.currentGame.firstWinner.isBigWin) {
+                            room.currentGame.firstWinner = {
+                                id: socket.id,
+                                username: player.username,
+                                isBigWin: true,
+                                timestamp: Date.now()
+                            };
+                            console.log(`[普通模式] 本命大赢家: ${player.username}`);
+                        }
+                    }
                     // 非血战模式下，一人猜对后同队队友也标记为队伍胜利
                     if (!room.currentGame?.settings?.nonstopMode && player.team && player.team !== '0') {
                         room.players
@@ -937,19 +962,30 @@ function setupSocket(io, rooms) {
                 p.guesses.includes('🏆') ||
                 p.disconnected
             );
-            const bigwinner = activePlayers.find(p => p.guesses.includes('👑'));
-            const winner = activePlayers.find(p => p.guesses.includes('✌'));
+            
+            // 使用 firstWinner 来确定真正的胜者（处理并发提交情况）
+            const firstWinner = room.currentGame?.firstWinner;
+            const bigwinner = firstWinner?.isBigWin 
+                ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('👑'))
+                : activePlayers.find(p => p.guesses.includes('👑'));
+            const winner = !bigwinner && firstWinner && !firstWinner.isBigWin
+                ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('✌'))
+                : (!bigwinner ? activePlayers.find(p => p.guesses.includes('✌')) : null);
     
             const handleGameEnd = () => {
                 // Get the answer setter before resetting status
                 const answerSetter = room.players.find(p => p.isAnswerSetter);
+                
+                // 使用 firstWinner 的用户名（如果存在）
+                const bigwinnerName = bigwinner?.username || firstWinner?.username;
+                const winnerName = winner?.username || firstWinner?.username;
     
                 // If there was an answer setter (manual mode)
                 if (answerSetter) {
                     if (bigwinner) {
                         answerSetter.score -= 3;
                         io.to(roomId).emit('gameEnded', {
-                            message: `本命大赢家是: ${bigwinner.username}！出题人 ${answerSetter.username} 纯在送分！`,
+                            message: `本命大赢家是: ${bigwinnerName}！出题人 ${answerSetter.username} 纯在送分！`,
                             guesses: room.currentGame?.guesses || []
                         });
                     }
@@ -958,12 +994,12 @@ function setupSocket(io, rooms) {
                         if (winner.guesses.length > 6) {
                             answerSetter.score += 1;
                             io.to(roomId).emit('gameEnded', {
-                                message: `赢家是: ${winner.username}！出题人 ${answerSetter.username} 获得1分！`,
+                                message: `赢家是: ${winnerName}！出题人 ${answerSetter.username} 获得1分！`,
                                 guesses: room.currentGame?.guesses || []
                             });
                         } else {
                             io.to(roomId).emit('gameEnded', {
-                                message: `赢家是: ${winner.username}！`,
+                                message: `赢家是: ${winnerName}！`,
                                 guesses: room.currentGame?.guesses || []
                             });
                         }
@@ -979,13 +1015,13 @@ function setupSocket(io, rooms) {
                     // Normal mode end messages
                     if (bigwinner) {
                         io.to(roomId).emit('gameEnded', {
-                            message: `本命大赢家是: ${bigwinner.username}！`,
+                            message: `本命大赢家是: ${bigwinnerName}！`,
                             guesses: room.currentGame?.guesses || []
                         });
                     }
                     else if (winner) {
                         io.to(roomId).emit('gameEnded', {
-                            message: `赢家是: ${winner.username}！`,
+                            message: `赢家是: ${winnerName}！`,
                             guesses: room.currentGame?.guesses || []
                         });
                     }
@@ -1491,7 +1527,9 @@ function setupSocket(io, rooms) {
                 syncRound: 0, // 当前同步轮次
                 syncPlayersCompleted: new Set(), // 已完成当前轮次猜测的玩家集合
                 // 血战模式状态
-                nonstopWinners: [] // 按顺序记录猜对的玩家 [{id, username, isBigWin}]
+                nonstopWinners: [], // 按顺序记录猜对的玩家 [{id, username, isBigWin}]
+                // 普通模式胜者记录（用于并发提交时确定第一个胜者）
+                firstWinner: null // {id, username, isBigWin, timestamp}
             };            // Reset all players' game state and mark the answer setter
             room.players.forEach(p => {
                 p.guesses = '';
