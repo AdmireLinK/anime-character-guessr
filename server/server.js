@@ -84,13 +84,19 @@ app.get('/room-count', (req, res) => {
 });
 
 app.get('/clean-rooms', (req, res) => {
+    // 开发者模式下跳过自动清理
+    if (process.env.DEV_MODE === 'true') {
+        console.log('[DevMode] 跳过清理房间');
+        return res.json({message: '[DevMode] 已跳过清理', devMode: true});
+    }
+    
     const now = Date.now();
     let cleaned = 0;
     for (const [roomId, room] of rooms.entries()) {
         if (room.lastActive && now - room.lastActive > 300000 && !room.currentGame) {
-            // Notify all players in the room
+            // 通知房间内所有玩家
             io.to(roomId).emit('roomClosed', {message: '房间因长时间无活动已关闭'});
-            // Delete the room
+            // 删除房间
             rooms.delete(roomId);
             cleaned++;
             console.log(`Room ${roomId} closed due to inactivity.`);

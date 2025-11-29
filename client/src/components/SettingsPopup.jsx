@@ -436,6 +436,25 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                 />
               </div>
               
+              <div className="settings-row">
+                <label>*同步模式</label>
+                <span className="tooltip-trigger">
+                  ?
+                  <span className="tooltip-text">
+                    启用后，所有玩家需要等待其他玩家完成当前轮猜测后才能进行下一轮。<br/>
+                    适合想要公平竞技的场景。
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={gameSettings.syncMode}
+                  onChange={(e) => {
+                    onSettingsChange('syncMode', e.target.checked);
+                  }}
+                  style={{ marginRight: '50px', marginLeft: '0px' }}
+                />
+              </div>
+              
 
               <div className="settings-row">
                 <label>*时间限制</label>

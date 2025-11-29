@@ -170,3 +170,65 @@ html, body, #root {
   border-radius: 15px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
+/* 同步模式等待提示横幅样式 */
+.sync-waiting-banner {
+  background: white;
+  color: #1e293b;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin: 16px 0;
+  text-align: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+/* 等待提示文字样式 */
+.sync-waiting-banner > span {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+/* 玩家同步状态容器 */
+.sync-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 单个玩家状态标签 */
+.sync-player {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+/* 已完成状态 - 绿色 */
+.sync-player.done {
+  background-color: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+/* 等待中状态 - 灰色 + 呼吸动画 */
+.sync-player.waiting {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  animation: waiting-pulse 1.5s ease-in-out infinite;
+}
+
+/* 等待呼吸动画关键帧 */
+@keyframes waiting-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
