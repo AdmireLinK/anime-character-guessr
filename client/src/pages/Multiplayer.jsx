@@ -101,6 +101,7 @@ const Multiplayer = () => {
   const [waitingForSync, setWaitingForSync] = useState(false); // 同步模式：等待其他玩家
   const [syncStatus, setSyncStatus] = useState({}); // 同步模式：各玩家状态
   const [nonstopProgress, setNonstopProgress] = useState(null); // 血战模式：进度信息
+  const [isObserver, setIsObserver] = useState(false); // 当前玩家是否为旁观者
 
   useEffect(() => {
     // Initialize socket connection
@@ -178,6 +179,10 @@ const Multiplayer = () => {
       const guessesMade = currentPlayer?.guesses?.length || 0;
       const remainingGuesses = Math.max(0, settings.maxAttempts - guessesMade);
       setGuessesLeft(remainingGuesses);
+      
+      // 检查当前玩家是否为旁观者
+      const observerFlag = currentPlayer?.team === '0';
+      setIsObserver(observerFlag);
       
       setIsAnswerSetter(isAnswerSetterFlag);
       if (players) {
@@ -263,6 +268,7 @@ const Multiplayer = () => {
       setGlobalGameEnd(true);
       setGuessesHistory(guesses);
       setIsGameStarted(false);
+      setIsObserver(false); // 重置旁观者状态，下一局开始时会重新判断
     });
 
     newSocket.on('resetReadyStatus', () => {
@@ -329,17 +335,30 @@ const Multiplayer = () => {
       };
     
       setGuesses(prev => [...prev, newGuess]);
-      setGuessesLeft(prev => {
-        const newGuessesLeft = prev - 1;
-        if (newGuessesLeft <= 0) {
-          setTimeout(() => {
-            handleGameEnd(false);
-          }, 100);
+      
+      // 只有正在参与游戏的玩家（非旁观者、非出题人）才需要减少猜测次数和触发游戏结束
+      // 旁观者和出题人只是接收猜测信息用于显示，不参与游戏逻辑
+      setPlayers(currentPlayers => {
+        const currentPlayer = currentPlayers.find(p => p.id === newSocket.id);
+        const isObserver = currentPlayer?.team === '0';
+        const isAnswerSetterPlayer = currentPlayer?.isAnswerSetter;
+        
+        if (!isObserver && !isAnswerSetterPlayer) {
+          setGuessesLeft(prev => {
+            const newGuessesLeft = prev - 1;
+            if (newGuessesLeft <= 0) {
+              setTimeout(() => {
+                handleGameEnd(false);
+              }, 100);
+            }
+            return newGuessesLeft;
+          });
+          setShouldResetTimer(true);
+          setTimeout(() => setShouldResetTimer(false), 100);
         }
-        return newGuessesLeft;
+        
+        return currentPlayers; // 不修改 players 状态
       });
-      setShouldResetTimer(true);
-      setTimeout(() => setShouldResetTimer(false), 100);
     });
 
     return () => {
@@ -505,6 +524,11 @@ const Multiplayer = () => {
 
   const handleCharacterSelect = async (character) => {
     if (isGuessing || !answerCharacter || gameEnd) return;
+
+    // 旁观者和出题人不能猜测
+    if (isObserver || isAnswerSetter) {
+      return;
+    }
 
     // 同步模式：等待其他玩家时不能猜测
     if (waitingForSync) {
@@ -1089,7 +1113,7 @@ const Multiplayer = () => {
           {isGameStarted && !globalGameEnd && (
             // In game
             <div className="container">
-              {!isAnswerSetter && players.find(p => p.id === socketRef.current?.id)?.team !== '0' ? (
+              {!isAnswerSetter && !isObserver ? (
                 // Regular player view
                 <>
                   <SearchBar
