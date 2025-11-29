@@ -1160,6 +1160,19 @@ const Multiplayer = () => {
                       )}
                     </div>
                   )}
+                  {/* 同步模式进度显示（出题人/旁观者视角） */}
+                  {gameSettings.syncMode && syncStatus.syncStatus && (
+                    <div className="sync-waiting-banner">
+                      <span>⏳ 同步模式 - 第 {syncStatus.round || 1} 轮 ({syncStatus.completedCount || 0}/{syncStatus.totalCount || 0})</span>
+                      <div className="sync-status">
+                        {syncStatus.syncStatus.map((player) => (
+                          <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
+                            {player.username}: {player.completed ? '✓' : '...'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {/* Switch for 简单/详细 */}
                   <div style={{ margin: '10px 0', textAlign: 'center' }}>
                     <button
