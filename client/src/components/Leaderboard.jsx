@@ -45,7 +45,7 @@ const Leaderboard = ({ defaultExpanded = false }) => {
     <>
       <div className="leaderboard-container">
         <div className="leaderboard-header" onClick={toggleExpand1}>
-          <h3>大家都在猜</h3>
+          <h3>大家都在猜（每周一4：00清空周榜）</h3>
           <span className={`expand-icon ${isExpanded1 ? 'expanded' : ''}`}>{isExpanded1 ? '▼' : '▶'}</span>
         </div>
         {isExpanded1 && (

@@ -320,6 +320,31 @@ const Multiplayer = () => {
     } else {
       // Set room URL for sharing
       setRoomUrl(window.location.href);
+      
+      // 检查是否有待加入的房间（从房间列表点击加入）
+      const pendingUsername = sessionStorage.getItem('pendingUsername');
+      const pendingRoomId = sessionStorage.getItem('pendingRoomId');
+      
+      if (pendingUsername && pendingRoomId === roomId) {
+        // 清除 sessionStorage
+        sessionStorage.removeItem('pendingUsername');
+        sessionStorage.removeItem('pendingRoomId');
+        
+        // 设置用户名并自动加入
+        setUsername(pendingUsername);
+        setIsHost(false);
+        
+        // 延迟执行加入，确保 socket 已连接
+        setTimeout(() => {
+          const avatarId = sessionStorage.getItem('avatarId');
+          const avatarImage = sessionStorage.getItem('avatarImage');
+          const avatarPayload = avatarId !== null ? { avatarId, avatarImage } : {};
+          
+          socketRef.current?.emit('joinRoom', { roomId, username: pendingUsername, ...avatarPayload });
+          socketRef.current?.emit('requestGameSettings', { roomId });
+          setIsJoined(true);
+        }, 100);
+      }
     }
   }, [roomId, navigate]);
 
@@ -740,19 +765,12 @@ const Multiplayer = () => {
       return;
     }
     
-    // 获取头像信息
-    const avatarId = sessionStorage.getItem('avatarId');
-    const avatarImage = sessionStorage.getItem('avatarImage');
-    const avatarPayload = avatarId !== null ? { avatarId, avatarImage } : {};
+    // 将用户名保存到 sessionStorage，以便页面刷新后自动填充
+    sessionStorage.setItem('pendingUsername', username);
+    sessionStorage.setItem('pendingRoomId', targetRoomId);
     
-    // 直接通过 socket 加入目标房间
-    socketRef.current?.emit('joinRoom', { roomId: targetRoomId, username, ...avatarPayload });
-    socketRef.current?.emit('requestGameSettings', { roomId: targetRoomId });
-    
-    // 更新状态并跳转 URL
-    setIsHost(false);
-    setIsJoined(true);
-    navigate(`/multiplayer/${targetRoomId}`);
+    // 使用完整页面刷新，确保重置所有状态和 socket 连接
+    window.location.href = `/multiplayer/${targetRoomId}`;
   };
 
   // 创建一个函数显示踢出通知

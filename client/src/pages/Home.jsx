@@ -10,9 +10,12 @@ const Home = () => {
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
 
   useEffect(() => {
-    const serverUrl = import.meta.env.VITE_SERVER_URL;
+    const serverUrl = import.meta.env.VITE_SERVER_URL || '';
     fetch(`${serverUrl}/room-count`)
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) throw new Error('Failed to fetch');
+        return response.json();
+      })
       .then(data => setRoomCount(data.count))
       .catch(error => console.error('Error fetching room count:', error));
     
