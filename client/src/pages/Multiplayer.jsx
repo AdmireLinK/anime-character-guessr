@@ -26,7 +26,12 @@ const Multiplayer = () => {
   const [isHost, setIsHost] = useState(false);
   const [players, setPlayers] = useState([]);
   const [roomUrl, setRoomUrl] = useState('');
-  const [username, setUsername] = useState('');
+  // 从 cookie 读取保存的用户名
+  const getSavedUsername = () => {
+    const match = document.cookie.match(/(?:^|; )multiplayerUsername=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  };
+  const [username, setUsername] = useState(getSavedUsername);
   const [isJoined, setIsJoined] = useState(false);
   const [socket, setSocket] = useState(null);
   const socketRef = useRef(null);
@@ -382,6 +387,10 @@ const Multiplayer = () => {
         setUsername(pendingUsername);
         setIsHost(false);
         
+        // 保存用户名到 cookie，有效期 30 天
+        const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = `multiplayerUsername=${encodeURIComponent(pendingUsername)}; expires=${expires}; path=/`;
+        
         // 延迟执行加入，确保 socket 已连接
         setTimeout(() => {
           const avatarId = sessionStorage.getItem('avatarId');
@@ -441,6 +450,9 @@ const Multiplayer = () => {
       socketRef.current?.emit('joinRoom', { roomId, username, ...avatarPayload });
       socketRef.current?.emit('requestGameSettings', { roomId });
     }
+    // 保存用户名到 cookie，有效期 30 天
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
+    document.cookie = `multiplayerUsername=${encodeURIComponent(username)}; expires=${expires}; path=/`;
     setIsJoined(true);
   };
 
