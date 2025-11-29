@@ -313,15 +313,17 @@ function setupSocket(io, rooms) {
             // Remove disconnected players with 0 score
             room.players = room.players.filter(p => !p.disconnected || p.score > 0);
     
-            // Store current game state in room data
+            // 存储当前游戏状态
             room.currentGame = {
-                character, // store encrypted character for late joiners
+                character, // 存储加密的角色信息（供后加入的玩家使用）
                 settings,
-                guesses: [], // Initialize guesses as an array of objects
-                hints: null, // will be set if hints are used
+                guesses: [], // 初始化猜测记录数组
+                hints: null, // 提示信息（如果使用）
                 // 同步模式状态
                 syncRound: 0, // 当前同步轮次
-                syncPlayersCompleted: new Set() // 已完成当前轮次猜测的玩家集合
+                syncPlayersCompleted: new Set(), // 已完成当前轮次猜测的玩家集合
+                // 血战模式状态
+                nonstopWinners: [] // 按顺序记录猜对的玩家 [{id, username, isBigWin}]
             };
     
             // Reset all players' game state
@@ -473,6 +475,141 @@ function setupSocket(io, rooms) {
                 console.log(`Player ${player.username} made a guess in room ${roomId} with no valid guessData.`, guessResult);
             }
         });
+
+        // 血战模式：处理玩家猜对事件
+        socket.on('nonstopWin', ({roomId, isBigWin}) => {
+            const room = rooms.get(roomId);
+            if (room) room.lastActive = Date.now();
+
+            if (!room || !room.currentGame) {
+                console.log(`[ERROR][nonstopWin][${socket.id}] 房间不存在或游戏未开始`);
+                socket.emit('error', {message: 'nonstopWin: 房间不存在或游戏未开始'});
+                return;
+            }
+
+            const player = room.players.find(p => p.id === socket.id);
+            if (!player) {
+                console.log(`[ERROR][nonstopWin][${socket.id}] 连接中断了`);
+                socket.emit('error', {message: 'nonstopWin: 连接中断了'});
+                return;
+            }
+
+            // 记录猜对的玩家
+            room.currentGame.nonstopWinners.push({
+                id: socket.id,
+                username: player.username,
+                isBigWin: isBigWin
+            });
+
+            // 更新玩家状态
+            player.guesses += isBigWin ? '👑' : '✌';
+
+            // 获取活跃玩家（不含出题人、观察者）
+            const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
+            
+            // 获取尚未结束的玩家
+            const remainingPlayers = activePlayers.filter(p => 
+                !p.guesses.includes('✌') && 
+                !p.guesses.includes('💀') && 
+                !p.guesses.includes('🏳️') && 
+                !p.guesses.includes('👑')
+            );
+
+            // 计算当前玩家得分：玩家总数 - 已猜对的玩家数 + 1
+            const totalPlayers = activePlayers.length;
+            const winnerRank = room.currentGame.nonstopWinners.length;
+            const score = Math.max(1, totalPlayers - winnerRank + 1);
+            player.score += score;
+
+            // 广播血战模式进度
+            io.to(roomId).emit('nonstopProgress', {
+                winners: room.currentGame.nonstopWinners.map((w, idx) => ({
+                    username: w.username,
+                    rank: idx + 1,
+                    score: Math.max(1, totalPlayers - idx)
+                })),
+                remainingCount: remainingPlayers.length,
+                totalCount: totalPlayers
+            });
+
+            // 更新玩家列表
+            io.to(roomId).emit('updatePlayers', {
+                players: room.players
+            });
+
+            console.log(`[血战模式] ${player.username} 第${winnerRank}个猜对，得${score}分，剩余${remainingPlayers.length}人`);
+
+            // 检查是否所有人都已结束（猜对或失败）
+            if (remainingPlayers.length === 0) {
+                // 游戏结束，计算出题人得分
+                const answerSetter = room.players.find(p => p.isAnswerSetter);
+                const winnersCount = room.currentGame.nonstopWinners.length;
+                const totalPlayersCount = activePlayers.length;
+                
+                let message = '';
+                if (answerSetter) {
+                    // 玩家数系数：玩家数/2 向上取整，最小为1
+                    const playerMultiplier = Math.max(1, Math.ceil(totalPlayersCount / 2));
+                    
+                    if (winnersCount === 0) {
+                        // 无人猜中，出题人扣分（基础-2 × 系数）
+                        const penalty = 2 * playerMultiplier;
+                        answerSetter.score -= penalty;
+                        message = `【血战模式】无人猜中！出题人 ${answerSetter.username} -${penalty}分！`;
+                    } else {
+                        // 根据猜对比例计算基础得分
+                        const winRate = winnersCount / totalPlayersCount;
+                        let baseScore = 0;
+                        let scoreReason = '';
+                        
+                        if (winRate <= 0.25) {
+                            // 猜对人数过少（≤25%），太难了
+                            baseScore = 1;
+                            scoreReason = '难度偏高';
+                        } else if (winRate >= 0.75) {
+                            // 猜对人数过多（≥75%），太简单了
+                            baseScore = 1;
+                            scoreReason = '难度偏低';
+                        } else {
+                            // 猜对人数适中（25%-75%），刚刚好
+                            baseScore = 2;
+                            scoreReason = '难度适中';
+                        }
+                        
+                        const setterScore = baseScore * playerMultiplier;
+                        answerSetter.score += setterScore;
+                        const winnerNames = room.currentGame.nonstopWinners.map((w, i) => `${i + 1}. ${w.username}`).join('、');
+                        message = `【血战模式】猜对顺序：${winnerNames}。${scoreReason}，出题人 ${answerSetter.username} +${setterScore}分！`;
+                    }
+                } else {
+                    if (winnersCount > 0) {
+                        const winnerNames = room.currentGame.nonstopWinners.map((w, i) => `${i + 1}. ${w.username}`).join('、');
+                        message = `【血战模式】猜对顺序：${winnerNames}`;
+                    } else {
+                        message = `【血战模式】无人猜中！`;
+                    }
+                }
+
+                io.to(roomId).emit('gameEnded', {
+                    message,
+                    guesses: room.currentGame?.guesses || []
+                });
+
+                // 重置状态
+                room.players.forEach(p => {
+                    p.isAnswerSetter = false;
+                });
+                io.to(roomId).emit('resetReadyStatus');
+                room.currentGame = null;
+                io.to(roomId).emit('updatePlayers', {
+                    players: room.players,
+                    isPublic: room.isPublic,
+                    answerSetterId: null
+                });
+
+                console.log(`[血战模式] 房间 ${roomId} 游戏结束`);
+            }
+        });
     
         // Handle game end
         socket.on('gameEnd', ({roomId, result}) => {
@@ -515,7 +652,7 @@ function setupSocket(io, rooms) {
             }
 
             // 同步模式：将已结束游戏的玩家从同步跟踪中移除，并检查是否可以进入下一轮
-            if (room.currentGame && room.currentGame.settings.syncMode) {
+            if (room.currentGame && room.currentGame.settings.syncMode && room.currentGame.syncPlayersCompleted) {
                 room.currentGame.syncPlayersCompleted.delete(socket.id);
                 
                 // 获取剩余需要完成本轮的活跃玩家
@@ -555,6 +692,103 @@ function setupSocket(io, rooms) {
                         });
                     }
                 }
+            }
+
+            // 血战模式：检查是否所有人都结束
+            if (room.currentGame && room.currentGame.settings.nonstopMode) {
+                const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
+                const remainingPlayers = activePlayers.filter(p => 
+                    !p.guesses.includes('✌') && 
+                    !p.guesses.includes('💀') && 
+                    !p.guesses.includes('🏳️') && 
+                    !p.guesses.includes('👑')
+                );
+
+                // 广播血战模式进度
+                io.to(roomId).emit('nonstopProgress', {
+                    winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({
+                        username: w.username,
+                        rank: idx + 1,
+                        score: Math.max(1, activePlayers.length - idx)
+                    })),
+                    remainingCount: remainingPlayers.length,
+                    totalCount: activePlayers.length
+                });
+
+                // 更新玩家列表
+                io.to(roomId).emit('updatePlayers', {
+                    players: room.players
+                });
+
+                // 检查是否所有人都已结束
+                if (remainingPlayers.length === 0) {
+                    const answerSetter = room.players.find(p => p.isAnswerSetter);
+                    const winnersCount = (room.currentGame.nonstopWinners || []).length;
+                    const totalPlayersCount = activePlayers.length;
+                    
+                    let message = '';
+                    if (answerSetter) {
+                        // 玩家数系数：玩家数/2 向上取整，最小为1
+                        const playerMultiplier = Math.max(1, Math.ceil(totalPlayersCount / 2));
+                        
+                        if (winnersCount === 0) {
+                            // 无人猜中，出题人扣分（基础-2 × 系数）
+                            const penalty = 2 * playerMultiplier;
+                            answerSetter.score -= penalty;
+                            message = `【血战模式】无人猜中！出题人 ${answerSetter.username} -${penalty}分！`;
+                        } else {
+                            // 根据猜对比例计算基础得分
+                            const winRate = winnersCount / totalPlayersCount;
+                            let baseScore = 0;
+                            let scoreReason = '';
+                            
+                            if (winRate <= 0.25) {
+                                // 猜对人数过少（≤25%），太难了
+                                baseScore = 1;
+                                scoreReason = '难度偏高';
+                            } else if (winRate >= 0.75) {
+                                // 猜对人数过多（≥75%），太简单了
+                                baseScore = 1;
+                                scoreReason = '难度偏低';
+                            } else {
+                                // 猜对人数适中（25%-75%），刚刚好
+                                baseScore = 2;
+                                scoreReason = '难度适中';
+                            }
+                            
+                            const setterScore = baseScore * playerMultiplier;
+                            answerSetter.score += setterScore;
+                            const winnerNames = room.currentGame.nonstopWinners.map((w, i) => `${i + 1}. ${w.username}`).join('、');
+                            message = `【血战模式】猜对顺序：${winnerNames}。${scoreReason}，出题人 ${answerSetter.username} +${setterScore}分！`;
+                        }
+                    } else {
+                        if (winnersCount > 0) {
+                            const winnerNames = room.currentGame.nonstopWinners.map((w, i) => `${i + 1}. ${w.username}`).join('、');
+                            message = `【血战模式】猜对顺序：${winnerNames}`;
+                        } else {
+                            message = `【血战模式】无人猜中！`;
+                        }
+                    }
+
+                    io.to(roomId).emit('gameEnded', {
+                        message,
+                        guesses: room.currentGame?.guesses || []
+                    });
+
+                    room.players.forEach(p => {
+                        p.isAnswerSetter = false;
+                    });
+                    io.to(roomId).emit('resetReadyStatus');
+                    room.currentGame = null;
+                    io.to(roomId).emit('updatePlayers', {
+                        players: room.players,
+                        isPublic: room.isPublic,
+                        answerSetterId: null
+                    });
+
+                    console.log(`[血战模式] 房间 ${roomId} 游戏结束（玩家失败导致）`);
+                }
+                return; // 血战模式下不执行后续的普通结束逻辑
             }
     
             // Check if all non-answer-setter players have ended their game or disconnected
@@ -1108,16 +1342,19 @@ function setupSocket(io, rooms) {
     
             // Remove disconnected players with 0 score
             room.players = room.players.filter(p => !p.disconnected || p.score > 0);
-    
+
             // Store current game state in room data
             room.currentGame = {
                 character, // store encrypted character for late joiners
                 settings: room.settings,
                 guesses: [], // Initialize guesses as an array of objects
-                hints: hints || null
-            };
-    
-            // Reset all players' game state and mark the answer setter
+                hints: hints || null,
+                // 同步模式状态
+                syncRound: 0, // 当前同步轮次
+                syncPlayersCompleted: new Set(), // 已完成当前轮次猜测的玩家集合
+                // 血战模式状态
+                nonstopWinners: [] // 按顺序记录猜对的玩家 [{id, username, isBigWin}]
+            };            // Reset all players' game state and mark the answer setter
             room.players.forEach(p => {
                 p.guesses = '';
                 p.isAnswerSetter = (p.id === socket.id); // Mark the answer setter

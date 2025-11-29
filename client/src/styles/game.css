@@ -232,3 +232,41 @@ html, body, #root {
     opacity: 0.6;
   }
 }
+
+/* 血战模式进度横幅样式 */
+.nonstop-progress-banner {
+  background: white;
+  color: #1e293b;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin: 16px 0;
+  text-align: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.nonstop-progress-banner > span {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #ea580c;
+}
+
+/* 血战模式获胜者列表 */
+.nonstop-winners {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 单个获胜者标签 */
+.nonstop-winner {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  background-color: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}

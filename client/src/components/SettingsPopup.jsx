@@ -455,6 +455,26 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                 />
               </div>
               
+              <div className="settings-row">
+                <label>*血战模式</label>
+                <span className="tooltip-trigger">
+                  ?
+                  <span className="tooltip-text">
+                    启用后，第一个猜对的玩家不会立即结束游戏。<br/>
+                    所有玩家继续猜测，直到最后一人猜对或次数耗尽。<br/>
+                    得分：第1名得(玩家数)分，第2名得(玩家数-1)分...依此类推。<br/>
+                    出题人：有人猜中得1分，无人猜中扣2分。
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={gameSettings.nonstopMode}
+                  onChange={(e) => {
+                    onSettingsChange('nonstopMode', e.target.checked);
+                  }}
+                  style={{ marginRight: '50px', marginLeft: '0px' }}
+                />
+              </div>
 
               <div className="settings-row">
                 <label>*时间限制</label>

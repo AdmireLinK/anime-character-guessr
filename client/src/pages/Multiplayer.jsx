@@ -65,7 +65,8 @@ const Multiplayer = () => {
     useHints: [],
     useImageHint: 0,
     imgHint: null,
-    syncMode: false
+    syncMode: false,
+    nonstopMode: false  // 血战模式
   });
 
   // Game state
@@ -94,6 +95,7 @@ const Multiplayer = () => {
   const [answerViewMode, setAnswerViewMode] = useState('simple'); // 'simple' or 'detailed'
   const [waitingForSync, setWaitingForSync] = useState(false); // 同步模式：等待其他玩家
   const [syncStatus, setSyncStatus] = useState({}); // 同步模式：各玩家状态
+  const [nonstopProgress, setNonstopProgress] = useState(null); // 血战模式：进度信息
 
   useEffect(() => {
     // Initialize socket connection
@@ -140,6 +142,12 @@ const Multiplayer = () => {
       setShouldResetTimer(true);  // 触发计时器重置
       setTimeout(() => setShouldResetTimer(false), 100);  // 短暂延迟后取消重置标志
       console.log(`[同步模式] 第 ${round} 轮开始`);
+    });
+
+    // 血战模式：进度更新
+    newSocket.on('nonstopProgress', (progress) => {
+      setNonstopProgress(progress);
+      console.log(`[血战模式] 进度更新: ${progress.winners?.length || 0}人猜对，剩余${progress.remainingCount}人`);
     });
 
     newSocket.on('gameStart', ({ character, settings, players, isPublic, hints = null, isAnswerSetter: isAnswerSetterFlag }) => {
@@ -192,6 +200,8 @@ const Multiplayer = () => {
       // 重置同步模式状态
       setWaitingForSync(false);
       setSyncStatus({});
+      // 重置血战模式状态
+      setNonstopProgress(null);
     });
 
     newSocket.on('guessHistoryUpdate', ({ guesses }) => {
@@ -333,6 +343,7 @@ const Multiplayer = () => {
       newSocket.off('boardcastTeamGuess');
       newSocket.off('syncWaiting');
       newSocket.off('syncRoundStart');
+      newSocket.off('nonstopProgress');
       newSocket.disconnect();
     };
   }, [navigate]);
@@ -439,6 +450,19 @@ const Multiplayer = () => {
 
   const handleGameEnd = (isWin) => {
     if (gameEndedRef.current) return;
+    
+    // 血战模式下，猜对不结束游戏，只发送 nonstopWin 事件
+    if (isWin && gameSettings.nonstopMode) {
+      socketRef.current?.emit('nonstopWin', {
+        roomId,
+        isBigWin: sessionStorage.getItem('avatarId') == answerCharacter.id
+      });
+      // 血战模式下猜对后进入观战状态，但不设置 gameEnd
+      setGameEnd(true);
+      gameEndedRef.current = true;
+      return;
+    }
+    
     gameEndedRef.current = true;
     setGameEnd(true);
     // Emit game end event to server
@@ -1057,6 +1081,21 @@ const Multiplayer = () => {
                       </div>
                     </div>
                   )}
+                  {/* 血战模式进度显示 */}
+                  {gameSettings.nonstopMode && nonstopProgress && (
+                    <div className="nonstop-progress-banner">
+                      <span>🔥 血战模式 - 剩余 {nonstopProgress.remainingCount}/{nonstopProgress.totalCount} 人</span>
+                      {nonstopProgress.winners && nonstopProgress.winners.length > 0 && (
+                        <div className="nonstop-winners">
+                          {nonstopProgress.winners.map((winner) => (
+                            <span key={winner.username} className="nonstop-winner">
+                              #{winner.rank} {winner.username} (+{winner.score}分)
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {gameSettings.timeLimit && !gameEnd && !waitingForSync && (
                     <Timer
                       timeLimit={gameSettings.timeLimit}
@@ -1106,6 +1145,21 @@ const Multiplayer = () => {
                       <div>{answerCharacter.nameCn}</div>
                     </div>
                   </div>
+                  {/* 血战模式进度显示（出题人视角） */}
+                  {gameSettings.nonstopMode && nonstopProgress && (
+                    <div className="nonstop-progress-banner">
+                      <span>🔥 血战模式 - 剩余 {nonstopProgress.remainingCount}/{nonstopProgress.totalCount} 人</span>
+                      {nonstopProgress.winners && nonstopProgress.winners.length > 0 && (
+                        <div className="nonstop-winners">
+                          {nonstopProgress.winners.map((winner) => (
+                            <span key={winner.username} className="nonstop-winner">
+                              #{winner.rank} {winner.username} (+{winner.score}分)
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {/* Switch for 简单/详细 */}
                   <div style={{ margin: '10px 0', textAlign: 'center' }}>
                     <button
