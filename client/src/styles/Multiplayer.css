@@ -685,3 +685,115 @@
 .score-table td:nth-child(4), .score-table th:nth-child(4) {
   border-left: none;
 }
+
+/* 房间列表样式 - 复用 leaderboard 样式 */
+.quick-join-btn {
+  background-color: #27ae60 !important;
+  margin-bottom: 0.5rem;
+}
+
+.quick-join-btn:hover {
+  background-color: #219a52 !important;
+}
+
+.room-list-wrapper {
+  margin-top: 20px;
+}
+
+.room-list-wrapper .leaderboard-header {
+  cursor: pointer;
+}
+
+.room-list-wrapper .leaderboard-header:hover {
+  background: #e2e8f0;
+}
+
+.room-list-wrapper .room-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.room-list-wrapper .room-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  flex: 1;
+}
+
+.room-list-wrapper .room-players-count {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.room-list-wrapper .room-players-count i {
+  margin-right: 0.5rem;
+  color: #4a90e2;
+}
+
+.room-list-wrapper .room-players-names {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.join-room-btn {
+  padding: 6px 12px;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.join-room-btn:hover {
+  background-color: #357abd;
+}
+
+/* 房间列表底部：分页和刷新 */
+.room-list-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 0 0;
+  margin-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.room-list-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-btn {
+  padding: 6px 10px;
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background-color 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #e2e8f0;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 0.85rem;
+  color: #64748b;
+  min-width: 50px;
+  text-align: center;
+}

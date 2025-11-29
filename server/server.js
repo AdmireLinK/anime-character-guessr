@@ -7,6 +7,7 @@ const {startAutoClean} = require('./utils/autoClean');
 const db = require('./utils/db');
 const fs = require('fs');
 const path = require('path');
+const characters = require('./data/character_images.json');
 
 const PORT = process.env.PORT || 3000;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
@@ -16,6 +17,18 @@ const cors_options = {
     origin: [CLIENT_URL, CLIENT_URL_EN, SERVER_URL, 'https://anime-character-guessr.netlify.app', 'https://vertikarl.github.io'],
     methods: ['GET', 'POST'],
     credentials: true
+}
+
+function getCharacterImage(id) {
+    const info = characters.find(c => c.id === id);
+    if (!info) return '';
+    if (Array.isArray(info.image_medium) && info.image_medium.length > 0) {
+        return info.image_medium[Math.floor(Math.random() * info.image_medium.length)];
+    }
+    if (Array.isArray(info.image_grid) && info.image_grid.length > 0) {
+        return info.image_grid[Math.floor(Math.random() * info.image_grid.length)];
+    }
+    return '';
 }
 
 const app = express();
@@ -106,7 +119,6 @@ app.get('/room-info/:id', (req, res) => {
 });
 
 app.get('/roulette', (req, res) => {
-    const characters = require('./data/character_images.json');
     if (!Array.isArray(characters) || characters.length < 10) {
         return res.status(500).json({ error: 'Not enough character images' });
     }
@@ -548,6 +560,78 @@ app.post('/api/subject-added', async (req, res) => {
 
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+});
+
+app.get('/api/leaderboard/characters', async (req, res) => {
+    try {
+        const topN = Number(req.query.limit) || 30;
+        const client = db.getClient();
+        const database = client.db('stats');
+        const collection = database.collection('answer_count');
+        
+        const sorted = await collection
+            .find({ count: { $gt: 0 } })
+            .sort({ count: -1 })
+            .limit(topN)
+            .toArray();
+        
+        const withImages = sorted.map(item => ({
+          ...item,
+          image: getCharacterImage(item._id)
+        }));
+        res.json(withImages);
+    } catch (error) {
+        console.error('Error fetching leaderboard characters:', error);
+        res.status(500).json({ error: 'Failed to fetch leaderboard characters' });
+    }
+});
+
+app.get('/api/leaderboard/guesses', async (req, res) => {
+    try {
+        const topN = Number(req.query.limit) || 30;
+        const client = db.getClient();
+        const database = client.db('stats');
+        const collection = database.collection('guess_count');
+        
+        const sorted = await collection
+            .find({ count: { $gt: 0 } })
+            .sort({ count: -1 })
+            .limit(topN)
+            .toArray();
+        
+        const withImages = sorted.map(item => ({
+          ...item,
+          image: getCharacterImage(item._id)
+        }));
+        res.json(withImages);
+    } catch (error) {
+        console.error('Error fetching leaderboard guesses:', error);
+        res.status(500).json({ error: 'Failed to fetch leaderboard guesses' });
+    }
+});
+
+app.get('/api/leaderboard/weekly', async (req, res) => {
+    try {
+        const topN = Number(req.query.limit) || 30;
+        const client = db.getClient();
+        const database = client.db('stats');
+        const collection = database.collection('weekly_count');
+        
+        const sorted = await collection
+            .find({ count: { $gt: 0 } })
+            .sort({ count: -1 })
+            .limit(topN)
+            .toArray();
+        
+        const withImages = sorted.map(item => ({
+          ...item,
+          image: getCharacterImage(item._id)
+        }));
+        res.json(withImages);
+    } catch (error) {
+        console.error('Error fetching leaderboard weekly:', error);
+        res.status(500).json({ error: 'Failed to fetch leaderboard weekly' });
+    }
 });
 
 
