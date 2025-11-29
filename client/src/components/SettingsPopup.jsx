@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import axiosCache from '../utils/cached-axios';
 import { getPresetConfig } from '../data/presets';
 
-function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hideRestart = false }) {
+function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hideRestart = false, isMultiplayer = false }) {
   const [indexInputValue, setIndexInputValue] = useState('');
   const [indexInfo, setIndexInfo] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -424,57 +424,61 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                 />
               </div>
               
-              <div className="settings-row">
-                <label>*全局BP</label>
-                <input
-                  type="checkbox"
-                  checked={gameSettings.globalPick}
-                  onChange={(e) => {
-                    onSettingsChange('globalPick', e.target.checked);
-                  }}
-                  style={{ marginRight: '50px', marginLeft: '0px' }}
-                />
-              </div>
+              {isMultiplayer && (
+                <>
+                  <div className="settings-row">
+                    <label>*全局BP</label>
+                    <input
+                      type="checkbox"
+                      checked={gameSettings.globalPick}
+                      onChange={(e) => {
+                        onSettingsChange('globalPick', e.target.checked);
+                      }}
+                      style={{ marginRight: '50px', marginLeft: '0px' }}
+                    />
+                  </div>
               
-              <div className="settings-row">
-                <label>*同步模式</label>
-                <span className="tooltip-trigger">
-                  ?
-                  <span className="tooltip-text">
-                    启用后，所有玩家需要等待其他玩家完成当前轮猜测后才能进行下一轮。<br/>
-                    适合想要公平竞技的场景。
-                  </span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={gameSettings.syncMode}
-                  onChange={(e) => {
-                    onSettingsChange('syncMode', e.target.checked);
-                  }}
-                  style={{ marginRight: '50px', marginLeft: '0px' }}
-                />
-              </div>
-              
-              <div className="settings-row">
-                <label>*血战模式</label>
-                <span className="tooltip-trigger">
-                  ?
-                  <span className="tooltip-text">
-                    启用后，第一个猜对的玩家不会立即结束游戏。<br/>
-                    所有玩家继续猜测，直到最后一人猜对或次数耗尽。<br/>
-                    得分：第1名得(玩家数)分，第2名得(玩家数-1)分...依此类推。<br/>
-                    出题人：猜对的人数过多和过少都会降低得分，无人猜对扣分。
-                  </span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={gameSettings.nonstopMode}
-                  onChange={(e) => {
-                    onSettingsChange('nonstopMode', e.target.checked);
-                  }}
-                  style={{ marginRight: '50px', marginLeft: '0px' }}
-                />
-              </div>
+                  <div className="settings-row">
+                    <label>*同步模式</label>
+                    <span className="tooltip-trigger">
+                      ?
+                      <span className="tooltip-text">
+                        启用后，所有玩家需要等待其他玩家完成当前轮猜测后才能进行下一轮。<br/>
+                        适合想要公平竞技的场景。
+                      </span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={gameSettings.syncMode}
+                      onChange={(e) => {
+                        onSettingsChange('syncMode', e.target.checked);
+                      }}
+                      style={{ marginRight: '50px', marginLeft: '0px' }}
+                    />
+                  </div>
+                  
+                  <div className="settings-row">
+                    <label>*血战模式</label>
+                    <span className="tooltip-trigger">
+                      ?
+                      <span className="tooltip-text">
+                        启用后，第一个猜对的玩家不会立即结束游戏。<br/>
+                        所有玩家继续猜测，直到最后一人猜对或次数耗尽。<br/>
+                        得分：第1名得(玩家数)分，第2名得(玩家数-1)分...依此类推。<br/>
+                        出题人：猜对的人数过多和过少都会降低得分，无人猜对扣分。
+                      </span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={gameSettings.nonstopMode}
+                      onChange={(e) => {
+                        onSettingsChange('nonstopMode', e.target.checked);
+                      }}
+                      style={{ marginRight: '50px', marginLeft: '0px' }}
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="settings-row">
                 <label>*时间限制</label>

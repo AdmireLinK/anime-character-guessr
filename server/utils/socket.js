@@ -487,10 +487,21 @@ function setupSocket(io, rooms) {
                 return;
             }
 
+            // 确保 nonstopWinners 数组存在
+            if (!room.currentGame.nonstopWinners) {
+                room.currentGame.nonstopWinners = [];
+            }
+
             const player = room.players.find(p => p.id === socket.id);
             if (!player) {
                 console.log(`[ERROR][nonstopWin][${socket.id}] 连接中断了`);
                 socket.emit('error', {message: 'nonstopWin: 连接中断了'});
+                return;
+            }
+
+            // 检查该玩家是否已经猜对过（防止重复提交）
+            if (room.currentGame.nonstopWinners.some(w => w.id === socket.id)) {
+                console.log(`[血战模式] ${player.username} 已经猜对过，忽略重复提交`);
                 return;
             }
 

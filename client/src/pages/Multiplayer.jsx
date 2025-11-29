@@ -455,7 +455,7 @@ const Multiplayer = () => {
     if (isWin && gameSettings.nonstopMode) {
       socketRef.current?.emit('nonstopWin', {
         roomId,
-        isBigWin: sessionStorage.getItem('avatarId') == answerCharacter.id
+        isBigWin: answerCharacter && sessionStorage.getItem('avatarId') == answerCharacter.id
       });
       // 血战模式下猜对后进入观战状态，但不设置 gameEnd
       setGameEnd(true);
@@ -466,7 +466,7 @@ const Multiplayer = () => {
     gameEndedRef.current = true;
     setGameEnd(true);
     // Emit game end event to server
-    if (sessionStorage.getItem('avatarId') == answerCharacter.id) {
+    if (answerCharacter && sessionStorage.getItem('avatarId') == answerCharacter.id) {
       socketRef.current?.emit('gameEnd', {
         roomId,
         result: isWin ? 'bigwin' : 'lose'
@@ -1316,6 +1316,7 @@ const Multiplayer = () => {
               onSettingsChange={handleSettingsChange}
               onClose={() => setShowSettings(false)}
               hideRestart={true}
+              isMultiplayer={true}
             />
           )}
 
