@@ -14,6 +14,22 @@ export default defineConfig(({ mode }) => {
           target: serverUrl,
           changeOrigin: true,
         },
+        '/room-count': {
+          target: serverUrl,
+          changeOrigin: true,
+        },
+        '/list-rooms': {
+          target: serverUrl,
+          changeOrigin: true,
+        },
+        '/quick-join': {
+          target: serverUrl,
+          changeOrigin: true,
+        },
+        '/roulette': {
+          target: serverUrl,
+          changeOrigin: true,
+        },
       },
     },
   }
