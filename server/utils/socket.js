@@ -538,15 +538,7 @@ function setupSocket(io, rooms) {
                 }
             }
 
-            // 记录猜对的玩家
-            room.currentGame.nonstopWinners.push({
-                id: socket.id,
-                username: player.username,
-                isBigWin: isBigWin,
-                team: player.team // 记录队伍信息
-            });
-
-            // 更新玩家状态
+            // 更新玩家状态（先更新，确保后续过滤正确）
             player.guesses += isBigWin ? '👑' : '✌';
 
             // 血战模式：标记同队其他玩家为已完成（自动队伍胜利）
@@ -572,7 +564,7 @@ function setupSocket(io, rooms) {
             // 获取活跃玩家（不含出题人、观察者）
             const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
             
-            // 获取尚未结束的玩家（增加🏆判断）
+            // 获取尚未结束的玩家
             const remainingPlayers = activePlayers.filter(p => 
                 !p.guesses.includes('✌') && 
                 !p.guesses.includes('💀') && 
@@ -581,29 +573,42 @@ function setupSocket(io, rooms) {
                 !p.guesses.includes('🏆')
             );
 
-            // 计算当前玩家得分：玩家总数 - 已猜对的玩家数 + 1
+            // 计算当前玩家得分：玩家总数 - 已猜对的玩家数（当前排名）
+            // winnerRank 是当前玩家的排名（1-indexed），因为在 push 之前计算
             const totalPlayers = activePlayers.length;
-            const winnerRank = room.currentGame.nonstopWinners.length;
+            const winnerRank = room.currentGame.nonstopWinners.length + 1; // +1 因为还没 push
             const score = Math.max(1, totalPlayers - winnerRank + 1);
+            
+            // 先计算好分数，再加分和记录
             player.score += score;
+            console.log(`[血战模式调试] ${player.username}(id=${socket.id}) 得分计算: totalPlayers=${totalPlayers}, winnerRank=${winnerRank}, score=${score}, newScore=${player.score}`);
 
-            // 广播血战模式进度
+            // 记录猜对的玩家（包含得分）
+            room.currentGame.nonstopWinners.push({
+                id: socket.id,
+                username: player.username,
+                isBigWin: isBigWin,
+                team: player.team,
+                score: score // 在 push 时就记录得分
+            });
+
+            // 广播血战模式进度（每个 winner 已经包含了正确的得分）
             io.to(roomId).emit('nonstopProgress', {
                 winners: room.currentGame.nonstopWinners.map((w, idx) => ({
                     username: w.username,
                     rank: idx + 1,
-                    score: Math.max(1, totalPlayers - idx)
+                    score: w.score
                 })),
                 remainingCount: remainingPlayers.length,
                 totalCount: totalPlayers
             });
 
-            // 更新玩家列表
+            // 更新玩家列表（包含最新的分数）
             io.to(roomId).emit('updatePlayers', {
                 players: room.players
             });
 
-            console.log(`[血战模式] ${player.username} 第${winnerRank}个猜对，得${score}分，剩余${remainingPlayers.length}人`);
+            console.log(`[血战模式] ${player.username} 第${winnerRank}个猜对，得${score}分，剩余${remainingPlayers.length}人，当前分数=${player.score}`);
 
             // 检查是否所有人都已结束（猜对或失败）
             if (remainingPlayers.length === 0) {
@@ -870,12 +875,12 @@ function setupSocket(io, rooms) {
                     !p.guesses.includes('🏆')
                 );
 
-                // 广播血战模式进度
+                // 广播血战模式进度（使用记录的实际得分）
                 io.to(roomId).emit('nonstopProgress', {
                     winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({
                         username: w.username,
                         rank: idx + 1,
-                        score: Math.max(1, activePlayers.length - idx)
+                        score: w.score || Math.max(1, activePlayers.length - idx) // 优先使用记录的得分
                     })),
                     remainingCount: remainingPlayers.length,
                     totalCount: activePlayers.length
