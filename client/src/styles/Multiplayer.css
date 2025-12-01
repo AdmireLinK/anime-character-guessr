@@ -571,6 +571,37 @@
   margin: 0 auto;
 }
 
+/* 旁观者/出题人模式下的猜测历史表格 */
+.answer-setter-view .guess-history-table {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0 auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.answer-setter-view .guess-history-table::-webkit-scrollbar {
+  height: 8px;
+}
+
+.answer-setter-view .guess-history-table::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.answer-setter-view .guess-history-table::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.answer-setter-view .guess-history-table::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.answer-setter-view .guess-history-table table {
+  margin: 0 auto;
+}
+
 .answer-setter-view h3 {
   text-align: center;
   color: #4a90e2;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { io } from 'socket.io-client';
@@ -1127,9 +1127,9 @@ const Multiplayer = () => {
                     subjectSearch={gameSettings.subjectSearch}
                   />
                   {/* 同步模式等待提示 */}
-                  {waitingForSync && gameSettings.syncMode && (
+                  {gameSettings.syncMode && (
                     <div className="sync-waiting-banner">
-                      <span>等待其他玩家完成本轮猜测 ({syncStatus.completedCount || 0}/{syncStatus.totalCount || 0})</span>
+                      <span>⏳ 同步模式 - 第 {syncStatus.round || 1} 轮 ({syncStatus.completedCount || 0}/{syncStatus.totalCount || players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length})</span>
                       <div className="sync-status">
                         {syncStatus.syncStatus && syncStatus.syncStatus.map((player) => (
                           <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
@@ -1140,10 +1140,10 @@ const Multiplayer = () => {
                     </div>
                   )}
                   {/* 血战模式进度显示 */}
-                  {gameSettings.nonstopMode && nonstopProgress && (
+                  {gameSettings.nonstopMode && (
                     <div className="nonstop-progress-banner">
-                      <span>🔥 血战模式 - 剩余 {nonstopProgress.remainingCount}/{nonstopProgress.totalCount} 人</span>
-                      {nonstopProgress.winners && nonstopProgress.winners.length > 0 && (
+                      <span>🔥 血战模式 - 剩余 {nonstopProgress?.remainingCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length}/{nonstopProgress?.totalCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length} 人</span>
+                      {nonstopProgress?.winners && nonstopProgress.winners.length > 0 && (
                         <div className="nonstop-winners">
                           {nonstopProgress.winners.map((winner) => (
                             <span key={winner.username} className="nonstop-winner">
@@ -1203,11 +1203,11 @@ const Multiplayer = () => {
                       <div>{answerCharacter.nameCn}</div>
                     </div>
                   </div>
-                  {/* 血战模式进度显示（出题人视角） */}
-                  {gameSettings.nonstopMode && nonstopProgress && (
+                  {/* 血战模式进度显示（出题人视角）  */}
+                  {gameSettings.nonstopMode && (
                     <div className="nonstop-progress-banner">
-                      <span>🔥 血战模式 - 剩余 {nonstopProgress.remainingCount}/{nonstopProgress.totalCount} 人</span>
-                      {nonstopProgress.winners && nonstopProgress.winners.length > 0 && (
+                      <span>🔥 血战模式 - 剩余 {nonstopProgress?.remainingCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length}/{nonstopProgress?.totalCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length} 人</span>
+                      {nonstopProgress?.winners && nonstopProgress.winners.length > 0 && (
                         <div className="nonstop-winners">
                           {nonstopProgress.winners.map((winner) => (
                             <span key={winner.username} className="nonstop-winner">
@@ -1219,11 +1219,11 @@ const Multiplayer = () => {
                     </div>
                   )}
                   {/* 同步模式进度显示（出题人/旁观者视角） */}
-                  {gameSettings.syncMode && syncStatus.syncStatus && (
+                  {gameSettings.syncMode && (
                     <div className="sync-waiting-banner">
-                      <span>⏳ 同步模式 - 第 {syncStatus.round || 1} 轮 ({syncStatus.completedCount || 0}/{syncStatus.totalCount || 0})</span>
+                      <span>⏳ 同步模式 - 第 {syncStatus.round || 1} 轮 ({syncStatus.completedCount || 0}/{syncStatus.totalCount || players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length})</span>
                       <div className="sync-status">
-                        {syncStatus.syncStatus.map((player) => (
+                        {syncStatus.syncStatus && syncStatus.syncStatus.map((player) => (
                           <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
                             {player.username}: {player.completed ? '✓' : '...'}
                           </span>
