@@ -173,21 +173,19 @@ html, body, #root {
 
 /* 同步模式等待提示横幅样式 */
 .sync-waiting-banner {
-  background: white;
-  color: #1e293b;
-  padding: 12px 20px;
-  border-radius: 12px;
-  margin: 16px 0;
+  background-color: #f5f5f5;
+  color: #333;
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 1rem 0;
   text-align: center;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
 }
 
 /* 等待提示文字样式 */
 .sync-waiting-banner > span {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 500;
-  color: #64748b;
+  color: #666;
 }
 
 /* 玩家同步状态容器 */
@@ -201,25 +199,26 @@ html, body, #root {
 
 /* 单个玩家状态标签 */
 .sync-player {
+  display: inline-block;
   padding: 4px 12px;
-  border-radius: 16px;
+  border-radius: 4px;
   font-size: 0.9rem;
   font-weight: 500;
   transition: all 0.3s ease;
 }
 
-/* 已完成状态 - 绿色 */
+/* 已完成状态 - 使用与共同标签一致的绿色 */
 .sync-player.done {
-  background-color: #dcfce7;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
+  background-color: #bbf7d0;
+  color: #14532d;
+  border: 1px solid #86efac;
 }
 
 /* 等待中状态 - 灰色 + 呼吸动画 */
 .sync-player.waiting {
-  background-color: #f1f5f9;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
+  background-color: #e9ecef;
+  color: #666;
+  border: 1px solid #dee2e6;
   animation: waiting-pulse 1.5s ease-in-out infinite;
 }
 
@@ -235,20 +234,18 @@ html, body, #root {
 
 /* 血战模式进度横幅样式 */
 .nonstop-progress-banner {
-  background: white;
-  color: #1e293b;
-  padding: 12px 20px;
-  border-radius: 12px;
-  margin: 16px 0;
+  background-color: #f5f5f5;
+  color: #333;
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 1rem 0;
   text-align: center;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
 }
 
 .nonstop-progress-banner > span {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: #ea580c;
+  color: #e67e22;
 }
 
 /* 血战模式获胜者列表 */
@@ -260,13 +257,13 @@ html, body, #root {
   margin-top: 10px;
 }
 
-/* 单个获胜者标签 */
+/* 单个获胜者标签 - 使用与共同标签一致的绿色 */
 .nonstop-winner {
   padding: 4px 12px;
-  border-radius: 16px;
+  border-radius: 4px;
   font-size: 0.9rem;
   font-weight: 500;
-  background-color: #fff7ed;
-  color: #c2410c;
-  border: 1px solid #fed7aa;
+  background-color: #bbf7d0;
+  color: #14532d;
+  border: 1px solid #86efac;
 }
