@@ -1127,7 +1127,7 @@ const Multiplayer = () => {
                     subjectSearch={gameSettings.subjectSearch}
                   />
                   {/* 同步模式等待提示 */}
-                  {waitingForSync && gameSettings.syncMode && (
+                  {gameSettings.syncMode && (waitingForSync || (gameSettings.nonstopMode && gameEnd && syncStatus.syncStatus && syncStatus.completedCount < syncStatus.totalCount)) && (
                     <div className="sync-waiting-banner">
                       <span>等待其他玩家完成本轮猜测 ({syncStatus.completedCount || 0}/{syncStatus.totalCount || 0})</span>
                       <div className="sync-status">
