@@ -56,9 +56,13 @@ function ModifiedTagDisplay({ guessCharacter, answerCharacter }) {
     return <div className="modified-tag-display empty">没有标签……<br/>（可能是作者尚未录入）</div>;
   }
 
+  const sections = Object.entries(guessTagData).filter(
+    ([section, tags]) => section !== '_name' && tags && typeof tags === 'object'
+  );
+
   return (
     <div className="modified-tag-display horizontal-sections">
-      {Object.entries(guessTagData).map(([section, tags], idx, arr) => (
+      {sections.map(([section, tags], idx, arr) => (
         <div key={section} className="tag-section-horizontal">
           <div className="meta-tags-container horizontal">
             {Object.entries(tags).map(([tagKey, tagContent]) => {
