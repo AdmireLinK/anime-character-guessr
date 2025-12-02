@@ -416,13 +416,8 @@ function setupSocket(io, rooms) {
 
             // 同步模式：跟踪玩家完成状态并处理回合同步
             if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
-                if (guessResult.isCorrect) {
-                    // 玩家猜对了，从同步跟踪中移除
-                    room.currentGame.syncPlayersCompleted.delete(socket.id);
-                } else {
-                    // 标记该玩家已完成当前同步轮次
-                    room.currentGame.syncPlayersCompleted.add(socket.id);
-                }
+                // 标记该玩家已完成当前同步轮次
+                room.currentGame.syncPlayersCompleted.add(socket.id);
 
                 // 获取所有需要完成本轮的活跃玩家（排除观察者、出题人、已断开连接、已结束的玩家）
                 const activePlayers = room.players.filter(p => 
