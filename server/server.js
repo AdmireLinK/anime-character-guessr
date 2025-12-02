@@ -436,34 +436,21 @@ app.post('/api/answer-character-count', async (req, res) => {
 
         const client = db.getClient();
         let database = client.db('stats');
-        let collection = database.collection('weekly_count');
+        let collection = database.collection('answer_count');
 
-        await collection.updateOne(
-        { _id: characterId },
-        { 
-            $inc: { count: 1 },
-            $set: { characterName: characterName.trim() }
-        },
-        { upsert: true }
+        let result = await collection.updateOne(
+            { _id: characterId },
+            { 
+                $inc: { count: 1 },
+                $set: { characterName: characterName.trim() }
+            },
+            { upsert: true }
         );
-
-        database = client.db('stats');
-        collection = database.collection('answer_count');
-
-        result = await collection.updateOne(
-        { _id: characterId },
-        { 
-            $inc: { count: 1 },
-            $set: { characterName: characterName.trim() }
-        },
-        { upsert: true }
-        );
-
         res.json({
-        message: 'Character answer count updated successfully',
-        characterId,
-        updated: result.modifiedCount > 0,
-        created: result.upsertedCount > 0
+            message: 'Character answer count updated successfully',
+            characterId,
+            updated: result.modifiedCount > 0,
+            created: result.upsertedCount > 0
         });
     } catch (error) {
         console.error('Error updating character answer count:', error);
@@ -487,24 +474,24 @@ app.post('/api/guess-character-count', async (req, res) => {
         let collection = database.collection('weekly_count');
 
         await collection.updateOne(
-        { _id: characterId },
-        { 
-            $inc: { count: 1 },
-            $set: { characterName: characterName.trim() }
-        },
-        { upsert: true }
+            { _id: characterId },
+            { 
+                $inc: { count: 1 },
+                $set: { characterName: characterName.trim() }
+            },
+            { upsert: true }
         );
 
         database = client.db('stats');
         collection = database.collection('guess_count');
 
         result = await collection.updateOne(
-        { _id: characterId },
-        { 
-            $inc: { count: 1 },
-            $set: { characterName: characterName.trim() }
-        },
-        { upsert: true }
+            { _id: characterId },
+            { 
+                $inc: { count: 1 },
+                $set: { characterName: characterName.trim() }
+            },
+            { upsert: true }
         );
 
         res.json({
