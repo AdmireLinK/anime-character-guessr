@@ -988,6 +988,7 @@ const Multiplayer = () => {
                           <div className="room-info">
                             <span className="room-players-count">
                               <i className="fas fa-users"></i> {room.playerCount}人
+                              {room.isGameStarted && <span className="room-status-badge">游戏中</span>}
                             </span>
                             <span className="room-players-names">
                               {room.players.slice(0, 3).join(', ')}
@@ -995,10 +996,10 @@ const Multiplayer = () => {
                             </span>
                           </div>
                           <button 
-                            className="join-room-btn"
+                            className={`join-room-btn ${room.isGameStarted ? 'spectate-btn' : ''}`}
                             onClick={() => handleJoinSpecificRoom(room.id)}
                           >
-                            加入
+                            {room.isGameStarted ? '观战' : '加入'}
                           </button>
                         </div>
                       ))}
