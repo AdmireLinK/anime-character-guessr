@@ -38,6 +38,7 @@ const Multiplayer = () => {
   const [error, setError] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [isPublic, setIsPublic] = useState(true);
+  const [roomName, setRoomName] = useState('');
   const [isManualMode, setIsManualMode] = useState(false);
   const [answerSetterId, setAnswerSetterId] = useState(null);
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
@@ -121,6 +122,10 @@ const Multiplayer = () => {
       if (answerSetterId !== undefined) {
         setAnswerSetterId(answerSetterId);
       }
+    });
+
+    newSocket.on('roomNameUpdated', ({ roomName: updatedRoomName }) => {
+      setRoomName(updatedRoomName || '');
     });
 
     newSocket.on('waitForAnswer', ({ answerSetterId }) => {
@@ -379,6 +384,7 @@ const Multiplayer = () => {
       newSocket.off('syncRoundStart');
       newSocket.off('nonstopProgress');
       newSocket.off('teamWin');
+      newSocket.off('roomNameUpdated');
       newSocket.disconnect();
     };
   }, [navigate]);
@@ -785,6 +791,26 @@ const Multiplayer = () => {
     socketRef.current?.emit('toggleRoomVisibility', { roomId });
   };
 
+  const handleRoomNameChange = (event) => {
+    setRoomName(event.target.value);
+  };
+
+  const handleRoomNameBlur = () => {
+    if (!isHost || !socketRef.current) return;
+    const trimmed = roomName.trim();
+    if (trimmed !== roomName) {
+      setRoomName(trimmed);
+    }
+    socketRef.current.emit('updateRoomName', { roomId, roomName: trimmed });
+  };
+
+  const handleRoomNameKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      event.currentTarget.blur();
+    }
+  };
+
   const handleSetAnswer = async ({ character, hints }) => {
     try {
       character.rawTags = Array.from(character.rawTags.entries());
@@ -990,10 +1016,16 @@ const Multiplayer = () => {
                               <i className="fas fa-users"></i> {room.playerCount}人
                               {room.isGameStarted && <span className="room-status-badge">游戏中</span>}
                             </span>
-                            <span className="room-players-names">
-                              {room.players.slice(0, 3).join(', ')}
-                              {room.players.length > 3 && '...'}
-                            </span>
+                            {room.roomName?.trim() ? (
+                              <span className="room-players-names">
+                                {room.roomName}
+                              </span>
+                            ) : (
+                              <span className="room-players-names">
+                                {room.players.slice(0, 3).join(', ')}
+                                {room.players.length > 3 && '...'}
+                              </span>
+                            )}
                           </div>
                           <button 
                             className={`join-room-btn ${room.isGameStarted ? 'spectate-btn' : ''}`}
@@ -1074,32 +1106,48 @@ const Multiplayer = () => {
               {isHost && !waitingForAnswer && (
                 <div className="host-game-controls">
                   <div className="button-group">
-                    <button
-                      onClick={handleVisibilityToggle}
-                      className="visibility-button"
-                    >
-                      {isPublic ? '🔓公开' : '🔒私密'}
-                    </button>
-                    <button
-                      onClick={() => setShowSettings(true)}
-                      className="settings-button"
-                    >
-                      设置
-                    </button>
-                    <button
-                      onClick={handleStartGame}
-                      className="start-game-button"
-                      disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
-                    >
-                      开始
-                    </button>
-                    <button
-                      onClick={handleManualMode}
-                      className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                      disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
-                    >
-                      有人想出题？
-                    </button>
+                    <div className="button-row">
+                      <button
+                        onClick={() => setShowSettings(true)}
+                        className="settings-button"
+                      >
+                        设置
+                      </button>
+                      <button
+                        onClick={handleVisibilityToggle}
+                        className="visibility-button"
+                      >
+                        {isPublic ? '🔓公开' : '🔒私密'}
+                      </button>
+                      {isPublic && (
+                        <input
+                          type="text"
+                          value={roomName}
+                          placeholder="房间名（可选）"
+                          maxLength={15}
+                          style={{ width: '12rem' }}
+                          onChange={handleRoomNameChange}
+                          onBlur={handleRoomNameBlur}
+                          onKeyDown={handleRoomNameKeyDown}
+                        />
+                      )}
+                    </div>
+                    <div className="button-row">
+                      <button
+                        onClick={handleStartGame}
+                        className="start-game-button"
+                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
+                      >
+                        开始
+                      </button>
+                      <button
+                        onClick={handleManualMode}
+                        className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
+                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
+                      >
+                        有人想出题？
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1300,32 +1348,48 @@ const Multiplayer = () => {
               {isHost && (
                 <div className="host-game-controls">
                   <div className="button-group">
-                    <button
-                      onClick={handleVisibilityToggle}
-                      className="visibility-button"
-                    >
-                      {isPublic ? '🔓公开' : '🔒私密'}
-                    </button>
-                    <button
-                      onClick={() => setShowSettings(true)}
-                      className="settings-button"
-                    >
-                      设置
-                    </button>
-                    <button
-                      onClick={handleStartGame}
-                      className="start-game-button"
-                      disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
-                    >
-                      开始
-                    </button>
-                    <button
-                      onClick={handleManualMode}
-                      className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                      disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
-                    >
-                      有人想出题？
-                    </button>
+                    <div className="button-row">
+                      <button
+                        onClick={() => setShowSettings(true)}
+                        className="settings-button"
+                      >
+                        设置
+                      </button>
+                      <button
+                        onClick={handleVisibilityToggle}
+                        className="visibility-button"
+                      >
+                        {isPublic ? '🔓公开' : '🔒私密'}
+                      </button>
+                      {isPublic && (
+                        <input
+                          type="text"
+                          value={roomName}
+                          placeholder="房间名（可选）"
+                          maxLength={15}
+                          style={{ width: '12rem' }}
+                          onChange={handleRoomNameChange}
+                          onBlur={handleRoomNameBlur}
+                          onKeyDown={handleRoomNameKeyDown}
+                        />
+                      )}
+                    </div>
+                    <div className="button-row">
+                      <button
+                        onClick={handleStartGame}
+                        className="start-game-button"
+                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
+                      >
+                        开始
+                      </button>
+                      <button
+                        onClick={handleManualMode}
+                        className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
+                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
+                      >
+                        有人想出题？
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

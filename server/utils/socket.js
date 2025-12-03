@@ -38,6 +38,7 @@ function setupSocket(io, rooms) {
                     ...(avatarId !== undefined && { avatarId }),
                     ...(avatarImage !== undefined && { avatarImage })
                 }],
+                roomName: '',
                 lastActive: Date.now()
             });
     
@@ -48,6 +49,9 @@ function setupSocket(io, rooms) {
             io.to(roomId).emit('updatePlayers', {
                 players: rooms.get(roomId).players,
                 isPublic: rooms.get(roomId).isPublic
+            });
+            socket.emit('roomNameUpdated', {
+                roomName: rooms.get(roomId).roomName || ''
             });
     
             console.log(`Room ${roomId} created by ${username}`);
@@ -80,6 +84,7 @@ function setupSocket(io, rooms) {
                         ...(avatarId !== undefined && { avatarId }),
                         ...(avatarImage !== undefined && { avatarImage })
                     }],
+                    roomName: '',
                     lastActive: Date.now()
                 });
         
@@ -95,6 +100,9 @@ function setupSocket(io, rooms) {
                 io.to(roomId).emit('updatePlayers', {
                     players: rooms.get(roomId).players,
                     isPublic: rooms.get(roomId).isPublic
+                });
+                socket.emit('roomNameUpdated', {
+                    roomName: rooms.get(roomId).roomName || ''
                 });
                 
                 console.log(`Room ${roomId} created by ${username}`);
@@ -132,6 +140,9 @@ function setupSocket(io, rooms) {
                     io.to(roomId).emit('updatePlayers', {
                         players: room.players,
                         isPublic: room.isPublic
+                    });
+                    socket.emit('roomNameUpdated', {
+                        roomName: room.roomName || ''
                     });
                     
                     
@@ -194,6 +205,9 @@ function setupSocket(io, rooms) {
             io.to(roomId).emit('updatePlayers', {
                 players: room.players,
                 isPublic: room.isPublic
+            });
+            socket.emit('roomNameUpdated', {
+                roomName: room.roomName || ''
             });
     
             // If a game is in progress, send the current game state to the joining player (observer)
@@ -1343,6 +1357,37 @@ function setupSocket(io, rooms) {
             });
     
             console.log(`Room ${roomId} visibility changed to ${room.isPublic ? 'public' : 'private'}`);
+        });
+
+        socket.on('updateRoomName', ({roomId, roomName}) => {
+            const room = rooms.get(roomId);
+            if (room) room.lastActive = Date.now();
+
+            if (!room) {
+                console.log(`[ERROR][updateRoomName][${socket.id}] 房间不存在`);
+                socket.emit('error', {message: 'updateRoomName: 房间不存在'});
+                return;
+            }
+
+            const player = room.players.find(p => p.id === socket.id);
+            if (!player || !player.isHost) {
+                console.log(`[ERROR][updateRoomName][${socket.id}] 只有房主可以修改房名`);
+                socket.emit('error', {message: 'updateRoomName: 只有房主可以修改房名'});
+                return;
+            }
+
+            let normalizedName = '';
+            if (typeof roomName === 'string') {
+                normalizedName = roomName.trim().slice(0, 30);
+            }
+
+            room.roomName = normalizedName;
+
+            io.to(roomId).emit('roomNameUpdated', {
+                roomName: normalizedName
+            });
+
+            console.log(`Room ${roomId} name updated to ${normalizedName || '(empty)'}`);
         });
     
         // Handle entering manual mode

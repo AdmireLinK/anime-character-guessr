@@ -124,7 +124,8 @@ app.get('/list-rooms', (req, res) => {
         isPublic: room.isPublic,
         playerCount: room.players.length,
         players: room.players.map(player => player.username),
-        isGameStarted: !!room.currentGame // 游戏是否已开始
+        isGameStarted: !!room.currentGame, // 游戏是否已开始
+        roomName: room.roomName || ''
     }));
     res.json(roomsList);
 });
