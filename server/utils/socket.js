@@ -342,7 +342,8 @@ function setupSocket(io, rooms) {
                 character,
                 settings,
                 players: room.players,
-                isPublic: false
+                isPublic: room.isPublic,
+                isGameStarted: true
             });
     
             console.log(`Game started in room ${roomId}`);
@@ -1559,7 +1560,8 @@ function setupSocket(io, rooms) {
                 character,
                 settings: room.settings,
                 players: room.players,
-                isPublic: false,
+                isPublic: room.isPublic,
+                isGameStarted: true,
                 hints: hints,
                 isAnswerSetter: false
             });
@@ -1569,7 +1571,8 @@ function setupSocket(io, rooms) {
                 character,
                 settings: room.settings,
                 players: room.players,
-                isPublic: false,
+                isPublic: room.isPublic,
+                isGameStarted: true,
                 hints: hints,
                 isAnswerSetter: true
             });

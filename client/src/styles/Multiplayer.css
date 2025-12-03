@@ -786,6 +786,27 @@
   background-color: #357abd;
 }
 
+/* 观战按钮样式 */
+.join-room-btn.spectate-btn {
+  background-color: #9b59b6;
+}
+
+.join-room-btn.spectate-btn:hover {
+  background-color: #8e44ad;
+}
+
+/* 房间状态标识 */
+.room-status-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background-color: #e74c3c;
+  color: white;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
 /* 房间列表底部：分页和刷新 */
 .room-list-footer {
   display: flex;
