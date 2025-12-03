@@ -99,6 +99,7 @@ const Multiplayer = () => {
   const [isAnswerSetter, setIsAnswerSetter] = useState(false);
   const [kickNotification, setKickNotification] = useState(null);
   const [answerViewMode, setAnswerViewMode] = useState('simple'); // 'simple' or 'detailed'
+  const [isGuessTableCollapsed, setIsGuessTableCollapsed] = useState(false); // 折叠猜测表格（只显示最新3个）
   const [waitingForSync, setWaitingForSync] = useState(false); // 同步模式：等待其他玩家
   const [syncStatus, setSyncStatus] = useState({}); // 同步模式：各玩家状态
   const [nonstopProgress, setNonstopProgress] = useState(null); // 血战模式：进度信息
@@ -1281,10 +1282,10 @@ const Multiplayer = () => {
                     </div>
                   )}
                   {/* Switch for 简单/详细 */}
-                  <div style={{ margin: '10px 0', textAlign: 'center' }}>
+                  <div style={{ margin: '10px 0', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
                     <button
                       className={answerViewMode === 'simple' ? 'active' : ''}
-                      style={{ marginRight: 8, padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: answerViewMode === 'simple' ? '#e0e0e0' : '#fff', cursor: 'pointer', color: 'inherit' }}
+                      style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: answerViewMode === 'simple' ? '#e0e0e0' : '#fff', cursor: 'pointer', color: 'inherit' }}
                       onClick={() => setAnswerViewMode('simple')}
                     >
                       简单
@@ -1296,6 +1297,16 @@ const Multiplayer = () => {
                     >
                       详细
                     </button>
+                    <div className="settings-row" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
+                      <label style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => setIsGuessTableCollapsed(!isGuessTableCollapsed)}>
+                        只显示最新3条
+                      </label>
+                      <input
+                        type="checkbox"
+                        checked={isGuessTableCollapsed}
+                        onChange={(e) => setIsGuessTableCollapsed(e.target.checked)}
+                      />
+                    </div>
                   </div>
                   {answerViewMode === 'simple' ? (
                     <div className="guess-history-table">
@@ -1310,21 +1321,28 @@ const Multiplayer = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {Array.from({ length: Math.max(...guessesHistory.map(g => g.guesses.length)) }).map((_, rowIndex) => (
-                            <tr key={rowIndex}>
-                              {guessesHistory.map(playerGuesses => (
-                                <td key={playerGuesses.username}>
-                                  {playerGuesses.guesses[rowIndex] && (
-                                    <>
-                                      <img className="character-icon" src={playerGuesses.guesses[rowIndex].guessData.image} alt={playerGuesses.guesses[rowIndex].guessData.name} />
-                                      <div className="character-name">{playerGuesses.guesses[rowIndex].guessData.name}</div>
-                                      <div className="character-name-cn">{playerGuesses.guesses[rowIndex].guessData.nameCn}</div>
-                                    </>
-                                  )}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
+                          {(() => {
+                            const maxRows = Math.max(...guessesHistory.map(g => g.guesses.length));
+                            const startRow = isGuessTableCollapsed ? Math.max(0, maxRows - 3) : 0;
+                            return Array.from({ length: maxRows - startRow }).map((_, idx) => {
+                              const rowIndex = startRow + idx;
+                              return (
+                                <tr key={rowIndex}>
+                                  {guessesHistory.map(playerGuesses => (
+                                    <td key={playerGuesses.username}>
+                                      {playerGuesses.guesses[rowIndex] && (
+                                        <>
+                                          <img className="character-icon" src={playerGuesses.guesses[rowIndex].guessData.image} alt={playerGuesses.guesses[rowIndex].guessData.name} />
+                                          <div className="character-name">{playerGuesses.guesses[rowIndex].guessData.name}</div>
+                                          <div className="character-name-cn">{playerGuesses.guesses[rowIndex].guessData.nameCn}</div>
+                                        </>
+                                      )}
+                                    </td>
+                                  ))}
+                                </tr>
+                              );
+                            });
+                          })()}
                         </tbody>
                       </table>
                     </div>
@@ -1334,6 +1352,8 @@ const Multiplayer = () => {
                         guesses={guesses}
                         gameSettings={gameSettings}
                         answerCharacter={answerCharacter}
+                        collapsedCount={isGuessTableCollapsed ? 3 : 0}
+                        onCollapsedChange={setIsGuessTableCollapsed}
                       />
                     </div>
                   )}

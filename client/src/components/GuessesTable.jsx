@@ -3,12 +3,21 @@ import { useState } from 'react';
 import ModifiedTagDisplay from './ModifiedTagDisplay';
 import { subjectsWithExtraTags } from '../data/extra_tag_subjects';
 
-function GuessesTable({ guesses, gameSettings, answerCharacter }) {
+function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount = 0, onCollapsedChange }) {
   const [clickedExpandTags, setClickedExpandTags] = useState(new Set());
   const [externalTagMode, setExternalTagMode] = useState(false);
 
+  // 是否显示折叠控制（只有传入 onCollapsedChange 时才显示）
+  const showCollapseControl = typeof onCollapsedChange === 'function';
+  const isCollapsed = collapsedCount > 0;
+
+  // 如果指定了折叠数量，只显示最新的 N 条记录
+  const displayGuesses = collapsedCount > 0 && guesses.length > collapsedCount
+    ? guesses.slice(-collapsedCount)
+    : guesses;
+
   // Determine if any guess could have extra tags
-  const hasAnyExtraTags = guesses.some(guess =>
+  const hasAnyExtraTags = displayGuesses.some(guess =>
     Array.isArray(guess.appearanceIds) && guess.appearanceIds.some(id => subjectsWithExtraTags.has(id))
   );
 
@@ -90,7 +99,7 @@ function GuessesTable({ guesses, gameSettings, answerCharacter }) {
           </tr>
         </thead>
         <tbody>
-          {guesses.map((guess, guessIndex) => (
+          {displayGuesses.map((guess, guessIndex) => (
             <tr key={guessIndex}>
               <td>
                 <img src={guess.icon} alt="character" className="character-icon" />
