@@ -162,6 +162,7 @@ function setupSocket(io, rooms) {
                     guesses: '',
                     message: '',
                     team: null,
+                    disconnected: false,
                     ...(avatarId !== undefined && { avatarId }),
                     ...(avatarImage !== undefined && { avatarImage })
                 }],
@@ -208,6 +209,7 @@ function setupSocket(io, rooms) {
                         guesses: '',
                         message: '',
                         team: null,
+                        disconnected: false,
                         ...(avatarId !== undefined && { avatarId }),
                         ...(avatarImage !== undefined && { avatarImage })
                     }],
@@ -238,7 +240,7 @@ function setupSocket(io, rooms) {
     
             // Check for existing player with same username (case-insensitive)
             const existingPlayerIndex = room.players.findIndex(
-                player => player.username === username
+                player => player.username.toLowerCase() === username.toLowerCase()
             );
     
             if (existingPlayerIndex !== -1) {
@@ -302,7 +304,10 @@ function setupSocket(io, rooms) {
             // Check for duplicate avatarId (only for active players)
             if (avatarId !== undefined) {
                 const isAvatarTaken = room.players.some(player => 
-                    player.avatarId !== undefined && String(player.avatarId)!=='0' && String(player.avatarId) === String(avatarId)
+                    !player.disconnected &&
+                    player.avatarId !== undefined && 
+                    String(player.avatarId) !== '0' && 
+                    String(player.avatarId) === String(avatarId)
                 );
                 if (isAvatarTaken) {
                     console.log(`[ERROR][joinRoom][${socket.id}] 头像已被选用`);
@@ -321,6 +326,7 @@ function setupSocket(io, rooms) {
                 guesses: '',
                 message: '',
                 team: room.currentGame? '0' : null,
+                disconnected: false,
                 ...(avatarId !== undefined && { avatarId }),
                 ...(avatarImage !== undefined && { avatarImage })
             });
