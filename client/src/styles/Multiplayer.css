@@ -1,6 +1,9 @@
-.container {
+.game-end-view-container {
   margin: 0.5rem;
   padding: 0.5rem;
+  width: 100%;
+  max-width: 1400px;
+  box-sizing: border-box;
 }
 
 .multiplayer-container {
@@ -415,6 +418,333 @@
 
 .character-details-button:hover {
   background-color: #357abd;
+}
+
+/* 游戏结束消息表格样式 */
+.game-end-message-table-wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.game-end-message-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.game-end-header-cell {
+  background: #f1f5f9;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  text-align: center;
+}
+
+.game-end-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.game-end-body-cell {
+  background: #fff;
+  padding: 0.75rem 1rem;
+}
+
+/* 游戏结束消息区域 - 旧样式保留以防万一，但主要使用上面的表格样式 */
+.game-end-message {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 游戏结束头部样式 - 灰色背景 */
+.game-end-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background: #f1f5f9;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.answer-label {
+  font-size: 1rem;
+  color: #1e293b;
+}
+
+.answer-character-button {
+  background: #64748b;
+  color: #fff;
+  border: 1px solid transparent; /* 预留边框位置 */
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box; /* 确保padding和border包含在尺寸内 */
+}
+
+.answer-character-button:hover {
+  background: #475569;
+}
+
+.answer-character-button:active {
+  background: #334155;
+}
+
+/* 猜对 - 绿色背景 */
+.answer-character-button.win {
+  background: #22c55e;
+}
+
+.answer-character-button.win:hover {
+  background: #16a34a;
+}
+
+/* 没猜对 - 红色背景 */
+.answer-character-button.lose {
+  background: #ef4444;
+}
+
+.answer-character-button.lose:hover {
+  background: #dc2626;
+}
+
+/* 出题人信息（第一行内联） */
+.setter-info-inline {
+  font-size: 1rem;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.setter-name {
+  font-weight: 500;
+  color: #1e293b;
+  margin: 0 0.15rem;
+}
+
+.setter-score {
+  font-weight: 600;
+}
+
+.setter-score.positive {
+  color: #10b981;
+}
+
+.setter-score.negative {
+  color: #ef4444;
+}
+
+.score-breakdown {
+  color: #64748b;
+  font-size: 0.8rem;
+  margin-left: 0.25rem;
+  font-weight: normal;
+}
+
+/* 得分详情样式 */
+.score-details-container {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #fff;
+}
+
+.mode-tags {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.mode-tag {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.mode-tag.normal {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+}
+
+.mode-tag.nonstop {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.mode-tag.sync {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.score-details-title {
+  font-size: 1rem;
+  color: #1e293b;
+}
+
+.score-details-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: flex-start;
+  justify-content: center; /* 优先居中 */
+}
+
+/* 个人得分圆角矩形样式（单行） */
+.player-score-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 1rem;
+  color: #1e293b;
+  padding: 0.25rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.player-score-box.positive {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.player-score-box.negative {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.player-score-box .player-rank {
+  font-weight: 600;
+  color: #64748b;
+}
+
+.player-score-box .player-name {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.player-score-box .score-value {
+  font-weight: 600;
+}
+
+.player-score-box .score-value.positive {
+  color: #10b981;
+}
+
+.player-score-box .score-value.negative {
+  color: #ef4444;
+}
+
+/* .score-breakdown 样式已在上方通用定义 */
+
+/* 团队圆角矩形样式 */
+.team-box {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  overflow: hidden;
+}
+
+.team-box.positive {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.team-box.negative {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.team-box .team-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  color: #1e293b;
+}
+
+.team-box .team-header .player-rank {
+  font-weight: 600;
+  color: #64748b;
+}
+
+.team-box .team-header .player-name {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.team-box .team-header .score-value {
+  font-weight: 600;
+}
+
+.team-box .team-header .score-value.positive {
+  color: #10b981;
+}
+
+.team-box .team-header .score-value.negative {
+  color: #ef4444;
+}
+
+.team-box .team-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.team-box.positive .team-members {
+  border-top-color: #86efac;
+}
+
+.team-box.negative .team-members {
+  border-top-color: #fca5a5;
+}
+
+.team-box .member-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 1rem;
+}
+
+.team-box .member-name {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.team-box .member-score {
+  font-weight: 600;
+}
+
+.team-box .member-score.positive {
+  color: #10b981;
+}
+
+.team-box .member-score.negative {
+  color: #ef4444;
+}
+
+.team-box .member-reason {
+  color: #64748b;
+  font-size: 0.8rem;
 }
 
 .game-end-container {
