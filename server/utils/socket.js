@@ -19,9 +19,9 @@ function calculateWinnerScore({ guesses, baseScore = 0, totalRounds = 10 }) {
         quickGuess: 0
     };
     
-    // bigwin 奖励（统一 +12），基础分由外部传入（普通模式 14 / 血战模式为排名基准）
+    // bigwin 奖励
     if (isBigWin) {
-        bonuses.bigWin = 12;
+        bonuses.bigWin = 14;
         totalScore += bonuses.bigWin;
     }
     
