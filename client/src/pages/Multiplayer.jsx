@@ -1032,19 +1032,13 @@ const Multiplayer = () => {
                         <div key={room.id} className="leaderboard-list-item room-item">
                           <div className="room-info">
                             <span className="room-players-count">
-                              <i className="fas fa-users"></i> {room.playerCount}人
+                              <i className="fas fa-users"></i> {room.displayRoomName || room.roomName || `${room.hostName || ''}的房间`} {room.playerCount}人
                               {room.isGameStarted && <span className="room-status-badge">游戏中</span>}
                             </span>
-                            {room.roomName?.trim() ? (
-                              <span className="room-players-names">
-                                {room.roomName}
-                              </span>
-                            ) : (
-                              <span className="room-players-names">
-                                {room.players.slice(0, 3).join(', ')}
-                                {room.players.length > 3 && '...'}
-                              </span>
-                            )}
+                            <span className="room-players-names">
+                              {room.players.slice(0, 3).join(', ')}
+                              {room.players.length > 3 && '...'}
+                            </span>
                           </div>
                           <button 
                             className={`join-room-btn ${room.isGameStarted ? 'spectate-btn' : ''}`}

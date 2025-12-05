@@ -2107,4 +2107,4 @@ function setupSocket(io, rooms) {
     });
 }
 
-module.exports = setupSocket; 
+module.exports = setupSocket;
