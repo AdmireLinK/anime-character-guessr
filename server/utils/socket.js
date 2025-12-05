@@ -19,12 +19,9 @@ function calculateWinnerScore({ guesses, baseScore = 0, totalRounds = 10 }) {
         quickGuess: 0
     };
     
-    // bigwin 奖励
+    // bigwin 奖励（统一 +12），基础分由外部传入（普通模式 14 / 血战模式为排名基准）
     if (isBigWin) {
-        // 普通模式 bigwin 基础分是14，血战模式为基础分额外加12
-        if (baseScore < 14) {
-            bonuses.bigWin = 12;
-        }
+        bonuses.bigWin = 12;
         totalScore += bonuses.bigWin;
     }
     
@@ -1321,18 +1318,28 @@ function setupSocket(io, rooms) {
                     totalRounds: totalRounds
                 }) : null;
                 const winnerGuessCount = winnerScoreResult?.guessCount || 0;
+
+                // 如果没有标记 bigwinner，但胜者一轮猜对，则提升为 bigwinner
+                if (!bigwinner && winner && winnerGuessCount <= 1) {
+                    winner.guesses += '👑';
+                    bigwinner = winner;
+                    winner = null;
+                    if (firstWinner && firstWinner.id === bigwinner.id) {
+                        firstWinner.isBigWin = true;
+                    }
+                }
                 
                 // 计算 bigwinner 的实际得分（用于出题人扣分计算）
                 const bigWinnerActualScore = bigwinner ? calculateWinnerScore({
                     guesses: bigwinner.guesses,
-                    baseScore: 14,
+                    baseScore: 2,
                     totalRounds: totalRounds
                 }).totalScore : 0;
                 
                 // 计算胜者的实际得分（用于 scoreDetails）
                 const winnerActualScoreResult = actualWinner ? calculateWinnerScore({
                     guesses: actualWinner.guesses,
-                    baseScore: actualWinner.guesses.includes('👑') ? 14 : 2,
+                    baseScore: 2,
                     totalRounds: totalRounds
                 }) : null;
                 
