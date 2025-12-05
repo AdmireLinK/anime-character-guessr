@@ -1,3 +1,130 @@
+/**
+ * 计算玩家胜利得分
+ * @param {Object} options - 计算选项
+ * @param {string} options.guesses - 玩家的猜测记录字符串
+ * @param {number} options.baseScore - 基础得分（普通模式为2/14，血战模式根据排名计算）
+ * @param {number} options.totalRounds - 总猜测轮数上限（用于计算快速猜对奖励，默认10）
+ * @returns {Object} - { totalScore, guessCount, isBigWin, bonuses: { bigWin, quickGuess } }
+ */
+function calculateWinnerScore({ guesses, baseScore = 0, totalRounds = 10 }) {
+    // 判断是否为 bigwin
+    const isBigWin = guesses.includes('👑');
+    
+    // 计算猜测轮数（去掉提示标记和结束标记）
+    const guessCount = guesses.replace(/[💡✌👑💀🏳️🏆⏱️]/g, '').length;
+    
+    let totalScore = baseScore;
+    const bonuses = {
+        bigWin: 0,
+        quickGuess: 0
+    };
+    
+    // bigwin 奖励
+    if (isBigWin) {
+        // 普通模式 bigwin 基础分是14，血战模式为基础分额外加12
+        if (baseScore < 14) {
+            bonuses.bigWin = 12;
+        }
+        totalScore += bonuses.bigWin;
+    }
+    
+    // 快速猜对奖励
+    // 前三轮猜对（2-3轮）额外 +2，少于总轮数一半额外 +1
+    if (!isBigWin || guessCount > 1) {
+        if (guessCount >= 2 && guessCount <= 3) {
+            bonuses.quickGuess = 2;
+        } else if (guessCount > 3 && guessCount < totalRounds / 2) {
+            bonuses.quickGuess = 1;
+        }
+    }
+    totalScore += bonuses.quickGuess;
+    
+    return { totalScore, guessCount, isBigWin, bonuses };
+}
+
+/**
+ * 计算出题人得分（普通/同步模式）
+ * @param {Object} options - 计算选项
+ * @param {string} options.winnerGuesses - 胜者的猜测记录字符串（用于判断是否 bigwin，无胜者时传空字符串）
+ * @param {number} options.winnerGuessCount - 胜者猜测次数（无胜者时传0）
+ * @param {number} options.bigWinnerScore - bigwinner 的得分（用于计算扣分，默认0）
+ * @param {number} options.totalRounds - 总猜测轮数上限（默认10）
+ * @returns {Object} - { score, reason }
+ */
+function calculateSetterScore({ winnerGuesses = '', winnerGuessCount = 0, bigWinnerScore = 0, totalRounds = 10 }) {
+    const hasWinner = winnerGuessCount > 0;
+    const hasBigWinner = winnerGuesses.includes('👑');
+    
+    if (hasBigWinner) {
+        // bigwinner 扣分为 bigwinner 得分的 1/2，向下取整，最少扣1分
+        const penalty = Math.max(1, Math.floor(bigWinnerScore / 2));
+        return { score: -penalty, reason: '纯在送分' };
+    }
+    
+    if (hasWinner) {
+        // 前三轮猜对太简单
+        if (winnerGuessCount <= 3) {
+            return { score: -1, reason: '太简单了' };
+        } else if (winnerGuessCount > totalRounds / 2) {
+            // 超过一半轮数才猜对，难度适中
+            return { score: 1, reason: '难度适中' };
+        }
+        return { score: 0, reason: '' };
+    }
+    
+    // 无人猜中
+    return { score: -1, reason: '没人猜中' };
+}
+
+/**
+ * 计算血战模式出题人得分
+ * @param {Object} options - 计算选项
+ * @param {boolean} options.hasBigWinner - 是否有本命大赢家
+ * @param {number} options.bigWinnerScore - bigwinner 的得分（用于计算扣分）
+ * @param {number} options.winnersCount - 猜对的玩家数量
+ * @param {number} options.totalPlayersCount - 总活跃玩家数量
+ * @returns {Object} - { score, reason }
+ */
+function calculateNonstopSetterScore({ hasBigWinner = false, bigWinnerScore = 0, winnersCount = 0, totalPlayersCount = 1 }) {
+    const TotalPlayers = Math.max(1, totalPlayersCount);
+    // 玩家数系数：玩家数/2 向上取整，最小为1
+    const playerMultiplier = Math.max(1, Math.ceil(TotalPlayers / 2));
+    
+    if (hasBigWinner) {
+        // 有 bigwinner，扣分为 bigwinner 得分的 1/2，向下取整，最少扣1分
+        const penalty = Math.max(1, Math.floor(bigWinnerScore / 2));
+        return { score: -penalty, reason: '纯在送分' };
+    }
+    
+    if (winnersCount === 0) {
+        // 无人猜中，出题人扣分（基础-2 × 系数）
+        const penalty = 2 * playerMultiplier;
+        return { score: -penalty, reason: '无人猜中' };
+    }
+    
+    // 根据猜对比例计算基础得分
+    const winRate = winnersCount / TotalPlayers;
+    let baseScore = 0;
+    let reason = '';
+    
+    if (winRate <= 0.25) {
+        // 猜对人数过少（≤25%），太难了
+        baseScore = 1;
+        reason = '难度偏高';
+    } else if (winRate >= 0.75) {
+        // 猜对人数过多（≥75%），太简单了
+        baseScore = 1;
+        reason = '难度偏低';
+    } else {
+        // 猜对人数适中（25%-75%），刚刚好
+        baseScore = 2;
+        reason = '难度适中';
+    }
+    
+    const score = baseScore * playerMultiplier;
+    return { score, reason };
+}
+
 function setupSocket(io, rooms) {
     io.on('connection', (socket) => {
         console.log(`A user connected: ${socket.id}`);
@@ -590,11 +717,22 @@ function setupSocket(io, rooms) {
             // winnerRank 是当前玩家的排名（1-indexed），因为在 push 之前计算
             const totalPlayers = activePlayers.length;
             const winnerRank = room.currentGame.nonstopWinners.length + 1; // +1 因为还没 push
-            const score = Math.max(1, totalPlayers - winnerRank + 1);
+            const rankScore = Math.max(1, totalPlayers - winnerRank + 1);
+            
+            // 获取总轮数上限
+            const totalRounds = room.currentGame.settings?.maxAttempts || 10;
+            
+            // 使用统一的得分计算函数
+            const scoreResult = calculateWinnerScore({
+                guesses: player.guesses,
+                baseScore: rankScore,
+                totalRounds: totalRounds
+            });
+            const score = scoreResult.totalScore;
             
             // 先计算好分数，再加分和记录
             player.score += score;
-            console.log(`[血战模式调试] ${player.username}(id=${socket.id}) 得分计算: totalPlayers=${totalPlayers}, winnerRank=${winnerRank}, score=${score}, newScore=${player.score}`);
+            console.log(`[血战模式调试] ${player.username}(id=${socket.id}) 得分计算: totalPlayers=${totalPlayers}, winnerRank=${winnerRank}, guessCount=${scoreResult.guessCount}, isBigWin=${isBigWin}, bonuses=${JSON.stringify(scoreResult.bonuses)}, score=${score}, newScore=${player.score}`);
 
             // 记录猜对的玩家（包含得分）
             room.currentGame.nonstopWinners.push({
@@ -631,39 +769,31 @@ function setupSocket(io, rooms) {
                 const totalPlayersCount = activePlayers.length;
                 
                 let message = '';
+                // 检查是否有 bigwinner 并获取其得分
+                const bigWinnerData = (room.currentGame.nonstopWinners || []).find(w => {
+                    const winnerPlayer = room.players.find(p => p.id === w.id);
+                    return winnerPlayer && winnerPlayer.guesses.includes('👑');
+                });
+                const hasBigWinner = !!bigWinnerData;
+                const bigWinnerScore = bigWinnerData?.score || 0;
+
                 if (answerSetter) {
-                    // 玩家数系数：玩家数/2 向上取整，最小为1
-                    const playerMultiplier = Math.max(1, Math.ceil(totalPlayersCount / 2));
+                    // 使用统一函数计算出题人得分
+                    const setterResult = calculateNonstopSetterScore({
+                        hasBigWinner,
+                        bigWinnerScore,
+                        winnersCount,
+                        totalPlayersCount
+                    });
                     
-                    if (winnersCount === 0) {
-                        // 无人猜中，出题人扣分（基础-2 × 系数）
-                        const penalty = 2 * playerMultiplier;
-                        answerSetter.score -= penalty;
-                        message = `【血战模式】无人猜中！出题人 ${answerSetter.username} -${penalty}分！`;
+                    answerSetter.score += setterResult.score;
+                    const winnerNames = room.currentGame.nonstopWinners.map((w, i) => `${i + 1}. ${w.username}`).join('、');
+                    
+                    if (winnersCount > 0) {
+                        const scoreText = setterResult.score >= 0 ? `+${setterResult.score}` : `${setterResult.score}`;
+                        message = `【血战模式】猜对顺序：${winnerNames}。${setterResult.reason}，出题人 ${answerSetter.username} ${scoreText}分！`;
                     } else {
-                        // 根据猜对比例计算基础得分
-                        const winRate = winnersCount / totalPlayersCount;
-                        let baseScore = 0;
-                        let scoreReason = '';
-                        
-                        if (winRate <= 0.25) {
-                            // 猜对人数过少（≤25%），太难了
-                            baseScore = 1;
-                            scoreReason = '难度偏高';
-                        } else if (winRate >= 0.75) {
-                            // 猜对人数过多（≥75%），太简单了
-                            baseScore = 1;
-                            scoreReason = '难度偏低';
-                        } else {
-                            // 猜对人数适中（25%-75%），刚刚好
-                            baseScore = 2;
-                            scoreReason = '难度适中';
-                        }
-                        
-                        const setterScore = baseScore * playerMultiplier;
-                        answerSetter.score += setterScore;
-                        const winnerNames = room.currentGame.nonstopWinners.map((w, i) => `${i + 1}. ${w.username}`).join('、');
-                        message = `【血战模式】猜对顺序：${winnerNames}。${scoreReason}，出题人 ${answerSetter.username} +${setterScore}分！`;
+                        message = `【血战模式】无人猜中！出题人 ${answerSetter.username} ${setterResult.score}分！`;
                     }
                 } else {
                     if (winnersCount > 0) {
@@ -911,39 +1041,31 @@ function setupSocket(io, rooms) {
                     const totalPlayersCount = activePlayers.length;
                     
                     let message = '';
+                    // 检查是否有 bigwinner 并获取其得分
+                    const bigWinnerData = (room.currentGame.nonstopWinners || []).find(w => {
+                        const winnerPlayer = room.players.find(p => p.id === w.id);
+                        return winnerPlayer && winnerPlayer.guesses.includes('👑');
+                    });
+                    const hasBigWinner = !!bigWinnerData;
+                    const bigWinnerScore = bigWinnerData?.score || 0;
+
                     if (answerSetter) {
-                        // 玩家数系数：玩家数/2 向上取整，最小为1
-                        const playerMultiplier = Math.max(1, Math.ceil(totalPlayersCount / 2));
+                        // 使用统一函数计算出题人得分
+                        const setterResult = calculateNonstopSetterScore({
+                            hasBigWinner,
+                            bigWinnerScore,
+                            winnersCount,
+                            totalPlayersCount
+                        });
                         
-                        if (winnersCount === 0) {
-                            // 无人猜中，出题人扣分（基础-2 × 系数）
-                            const penalty = 2 * playerMultiplier;
-                            answerSetter.score -= penalty;
-                            message = `【血战模式】无人猜中！出题人 ${answerSetter.username} -${penalty}分！`;
+                        answerSetter.score += setterResult.score;
+                        const winnerNames = room.currentGame.nonstopWinners.map((w, i) => `${i + 1}. ${w.username}`).join('、');
+                        
+                        if (winnersCount > 0) {
+                            const scoreText = setterResult.score >= 0 ? `+${setterResult.score}` : `${setterResult.score}`;
+                            message = `【血战模式】猜对顺序：${winnerNames}。${setterResult.reason}，出题人 ${answerSetter.username} ${scoreText}分！`;
                         } else {
-                            // 根据猜对比例计算基础得分
-                            const winRate = winnersCount / totalPlayersCount;
-                            let baseScore = 0;
-                            let scoreReason = '';
-                            
-                            if (winRate <= 0.25) {
-                                // 猜对人数过少（≤25%），太难了
-                                baseScore = 1;
-                                scoreReason = '难度偏高';
-                            } else if (winRate >= 0.75) {
-                                // 猜对人数过多（≥75%），太简单了
-                                baseScore = 1;
-                                scoreReason = '难度偏低';
-                            } else {
-                                // 猜对人数适中（25%-75%），刚刚好
-                                baseScore = 2;
-                                scoreReason = '难度适中';
-                            }
-                            
-                            const setterScore = baseScore * playerMultiplier;
-                            answerSetter.score += setterScore;
-                            const winnerNames = room.currentGame.nonstopWinners.map((w, i) => `${i + 1}. ${w.username}`).join('、');
-                            message = `【血战模式】猜对顺序：${winnerNames}。${scoreReason}，出题人 ${answerSetter.username} +${setterScore}分！`;
+                            message = `【血战模式】无人猜中！出题人 ${answerSetter.username} ${setterResult.score}分！`;
                         }
                     } else {
                         if (winnersCount > 0) {
@@ -1002,22 +1124,47 @@ function setupSocket(io, rooms) {
                 // 使用 firstWinner 的用户名（如果存在）
                 const bigwinnerName = bigwinner?.username || firstWinner?.username;
                 const winnerName = winner?.username || firstWinner?.username;
+                
+                // 获取总轮数上限
+                const totalRounds = room.currentGame?.settings?.maxAttempts || 10;
+                
+                // 使用统一函数计算
+                const actualWinner = bigwinner || winner;
+                const winnerScoreResult = actualWinner ? calculateWinnerScore({
+                    guesses: actualWinner.guesses,
+                    baseScore: 0, // 先不算基础分，只用于获取 guessCount
+                    totalRounds: totalRounds
+                }) : null;
+                const winnerGuessCount = winnerScoreResult?.guessCount || 0;
+                
+                // 计算 bigwinner 的实际得分（用于出题人扣分计算）
+                const bigWinnerActualScore = bigwinner ? calculateWinnerScore({
+                    guesses: bigwinner.guesses,
+                    baseScore: 14,
+                    totalRounds: totalRounds
+                }).totalScore : 0;
     
                 // If there was an answer setter (manual mode)
                 if (answerSetter) {
+                    const setterResult = calculateSetterScore({
+                        winnerGuesses: actualWinner?.guesses || '',
+                        winnerGuessCount: winnerGuessCount,
+                        bigWinnerScore: bigWinnerActualScore,
+                        totalRounds: totalRounds
+                    });
+                    
+                    answerSetter.score += setterResult.score;
+                    
                     if (bigwinner) {
-                        answerSetter.score -= 3;
                         io.to(roomId).emit('gameEnded', {
-                            message: `本命大赢家是: ${bigwinnerName}！出题人 ${answerSetter.username} 纯在送分！`,
+                            message: `本命大赢家是: ${bigwinnerName}！出题人 ${answerSetter.username} ${setterResult.reason} ${setterResult.score}分！`,
                             guesses: room.currentGame?.guesses || []
                         });
-                    }
-                    else if (winner) {
-                        // If winner took many guesses
-                        if (winner.guesses.length > 6) {
-                            answerSetter.score += 1;
+                    } else if (winner) {
+                        if (setterResult.score !== 0) {
+                            const scoreText = setterResult.score > 0 ? `+${setterResult.score}分` : `${setterResult.score}分`;
                             io.to(roomId).emit('gameEnded', {
-                                message: `赢家是: ${winnerName}！出题人 ${answerSetter.username} 获得1分！`,
+                                message: `赢家是: ${winnerName}！${setterResult.reason}，出题人 ${answerSetter.username} ${scoreText}！`,
                                 guesses: room.currentGame?.guesses || []
                             });
                         } else {
@@ -1027,10 +1174,8 @@ function setupSocket(io, rooms) {
                             });
                         }
                     } else {
-                        // Deduct point from answer setter for no winner
-                        answerSetter.score -= 1;
                         io.to(roomId).emit('gameEnded', {
-                            message: `已经结束咧🙄！没人猜中，出题人 ${answerSetter.username} 扣1分！`,
+                            message: `已经结束咧🙄！${setterResult.reason}，出题人 ${answerSetter.username} ${setterResult.score}分！`,
                             guesses: room.currentGame?.guesses || []
                         });
                     }
@@ -1075,17 +1220,17 @@ function setupSocket(io, rooms) {
                 });
             };
     
-            if (bigwinner) {
-                bigwinner.score += 14;
-                if (!bigwinner.guesses.includes('💡')) {
-                    bigwinner.score += 1;
-                }
-                handleGameEnd();
-            } else if (winner) {
-                winner.score += 2;
-                if (!winner.guesses.includes('💡')) {
-                    winner.score += 1;
-                }
+            // 统一处理胜者得分
+            const actualWinner = bigwinner || winner;
+            if (actualWinner) {
+                const totalRounds = room.currentGame?.settings?.maxAttempts || 10;
+                const baseScore = actualWinner.guesses.includes('👑') ? 14 : 2;
+                const scoreResult = calculateWinnerScore({
+                    guesses: actualWinner.guesses,
+                    baseScore: baseScore,
+                    totalRounds: totalRounds
+                });
+                actualWinner.score += scoreResult.totalScore;
                 handleGameEnd();
             } else if (allEnded) {
                 handleGameEnd();
@@ -1098,6 +1243,7 @@ function setupSocket(io, rooms) {
     
             console.log(`Player ${player.username} ended their game in room ${roomId} with result: ${result}`);
         });
+
     
         // Handle game settings request
         socket.on('requestGameSettings', ({roomId}) => {
