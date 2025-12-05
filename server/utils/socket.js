@@ -555,8 +555,18 @@ function setupSocket(io, rooms) {
     
             // Update player's guesses string
             if (!guessResult.isCorrect && guessResult.isPartialCorrect && !player.guesses.includes('💡')) {
-                player.score += 1;
-                player.guesses += '💡';
+                // 检查同队是否已有人获得过作品分
+                const teamHasPartialScore = player.team && player.team !== '0' && room.players.some(p => 
+                    p.team === player.team && p.guesses.includes('💡')
+                );
+                
+                if (!teamHasPartialScore) {
+                    player.score += 1;
+                    player.guesses += '💡';
+                } else {
+                    // 队伍已获得作品分，不加分但记录猜测
+                    player.guesses += guessResult.isCorrect ? '✔' : '❌';
+                }
             }
             else{
                 player.guesses += guessResult.isCorrect ? '✔' :  '❌';
