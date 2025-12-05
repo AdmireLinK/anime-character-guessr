@@ -1106,6 +1106,18 @@ const Multiplayer = () => {
               {isHost && !waitingForAnswer && (
                 <div className="host-controls">
                   <div className="room-url-container">
+                    {isPublic && (
+                      <input
+                        type="text"
+                        value={roomName}
+                        placeholder="房间名（可选）"
+                        maxLength={15}
+                        className="room-name-input"
+                        onChange={handleRoomNameChange}
+                        onBlur={handleRoomNameBlur}
+                        onKeyDown={handleRoomNameKeyDown}
+                      />
+                    )}
                     <input
                       type="text"
                       value={roomUrl}
@@ -1132,20 +1144,6 @@ const Multiplayer = () => {
                       >
                         {isPublic ? '🔓公开' : '🔒私密'}
                       </button>
-                      {isPublic && (
-                        <input
-                          type="text"
-                          value={roomName}
-                          placeholder="房间名（可选）"
-                          maxLength={15}
-                          style={{ width: '12rem' }}
-                          onChange={handleRoomNameChange}
-                          onBlur={handleRoomNameBlur}
-                          onKeyDown={handleRoomNameKeyDown}
-                        />
-                      )}
-                    </div>
-                    <div className="button-row">
                       <button
                         onClick={handleStartGame}
                         className="start-game-button"
@@ -1383,52 +1381,63 @@ const Multiplayer = () => {
             // After game ends
             <div className="game-end-view-container">
               {isHost && (
-                <div className="host-game-controls">
-                  <div className="button-group">
-                    <div className="button-row">
-                      <button
-                        onClick={() => setShowSettings(true)}
-                        className="settings-button"
-                      >
-                        设置
-                      </button>
-                      <button
-                        onClick={handleVisibilityToggle}
-                        className="visibility-button"
-                      >
-                        {isPublic ? '🔓公开' : '🔒私密'}
-                      </button>
+                <>
+                  <div className="host-controls">
+                    <div className="room-url-container">
                       {isPublic && (
                         <input
                           type="text"
                           value={roomName}
                           placeholder="房间名（可选）"
                           maxLength={15}
-                          style={{ width: '12rem' }}
+                          className="room-name-input"
                           onChange={handleRoomNameChange}
                           onBlur={handleRoomNameBlur}
                           onKeyDown={handleRoomNameKeyDown}
                         />
                       )}
-                    </div>
-                    <div className="button-row">
-                      <button
-                        onClick={handleStartGame}
-                        className="start-game-button"
-                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
-                      >
-                        开始
-                      </button>
-                      <button
-                        onClick={handleManualMode}
-                        className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
-                      >
-                        有人想出题？
-                      </button>
+                      <input
+                        type="text"
+                        value={roomUrl}
+                        readOnly
+                        className="room-url-input"
+                      />
+                      <button onClick={copyRoomUrl} className="copy-button">复制</button>
                     </div>
                   </div>
-                </div>
+                  <div className="host-game-controls">
+                    <div className="button-group">
+                      <div className="button-row">
+                        <button
+                          onClick={() => setShowSettings(true)}
+                          className="settings-button"
+                        >
+                          设置
+                        </button>
+                        <button
+                          onClick={handleVisibilityToggle}
+                          className="visibility-button"
+                        >
+                          {isPublic ? '🔓公开' : '🔒私密'}
+                        </button>
+                        <button
+                          onClick={handleStartGame}
+                          className="start-game-button"
+                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
+                        >
+                          开始
+                        </button>
+                        <button
+                          onClick={handleManualMode}
+                          className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
+                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
+                        >
+                          有人想出题？
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
               <div className="game-end-message-table-wrapper">
                 <table className="game-end-message-table">
