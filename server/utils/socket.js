@@ -38,12 +38,6 @@ function calculateWinnerScore({ guesses, baseScore = 0, totalRounds = 10 }) {
         }
     }
     totalScore += bonuses.quickGuess;
-
-    // 作品分奖励
-    if (guesses.includes('💡')) {
-        bonuses.partial = 1;
-        totalScore += 1;
-    }
     
     return { totalScore, guessCount, isBigWin, bonuses };
 }
@@ -898,6 +892,10 @@ function setupSocket(io, rooms) {
             const score = scoreResult.totalScore;
             
             // 先计算好分数，再加分和记录
+            // 如果玩家之前获得了作品分，在获胜时扣除（因为获胜分覆盖了作品分，或者规则互斥）
+            if (player.guesses.includes('💡')) {
+                player.score -= 1;
+            }
             player.score += score;
             console.log(`[血战模式调试] ${player.username}(id=${socket.id}) 得分计算: totalPlayers=${totalPlayers}, winnerRank=${winnerRank}, guessCount=${scoreResult.guessCount}, isBigWin=${isBigWin}, bonuses=${JSON.stringify(scoreResult.bonuses)}, score=${score}, newScore=${player.score}`);
 
@@ -1337,6 +1335,15 @@ function setupSocket(io, rooms) {
                     baseScore: actualWinner.guesses.includes('👑') ? 14 : 2,
                     totalRounds: totalRounds
                 }) : null;
+                
+                // 更新胜者总分
+                if (actualWinner && winnerActualScoreResult) {
+                    // 如果玩家之前获得了作品分，在获胜时扣除
+                    if (actualWinner.guesses.includes('💡')) {
+                        actualWinner.score -= 1;
+                    }
+                    actualWinner.score += winnerActualScoreResult.totalScore;
+                }
                 
                 // 生成得分详情
                 const scoreChanges = buildScoreChanges({
