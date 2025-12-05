@@ -8,6 +8,7 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
   const [clickedExpandTags, setClickedExpandTags] = useState(new Set());
   const [externalTagMode, setExternalTagMode] = useState(false);
 
+
   // 如果指定了折叠数量，只显示最新的 N 条记录
   const displayGuesses = collapsedCount > 0 && guesses.length > collapsedCount
     ? guesses.slice(-collapsedCount)
