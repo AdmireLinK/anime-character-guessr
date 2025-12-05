@@ -173,7 +173,6 @@ const Multiplayer = () => {
     });
 
     newSocket.on('gameStart', ({ character, settings, players, isPublic, hints = null, isAnswerSetter: isAnswerSetterFlag }) => {
-      gameEndedRef.current = false;
       const decryptedCharacter = JSON.parse(CryptoJS.AES.decrypt(character, secret).toString(CryptoJS.enc.Utf8));
       decryptedCharacter.rawTags = new Map(decryptedCharacter.rawTags);
       setAnswerCharacter(decryptedCharacter);
@@ -189,6 +188,23 @@ const Multiplayer = () => {
       // 检查当前玩家是否为旁观者
       const observerFlag = currentPlayer?.team === '0';
       setIsObserver(observerFlag);
+      
+      // 检查当前玩家是否已经结束游戏（重连时恢复状态）
+      const playerGuesses = currentPlayer?.guesses || '';
+      const hasGameEnded = playerGuesses.includes('✌') || 
+                          playerGuesses.includes('👑') || 
+                          playerGuesses.includes('💀') || 
+                          playerGuesses.includes('🏳️') ||
+                          playerGuesses.includes('🏆');
+      
+      if (hasGameEnded) {
+        // 玩家已经结束游戏，恢复结束状态
+        gameEndedRef.current = true;
+        setGameEnd(true);
+      } else {
+        gameEndedRef.current = false;
+        setGameEnd(false);
+      }
       
       setIsAnswerSetter(isAnswerSetterFlag);
       if (players) {
@@ -221,7 +237,6 @@ const Multiplayer = () => {
       setImgHint(settings.useImageHint > 0 ? decryptedCharacter.image : null);
       setGlobalGameEnd(false);
       setIsGameStarted(true);
-      setGameEnd(false);
       setGuesses([]);
       // 重置同步模式状态
       setWaitingForSync(false);
