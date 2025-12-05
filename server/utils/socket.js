@@ -431,8 +431,11 @@ function setupSocket(io, rooms) {
 
             // 同步模式：跟踪玩家完成状态并处理回合同步
             if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
-                // 标记该玩家已完成当前同步轮次
-                room.currentGame.syncPlayersCompleted.add(socket.id);
+                // 如果玩家猜对了，不加入同步列表（猜对的玩家会通过 gameEnd 事件结束游戏）
+                if (!guessResult.isCorrect) {
+                    // 标记该玩家已完成当前同步轮次
+                    room.currentGame.syncPlayersCompleted.add(socket.id);
+                }
 
                 // 获取所有需要完成本轮的活跃玩家（排除观察者、出题人、已断开连接、已结束的玩家）
                 const activePlayers = room.players.filter(p => 
@@ -473,8 +476,8 @@ function setupSocket(io, rooms) {
                             });
                             console.log(`[同步模式] 房间 ${roomId}: 第 ${room.currentGame.syncRound} 轮开始 - 所有玩家已完成`);
                         }
-                    } else if (!guessResult.isCorrect) {
-                        // 通知所有玩家当前同步状态（仅当玩家猜错时）
+                    } else {
+                        // 通知所有玩家当前同步状态
                         io.to(roomId).emit('syncWaiting', {
                             round: room.currentGame.syncRound,
                             syncStatus: syncStatus,
