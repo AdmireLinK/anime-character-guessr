@@ -13,6 +13,7 @@ import SetAnswerPopup from '../components/SetAnswerPopup';
 import GameSettingsDisplay from '../components/GameSettingsDisplay';
 import Leaderboard from '../components/Leaderboard';
 import Roulette from '../components/Roulette';
+import Image from '../components/Image';
 import '../styles/Multiplayer.css';
 import '../styles/game.css';
 import CryptoJS from 'crypto-js';
@@ -1248,7 +1249,7 @@ const Multiplayer = () => {
                     )}
                     {guessesLeft <= useImageHint && imgHint &&(
                       <div className="hint-container">
-                        <img src={imgHint} style={{height: '200px', filter: `blur(${guessesLeft}px)`}} alt="提示" />
+                        <Image src={imgHint} style={{height: '200px', filter: `blur(${guessesLeft}px)`}} alt="提示" />
                       </div>
                     )}
                   </div>
@@ -1262,7 +1263,7 @@ const Multiplayer = () => {
                 // Answer setter view
                 <div className="answer-setter-view">
                   <div className="selected-answer">
-                    <img src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
+                    <Image src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
                     <div className="answer-info">
                       <div>{answerCharacter.name}</div>
                       <div>{answerCharacter.nameCn}</div>
@@ -1354,7 +1355,7 @@ const Multiplayer = () => {
                                   <td key={playerData.username}>
                                     {playerData.displayGuesses[rowIndex] && (
                                       <>
-                                        <img className="character-icon" src={playerData.displayGuesses[rowIndex].guessData.image} alt={playerData.displayGuesses[rowIndex].guessData.name} />
+                                        <Image className="character-icon" src={playerData.displayGuesses[rowIndex].guessData.image} alt={playerData.displayGuesses[rowIndex].guessData.name} />
                                         <div className="character-name">{playerData.displayGuesses[rowIndex].guessData.name}</div>
                                         <div className="character-name-cn">{playerData.displayGuesses[rowIndex].guessData.nameCn}</div>
                                       </>
@@ -1470,7 +1471,7 @@ const Multiplayer = () => {
                             <td key={playerGuesses.username}>
                               {playerGuesses.guesses[rowIndex] && (
                                 <>
-                                  <img className="character-icon" src={playerGuesses.guesses[rowIndex].guessData.image} alt={playerGuesses.guesses[rowIndex].guessData.name} />
+                                  <Image className="character-icon" src={playerGuesses.guesses[rowIndex].guessData.image} alt={playerGuesses.guesses[rowIndex].guessData.name} />
                                   <div className="character-name">{playerGuesses.guesses[rowIndex].guessData.name}</div>
                                   <div className="character-name-cn">{playerGuesses.guesses[rowIndex].guessData.nameCn}</div>
                                 </>

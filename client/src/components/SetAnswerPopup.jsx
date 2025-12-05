@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import SearchBar from './SearchBar';
+import Image from './Image';
 import '../styles/SetAnswerPopup.css';
 import { designateCharacter } from '../utils/bangumi';
 import { submitAnswerCharacterCount } from '../utils/db';
@@ -58,7 +59,7 @@ const SetAnswerPopup = ({ onSetAnswer, gameSettings }) => {
         </div>
         {selectedCharacter && (
           <div className="selected-character">
-            <img src={selectedCharacter.image} alt={selectedCharacter.name} />
+            <Image src={selectedCharacter.image} alt={selectedCharacter.name} />
             <div className="character-info">
               <div>{selectedCharacter.name}</div>
               <div>{selectedCharacter.nameCn}</div>

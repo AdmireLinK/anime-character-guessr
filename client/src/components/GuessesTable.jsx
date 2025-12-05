@@ -1,6 +1,7 @@
 import '../styles/GuessesTable.css';
 import { useState } from 'react';
 import ModifiedTagDisplay from './ModifiedTagDisplay';
+import Image from './Image';
 import { subjectsWithExtraTags } from '../data/extra_tag_subjects';
 
 function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount = 0 }) {
@@ -98,7 +99,7 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
           {displayGuesses.map((guess, guessIndex) => (
             <tr key={guessIndex}>
               <td>
-                <img src={guess.icon} alt="character" className="character-icon" />
+                <Image src={guess.icon} alt="character" className="character-icon" />
               </td>
               <td>
                 <div className={`character-name-container ${guess.isAnswer ? 'correct' : ''}`}>

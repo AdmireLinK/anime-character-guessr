@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import '../styles/Leaderboard.css';
 import { fetchLeaderboardCharacters } from '../data/leaderboard_characters';
 import { fetchLeaderboardGuesses, fetchLeaderboardWeekly } from '../data/leaderboard_guesses';
+import Image from './Image';
 
 const Leaderboard = ({ defaultExpanded = false }) => {
   const [isExpanded1, setIsExpanded1] = useState(defaultExpanded);
@@ -62,7 +63,7 @@ const Leaderboard = ({ defaultExpanded = false }) => {
                       className={`podium-place podium-place-${char.rank} ${char.rank === 1 ? 'podium-center' : ''}`}
                       key={char.link || idx}
                     >
-                      <img
+                      <Image
                         src={char.image}
                         alt={char.name}
                         className={`podium-image${char.rank === 1 ? ' podium-image-center' : ''}`}
@@ -87,7 +88,7 @@ const Leaderboard = ({ defaultExpanded = false }) => {
                   {characters1.slice(3).map((char, idx) => (
                     <div className="leaderboard-list-item" key={char.link || idx}>
                       <div className="list-rank">#{char.rank}</div>
-                      <img src={char.image} alt={char.name} className="list-image" />
+                      <Image src={char.image} alt={char.name} className="list-image" />
                       <a
                         href={char.link}
                         className="list-name podium-link"
@@ -127,7 +128,7 @@ const Leaderboard = ({ defaultExpanded = false }) => {
                       className={`podium-place podium-place-${char.rank} ${char.rank === 1 ? 'podium-center' : ''}`}
                       key={char.link || idx}
                     >
-                      <img
+                      <Image
                         src={char.image}
                         alt={char.name}
                         className={`podium-image${char.rank === 1 ? ' podium-image-center' : ''}`}
@@ -149,7 +150,7 @@ const Leaderboard = ({ defaultExpanded = false }) => {
                   {characters2.slice(3).map((char, idx) => (
                     <div className="leaderboard-list-item" key={char.link || idx}>
                       <div className="list-rank">#{char.rank}</div>
-                      <img src={char.image} alt={char.name} className="list-image" />
+                      <Image src={char.image} alt={char.name} className="list-image" />
                       <a
                         href={char.link}
                         className="list-name podium-link"
