@@ -1821,7 +1821,6 @@ function setupSocket(io, rooms) {
             }
     
             // Update room state
-            room.isPublic = false;
             room.answerSetterId = setterId;
             room.waitingForAnswer = true;
     
