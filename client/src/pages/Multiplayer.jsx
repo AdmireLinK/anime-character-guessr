@@ -1337,26 +1337,32 @@ const Multiplayer = () => {
                         </thead>
                         <tbody>
                           {(() => {
-                            const maxRows = Math.max(...guessesHistory.map(g => g.guesses.length));
-                            const startRow = isGuessTableCollapsed ? Math.max(0, maxRows - 3) : 0;
-                            return Array.from({ length: maxRows - startRow }).map((_, idx) => {
-                              const rowIndex = startRow + idx;
-                              return (
-                                <tr key={rowIndex}>
-                                  {guessesHistory.map(playerGuesses => (
-                                    <td key={playerGuesses.username}>
-                                      {playerGuesses.guesses[rowIndex] && (
-                                        <>
-                                          <img className="character-icon" src={playerGuesses.guesses[rowIndex].guessData.image} alt={playerGuesses.guesses[rowIndex].guessData.name} />
-                                          <div className="character-name">{playerGuesses.guesses[rowIndex].guessData.name}</div>
-                                          <div className="character-name-cn">{playerGuesses.guesses[rowIndex].guessData.nameCn}</div>
-                                        </>
-                                      )}
-                                    </td>
-                                  ))}
-                                </tr>
-                              );
+                            // 折叠时每个玩家只显示最新3条，需要计算每个玩家的显示范围
+                            const collapsedLimit = 3;
+                            const displayData = guessesHistory.map(playerGuesses => {
+                              const total = playerGuesses.guesses.length;
+                              const startIdx = isGuessTableCollapsed ? Math.max(0, total - collapsedLimit) : 0;
+                              return {
+                                username: playerGuesses.username,
+                                displayGuesses: playerGuesses.guesses.slice(startIdx)
+                              };
                             });
+                            const maxDisplayRows = Math.max(...displayData.map(d => d.displayGuesses.length), 0);
+                            return Array.from({ length: maxDisplayRows }).map((_, rowIndex) => (
+                              <tr key={rowIndex}>
+                                {displayData.map(playerData => (
+                                  <td key={playerData.username}>
+                                    {playerData.displayGuesses[rowIndex] && (
+                                      <>
+                                        <img className="character-icon" src={playerData.displayGuesses[rowIndex].guessData.image} alt={playerData.displayGuesses[rowIndex].guessData.name} />
+                                        <div className="character-name">{playerData.displayGuesses[rowIndex].guessData.name}</div>
+                                        <div className="character-name-cn">{playerData.displayGuesses[rowIndex].guessData.nameCn}</div>
+                                      </>
+                                    )}
+                                  </td>
+                                ))}
+                              </tr>
+                            ));
                           })()}
                         </tbody>
                       </table>
@@ -1368,7 +1374,6 @@ const Multiplayer = () => {
                         gameSettings={gameSettings}
                         answerCharacter={answerCharacter}
                         collapsedCount={isGuessTableCollapsed ? 3 : 0}
-                        onCollapsedChange={setIsGuessTableCollapsed}
                       />
                     </div>
                   )}

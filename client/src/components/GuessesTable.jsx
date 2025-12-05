@@ -3,13 +3,9 @@ import { useState } from 'react';
 import ModifiedTagDisplay from './ModifiedTagDisplay';
 import { subjectsWithExtraTags } from '../data/extra_tag_subjects';
 
-function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount = 0, onCollapsedChange }) {
+function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount = 0 }) {
   const [clickedExpandTags, setClickedExpandTags] = useState(new Set());
   const [externalTagMode, setExternalTagMode] = useState(false);
-
-  // 是否显示折叠控制（只有传入 onCollapsedChange 时才显示）
-  const showCollapseControl = typeof onCollapsedChange === 'function';
-  const isCollapsed = collapsedCount > 0;
 
   // 如果指定了折叠数量，只显示最新的 N 条记录
   const displayGuesses = collapsedCount > 0 && guesses.length > collapsedCount
