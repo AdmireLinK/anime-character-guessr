@@ -52,14 +52,12 @@ function GameEndPopup({ result, answer, onClose }) {
                     >
                       贡献标签
                     </button>
-                    <a
+                    <button
                       className="contribute-tag-btn"
-                      href="https://github.com/kennylimz/anime-character-guessr/issues/new"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      onClick={() => window.open('https://github.com/kennylimz/anime-character-guessr/issues/new', '_blank', 'noopener,noreferrer')}
                     >
                       反馈Bug
-                    </a>
+                    </button>
                   </div>
                   <img src={subaruIcon} alt="" className="button-icon" />
                 </div>
