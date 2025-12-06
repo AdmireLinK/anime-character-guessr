@@ -93,6 +93,7 @@ const Multiplayer = () => {
   const gameEndedRef = useRef(false);
   const [scoreDetails, setScoreDetails] = useState(null);
   const [globalGameEnd, setGlobalGameEnd] = useState(false);
+  const [endGameSettings, setEndGameSettings] = useState(null); // 上一局的模式快照
   const [guessesHistory, setGuessesHistory] = useState([]);
   const [showNames, setShowNames] = useState(true);
   const [showCharacterPopup, setShowCharacterPopup] = useState(false);
@@ -237,6 +238,7 @@ const Multiplayer = () => {
       setUseImageHint(settings.useImageHint);
       setImgHint(settings.useImageHint > 0 ? decryptedCharacter.image : null);
       setGlobalGameEnd(false);
+      setEndGameSettings(null); // 新局开始时清空上一局模式快照
       setScoreDetails(null);
       setIsGameStarted(true);
       setGuesses([]);
@@ -287,6 +289,7 @@ const Multiplayer = () => {
     });
 
     newSocket.on('gameEnded', ({ guesses, scoreDetails }) => {
+      setEndGameSettings(gameSettingsRef.current); // 保存上一局的模式设置用于结算展示
       setScoreDetails(scoreDetails || null);
       setGlobalGameEnd(true);
       setGuessesHistory(guesses);
@@ -963,6 +966,8 @@ const Multiplayer = () => {
     return <div>Loading...</div>;
   }
 
+  const displaySettings = globalGameEnd ? (endGameSettings || gameSettings) : gameSettings;
+
   return (
     <div className="multiplayer-container">
       {/* 添加踢出通知 */}
@@ -1447,13 +1452,13 @@ const Multiplayer = () => {
                       <th className="game-end-header-cell">
                         <div className="game-end-header-content">
                           <div className="mode-tags">
-                            {!gameSettings.nonstopMode && !gameSettings.syncMode && (
+                            {!displaySettings.nonstopMode && !displaySettings.syncMode && (
                               <span className="mode-tag normal">普通模式</span>
                             )}
-                            {gameSettings.nonstopMode && (
+                            {displaySettings.nonstopMode && (
                               <span className="mode-tag nonstop">血战模式</span>
                             )}
-                            {gameSettings.syncMode && (
+                            {displaySettings.syncMode && (
                               <span className="mode-tag sync">同步模式</span>
                             )}
                           </div>
