@@ -124,7 +124,8 @@ function calculateNonstopSetterScore({ hasBigWinner = false, bigWinnerScore = 0,
 }
 
 // 同步模式：统一处理进度更新与轮次推进，支持血战模式
-function updateSyncProgress(room, roomId) {
+function updateSyncProgress(room, roomId, io) {
+    if (!io) return;
     if (!room?.currentGame || !room.currentGame.settings?.syncMode || !room.currentGame.syncPlayersCompleted) return;
 
     // 仍需要在当前轮次提交的活跃玩家（排除出题人、旁观者、已断开、已结束的玩家）
@@ -791,7 +792,7 @@ function setupSocket(io, rooms) {
                 if (!guessResult.isCorrect) {
                     room.currentGame.syncPlayersCompleted.add(socket.id);
                 }
-                updateSyncProgress(room, roomId);
+                updateSyncProgress(room, roomId, io);
             }
     
             // Broadcast updated players to all clients in the room
@@ -886,7 +887,7 @@ function setupSocket(io, rooms) {
                             room.currentGame.syncPlayersCompleted.add(teammate.id);
                         });
                 }
-                updateSyncProgress(room, roomId);
+                updateSyncProgress(room, roomId, io);
             }
 
             // 获取活跃玩家（不含出题人、观察者）
@@ -1166,7 +1167,7 @@ function setupSocket(io, rooms) {
                     players: room.players
                 });
 
-                updateSyncProgress(room, roomId);
+                updateSyncProgress(room, roomId, io);
             }
 
             // 血战模式：检查是否所有人都结束
@@ -1474,7 +1475,7 @@ function setupSocket(io, rooms) {
                 if (!hasEnded) {
                     room.currentGame.syncPlayersCompleted.add(socket.id);
                 }
-                updateSyncProgress(room, roomId);
+                updateSyncProgress(room, roomId, io);
             }
     
             // Broadcast updated players to all clients in the room
