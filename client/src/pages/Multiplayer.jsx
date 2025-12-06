@@ -1098,7 +1098,8 @@ const Multiplayer = () => {
           />
           <div className="anonymous-mode-info">
             匿名模式？点表头"名"切换。<br/>
-            沟通玩法？点自己名字编辑短信息。
+            沟通玩法？点自己名字编辑短信息。<br/>
+            有Bug？到<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" rel="noopener noreferrer">Github Issues</a>反馈。
           </div>
 
           {!isGameStarted && !globalGameEnd && (
