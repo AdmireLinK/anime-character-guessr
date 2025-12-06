@@ -45,12 +45,22 @@ function GameEndPopup({ result, answer, onClose }) {
                   <div className="answer-character-name-cn">{answer.nameCn}</div>
                 </a>
                 <div className="button-container">
-                  <button
-                    className="contribute-tag-btn"
-                    onClick={() => setShowTagPopup(true)}
-                  >
-                    贡献标签
-                  </button>
+                  <div className="button-group-vertical">
+                    <button
+                      className="contribute-tag-btn"
+                      onClick={() => setShowTagPopup(true)}
+                    >
+                      贡献标签
+                    </button>
+                    <a
+                      className="contribute-tag-btn"
+                      href="https://github.com/kennylimz/anime-character-guessr/issues/new"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      反馈Bug
+                    </a>
+                  </div>
                   <img src={subaruIcon} alt="" className="button-icon" />
                 </div>
               </div>

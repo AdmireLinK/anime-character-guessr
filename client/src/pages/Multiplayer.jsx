@@ -1098,7 +1098,8 @@ const Multiplayer = () => {
           />
           <div className="anonymous-mode-info">
             匿名模式？点表头"名"切换。<br/>
-            沟通玩法？点自己名字编辑短信息。
+            沟通玩法？点自己名字编辑短信息。<br/>
+            有Bug？到<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" rel="noopener noreferrer">Github Issues</a>反馈。
           </div>
 
           {!isGameStarted && !globalGameEnd && (
@@ -1461,9 +1462,22 @@ const Multiplayer = () => {
                             // 判断当前玩家是否猜对
                             const currentPlayer = players.find(p => p.id === socket?.id);
                             const playerGuesses = currentPlayer?.guesses || '';
+                            const isObserver = currentPlayer?.team === '0';
                             const isCurrentPlayerWin = playerGuesses.includes('✌') || playerGuesses.includes('👑') || playerGuesses.includes('🏆');
-                            const isCurrentPlayerLose = playerGuesses.includes('💀') || playerGuesses.includes('🏳️');
-                            const answerButtonClass = isCurrentPlayerWin ? 'answer-character-button win' : isCurrentPlayerLose ? 'answer-character-button lose' : 'answer-character-button';
+                            const isCurrentPlayerLose = !isCurrentPlayerWin && (
+                              playerGuesses.includes('💀') ||
+                              playerGuesses.includes('🏳️') ||
+                              playerGuesses.includes('⏱️') ||
+                              playerGuesses.length > 0 // 已参与但未获胜的其他情况
+                            );
+                            let answerButtonClass = 'answer-character-button';
+                            if (isObserver) {
+                              answerButtonClass = 'answer-character-button';
+                            } else if (isCurrentPlayerWin) {
+                              answerButtonClass = 'answer-character-button win';
+                            } else if (isCurrentPlayerLose) {
+                              answerButtonClass = 'answer-character-button lose';
+                            }
                             return (
                               <button
                                 className={answerButtonClass}

@@ -313,6 +313,13 @@
   gap: 8px;
 }
 
+.button-group-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
 .contribute-tag-btn {
   font-size: 16px;
   padding: 8px 20px;
