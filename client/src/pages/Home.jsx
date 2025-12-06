@@ -51,7 +51,7 @@ const Home = () => {
       
       <div className="home-footer">
         <p>
-          <a href="https://vertikarl.github.io/anime-character-guessr-english/"> ENGLISH ver. </a>
+          {/* <a href="https://vertikarl.github.io/anime-character-guessr-english/"> ENGLISH ver. </a> */}
           <br/>
           一个猜动漫/游戏角色的网站，建议使用桌面端浏览器游玩。
           <br/>
