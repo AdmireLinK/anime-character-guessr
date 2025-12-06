@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Image from './Image';
 
 const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnonymousModeChange, isManualMode, isHost, answerSetterId, onSetAnswerSetter, onKickPlayer, onTransferHost, onMessageChange, onTeamChange }) => {
   const [showNames, setShowNames] = useState(true);
@@ -168,7 +169,7 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
               </td>
               <td>
                 {player.avatarId && player.avatarImage && (
-                  <img src={player.avatarImage} className="player-avatar" />
+                  <Image src={player.avatarImage} className="player-avatar" alt="avatar" />
                 )}
               </td>
               <td>

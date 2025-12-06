@@ -119,14 +119,22 @@ app.get('/clean-rooms', (req, res) => {
 });
 
 app.get('/list-rooms', (req, res) => {
-    const roomsList = Array.from(rooms.entries()).map(([id, room]) => ({
-        id,
-        isPublic: room.isPublic,
-        playerCount: room.players.length,
-        players: room.players.map(player => player.username),
-        isGameStarted: !!room.currentGame, // 游戏是否已开始
-        roomName: room.roomName || ''
-    }));
+    const roomsList = Array.from(rooms.entries()).map(([id, room]) => {
+        const hostPlayer = room.players.find(p => p.isHost) || room.players.find(p => p.id === room.host);
+        const hostName = hostPlayer?.username || '';
+        const displayRoomName = (room.roomName && room.roomName.trim()) ? room.roomName : `${hostName}的房间`;
+
+        return {
+            id,
+            isPublic: room.isPublic,
+            playerCount: room.players.length,
+            players: room.players.map(player => player.username),
+            isGameStarted: !!room.currentGame, // 游戏是否已开始
+            roomName: room.roomName || '',
+            displayRoomName,
+            hostName
+        };
+    });
     res.json(roomsList);
 });
 

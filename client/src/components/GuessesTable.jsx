@@ -1,15 +1,13 @@
 import '../styles/GuessesTable.css';
 import { useState } from 'react';
 import ModifiedTagDisplay from './ModifiedTagDisplay';
+import Image from './Image';
 import { subjectsWithExtraTags } from '../data/extra_tag_subjects';
 
-function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount = 0, onCollapsedChange }) {
+function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount = 0 }) {
   const [clickedExpandTags, setClickedExpandTags] = useState(new Set());
   const [externalTagMode, setExternalTagMode] = useState(false);
 
-  // 是否显示折叠控制（只有传入 onCollapsedChange 时才显示）
-  const showCollapseControl = typeof onCollapsedChange === 'function';
-  const isCollapsed = collapsedCount > 0;
 
   // 如果指定了折叠数量，只显示最新的 N 条记录
   const displayGuesses = collapsedCount > 0 && guesses.length > collapsedCount
@@ -102,7 +100,7 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
           {displayGuesses.map((guess, guessIndex) => (
             <tr key={guessIndex}>
               <td>
-                <img src={guess.icon} alt="character" className="character-icon" />
+                <Image src={guess.icon} alt="character" className="character-icon" />
               </td>
               <td>
                 <div className={`character-name-container ${guess.isAnswer ? 'correct' : ''}`}>

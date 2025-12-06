@@ -1,4 +1,5 @@
 import '../styles/game.css';
+import Image from './Image';
 
 function GameInfo({ gameEnd, guessesLeft, onRestart, finishInit, hints, useHints = [], onSurrender, imgHint=null, useImageHint=0 }) {
   return (
@@ -29,7 +30,7 @@ function GameInfo({ gameEnd, guessesLeft, onRestart, finishInit, hints, useHints
           ))}
           {guessesLeft <= useImageHint && imgHint && (
             <div className="hint-container">
-              <img className="hint-image" src={imgHint} style={{height: '200px', filter: `blur(${guessesLeft}px)`}} alt="提示" />
+              <Image className="hint-image" src={imgHint} style={{height: '200px', filter: `blur(${guessesLeft}px)`}} alt="提示" />
             </div>
           )}
         </div>

@@ -13,6 +13,7 @@ import SetAnswerPopup from '../components/SetAnswerPopup';
 import GameSettingsDisplay from '../components/GameSettingsDisplay';
 import Leaderboard from '../components/Leaderboard';
 import Roulette from '../components/Roulette';
+import Image from '../components/Image';
 import '../styles/Multiplayer.css';
 import '../styles/game.css';
 import CryptoJS from 'crypto-js';
@@ -90,7 +91,7 @@ const Multiplayer = () => {
   const [gameEnd, setGameEnd] = useState(false);
   const timeUpRef = useRef(false);
   const gameEndedRef = useRef(false);
-  const [winner, setWinner] = useState(null);
+  const [scoreDetails, setScoreDetails] = useState(null);
   const [globalGameEnd, setGlobalGameEnd] = useState(false);
   const [guessesHistory, setGuessesHistory] = useState([]);
   const [showNames, setShowNames] = useState(true);
@@ -173,7 +174,6 @@ const Multiplayer = () => {
     });
 
     newSocket.on('gameStart', ({ character, settings, players, isPublic, hints = null, isAnswerSetter: isAnswerSetterFlag }) => {
-      gameEndedRef.current = false;
       const decryptedCharacter = JSON.parse(CryptoJS.AES.decrypt(character, secret).toString(CryptoJS.enc.Utf8));
       decryptedCharacter.rawTags = new Map(decryptedCharacter.rawTags);
       setAnswerCharacter(decryptedCharacter);
@@ -189,6 +189,23 @@ const Multiplayer = () => {
       // 检查当前玩家是否为旁观者
       const observerFlag = currentPlayer?.team === '0';
       setIsObserver(observerFlag);
+      
+      // 检查当前玩家是否已经结束游戏（重连时恢复状态）
+      const playerGuesses = currentPlayer?.guesses || '';
+      const hasGameEnded = playerGuesses.includes('✌') || 
+                          playerGuesses.includes('👑') || 
+                          playerGuesses.includes('💀') || 
+                          playerGuesses.includes('🏳️') ||
+                          playerGuesses.includes('🏆');
+      
+      if (hasGameEnded) {
+        // 玩家已经结束游戏，恢复结束状态
+        gameEndedRef.current = true;
+        setGameEnd(true);
+      } else {
+        gameEndedRef.current = false;
+        setGameEnd(false);
+      }
       
       setIsAnswerSetter(isAnswerSetterFlag);
       if (players) {
@@ -220,8 +237,8 @@ const Multiplayer = () => {
       setUseImageHint(settings.useImageHint);
       setImgHint(settings.useImageHint > 0 ? decryptedCharacter.image : null);
       setGlobalGameEnd(false);
+      setScoreDetails(null);
       setIsGameStarted(true);
-      setGameEnd(false);
       setGuesses([]);
       // 重置同步模式状态
       setWaitingForSync(false);
@@ -269,8 +286,8 @@ const Multiplayer = () => {
       setGameSettings(settings);
     });
 
-    newSocket.on('gameEnded', ({ message, guesses }) => {
-      setWinner(message);
+    newSocket.on('gameEnded', ({ guesses, scoreDetails }) => {
+      setScoreDetails(scoreDetails || null);
       setGlobalGameEnd(true);
       setGuessesHistory(guesses);
       setIsGameStarted(false);
@@ -762,6 +779,7 @@ const Multiplayer = () => {
         setUseImageHint(gameSettings.useImageHint);
         setImgHint(gameSettings.useImageHint > 0 ? character.image : null);
         setGlobalGameEnd(false);
+        setScoreDetails(null);
         setIsGameStarted(true);
         setGameEnd(false);
         setGuesses([]);
@@ -1014,19 +1032,13 @@ const Multiplayer = () => {
                         <div key={room.id} className="leaderboard-list-item room-item">
                           <div className="room-info">
                             <span className="room-players-count">
-                              <i className="fas fa-users"></i> {room.playerCount}人
+                              <i className="fas fa-users"></i> {room.displayRoomName || room.roomName || `${room.hostName || ''}的房间`} {room.playerCount}人
                               {room.isGameStarted && <span className="room-status-badge">游戏中</span>}
                             </span>
-                            {room.roomName?.trim() ? (
-                              <span className="room-players-names">
-                                {room.roomName}
-                              </span>
-                            ) : (
-                              <span className="room-players-names">
-                                {room.players.slice(0, 3).join(', ')}
-                                {room.players.length > 3 && '...'}
-                              </span>
-                            )}
+                            <span className="room-players-names">
+                              {room.players.slice(0, 3).join(', ')}
+                              {room.players.length > 3 && '...'}
+                            </span>
                           </div>
                           <button 
                             className={`join-room-btn ${room.isGameStarted ? 'spectate-btn' : ''}`}
@@ -1094,6 +1106,18 @@ const Multiplayer = () => {
               {isHost && !waitingForAnswer && (
                 <div className="host-controls">
                   <div className="room-url-container">
+                    {isPublic && (
+                      <input
+                        type="text"
+                        value={roomName}
+                        placeholder="房间名（可选）"
+                        maxLength={15}
+                        className="room-name-input"
+                        onChange={handleRoomNameChange}
+                        onBlur={handleRoomNameBlur}
+                        onKeyDown={handleRoomNameKeyDown}
+                      />
+                    )}
                     <input
                       type="text"
                       value={roomUrl}
@@ -1120,20 +1144,6 @@ const Multiplayer = () => {
                       >
                         {isPublic ? '🔓公开' : '🔒私密'}
                       </button>
-                      {isPublic && (
-                        <input
-                          type="text"
-                          value={roomName}
-                          placeholder="房间名（可选）"
-                          maxLength={15}
-                          style={{ width: '12rem' }}
-                          onChange={handleRoomNameChange}
-                          onBlur={handleRoomNameBlur}
-                          onKeyDown={handleRoomNameKeyDown}
-                        />
-                      )}
-                    </div>
-                    <div className="button-row">
                       <button
                         onClick={handleStartGame}
                         className="start-game-button"
@@ -1233,7 +1243,7 @@ const Multiplayer = () => {
                     )}
                     {guessesLeft <= useImageHint && imgHint &&(
                       <div className="hint-container">
-                        <img src={imgHint} style={{height: '200px', filter: `blur(${guessesLeft}px)`}} alt="提示" />
+                        <Image src={imgHint} style={{height: '200px', filter: `blur(${guessesLeft}px)`}} alt="提示" />
                       </div>
                     )}
                   </div>
@@ -1247,7 +1257,7 @@ const Multiplayer = () => {
                 // Answer setter view
                 <div className="answer-setter-view">
                   <div className="selected-answer">
-                    <img src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
+                    <Image src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
                     <div className="answer-info">
                       <div>{answerCharacter.name}</div>
                       <div>{answerCharacter.nameCn}</div>
@@ -1322,26 +1332,32 @@ const Multiplayer = () => {
                         </thead>
                         <tbody>
                           {(() => {
-                            const maxRows = Math.max(...guessesHistory.map(g => g.guesses.length));
-                            const startRow = isGuessTableCollapsed ? Math.max(0, maxRows - 3) : 0;
-                            return Array.from({ length: maxRows - startRow }).map((_, idx) => {
-                              const rowIndex = startRow + idx;
-                              return (
-                                <tr key={rowIndex}>
-                                  {guessesHistory.map(playerGuesses => (
-                                    <td key={playerGuesses.username}>
-                                      {playerGuesses.guesses[rowIndex] && (
-                                        <>
-                                          <img className="character-icon" src={playerGuesses.guesses[rowIndex].guessData.image} alt={playerGuesses.guesses[rowIndex].guessData.name} />
-                                          <div className="character-name">{playerGuesses.guesses[rowIndex].guessData.name}</div>
-                                          <div className="character-name-cn">{playerGuesses.guesses[rowIndex].guessData.nameCn}</div>
-                                        </>
-                                      )}
-                                    </td>
-                                  ))}
-                                </tr>
-                              );
+                            // 折叠时每个玩家只显示最新3条，需要计算每个玩家的显示范围
+                            const collapsedLimit = 3;
+                            const displayData = guessesHistory.map(playerGuesses => {
+                              const total = playerGuesses.guesses.length;
+                              const startIdx = isGuessTableCollapsed ? Math.max(0, total - collapsedLimit) : 0;
+                              return {
+                                username: playerGuesses.username,
+                                displayGuesses: playerGuesses.guesses.slice(startIdx)
+                              };
                             });
+                            const maxDisplayRows = Math.max(...displayData.map(d => d.displayGuesses.length), 0);
+                            return Array.from({ length: maxDisplayRows }).map((_, rowIndex) => (
+                              <tr key={rowIndex}>
+                                {displayData.map(playerData => (
+                                  <td key={playerData.username}>
+                                    {playerData.displayGuesses[rowIndex] && (
+                                      <>
+                                        <Image className="character-icon" src={playerData.displayGuesses[rowIndex].guessData.image} alt={playerData.displayGuesses[rowIndex].guessData.name} />
+                                        <div className="character-name">{playerData.displayGuesses[rowIndex].guessData.name}</div>
+                                        <div className="character-name-cn">{playerData.displayGuesses[rowIndex].guessData.nameCn}</div>
+                                      </>
+                                    )}
+                                  </td>
+                                ))}
+                              </tr>
+                            ));
                           })()}
                         </tbody>
                       </table>
@@ -1353,7 +1369,6 @@ const Multiplayer = () => {
                         gameSettings={gameSettings}
                         answerCharacter={answerCharacter}
                         collapsedCount={isGuessTableCollapsed ? 3 : 0}
-                        onCollapsedChange={setIsGuessTableCollapsed}
                       />
                     </div>
                   )}
@@ -1364,63 +1379,213 @@ const Multiplayer = () => {
 
           {!isGameStarted && globalGameEnd && (
             // After game ends
-            <div className="container">
+            <div className="game-end-view-container">
               {isHost && (
-                <div className="host-game-controls">
-                  <div className="button-group">
-                    <div className="button-row">
-                      <button
-                        onClick={() => setShowSettings(true)}
-                        className="settings-button"
-                      >
-                        设置
-                      </button>
-                      <button
-                        onClick={handleVisibilityToggle}
-                        className="visibility-button"
-                      >
-                        {isPublic ? '🔓公开' : '🔒私密'}
-                      </button>
+                <>
+                  <div className="host-controls">
+                    <div className="room-url-container">
                       {isPublic && (
                         <input
                           type="text"
                           value={roomName}
                           placeholder="房间名（可选）"
                           maxLength={15}
-                          style={{ width: '12rem' }}
+                          className="room-name-input"
                           onChange={handleRoomNameChange}
                           onBlur={handleRoomNameBlur}
                           onKeyDown={handleRoomNameKeyDown}
                         />
                       )}
-                    </div>
-                    <div className="button-row">
-                      <button
-                        onClick={handleStartGame}
-                        className="start-game-button"
-                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
-                      >
-                        开始
-                      </button>
-                      <button
-                        onClick={handleManualMode}
-                        className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
-                      >
-                        有人想出题？
-                      </button>
+                      <input
+                        type="text"
+                        value={roomUrl}
+                        readOnly
+                        className="room-url-input"
+                      />
+                      <button onClick={copyRoomUrl} className="copy-button">复制</button>
                     </div>
                   </div>
-                </div>
+                  <div className="host-game-controls">
+                    <div className="button-group">
+                      <div className="button-row">
+                        <button
+                          onClick={() => setShowSettings(true)}
+                          className="settings-button"
+                        >
+                          设置
+                        </button>
+                        <button
+                          onClick={handleVisibilityToggle}
+                          className="visibility-button"
+                        >
+                          {isPublic ? '🔓公开' : '🔒私密'}
+                        </button>
+                        <button
+                          onClick={handleStartGame}
+                          className="start-game-button"
+                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
+                        >
+                          开始
+                        </button>
+                        <button
+                          onClick={handleManualMode}
+                          className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
+                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
+                        >
+                          有人想出题？
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
-              <div className="game-end-message">
-                {showNames ? <>{winner}<br /></> : ''} 答案是: {answerCharacter.nameCn || answerCharacter.name}
-                <button
-                  className="character-details-button"
-                  onClick={() => setShowCharacterPopup(true)}
-                >
-                  查看角色详情
-                </button>
+              <div className="game-end-message-table-wrapper">
+                <table className="game-end-message-table">
+                  <thead>
+                    <tr>
+                      <th className="game-end-header-cell">
+                        <div className="game-end-header-content">
+                          <div className="mode-tags">
+                            {!gameSettings.nonstopMode && !gameSettings.syncMode && (
+                              <span className="mode-tag normal">普通模式</span>
+                            )}
+                            {gameSettings.nonstopMode && (
+                              <span className="mode-tag nonstop">血战模式</span>
+                            )}
+                            {gameSettings.syncMode && (
+                              <span className="mode-tag sync">同步模式</span>
+                            )}
+                          </div>
+                          <span className="answer-label">答案是</span>
+                          {(() => {
+                            // 判断当前玩家是否猜对
+                            const currentPlayer = players.find(p => p.id === socket?.id);
+                            const playerGuesses = currentPlayer?.guesses || '';
+                            const isCurrentPlayerWin = playerGuesses.includes('✌') || playerGuesses.includes('👑') || playerGuesses.includes('🏆');
+                            const isCurrentPlayerLose = playerGuesses.includes('💀') || playerGuesses.includes('🏳️');
+                            const answerButtonClass = isCurrentPlayerWin ? 'answer-character-button win' : isCurrentPlayerLose ? 'answer-character-button lose' : 'answer-character-button';
+                            return (
+                              <button
+                                className={answerButtonClass}
+                                onClick={() => setShowCharacterPopup(true)}
+                              >
+                                {answerCharacter.nameCn || answerCharacter.name}
+                              </button>
+                            );
+                          })()}
+                          {/* 出题人信息（如果存在） */}
+                          {(() => {
+                            const setterInfo = scoreDetails?.find(item => item.type === 'setter');
+                            if (!setterInfo) return null;
+                            const scoreText = setterInfo.score >= 0 ? `+${setterInfo.score}分` : `${setterInfo.score}分`;
+                            const boxClass = setterInfo.score > 0 ? 'player-score-box positive' : setterInfo.score < 0 ? 'player-score-box negative' : 'player-score-box';
+                            const scoreClass = setterInfo.score > 0 ? 'positive' : setterInfo.score < 0 ? 'negative' : '';
+                            return (
+                              <span className="setter-info-inline">
+                                ，出题人
+                                <span className={boxClass}>
+                                  <span className="player-name">{showNames ? setterInfo.username : '**'}</span>
+                                  <span className={`score-value ${scoreClass}`}>
+                                    {scoreText}
+                                  </span>
+                                  {setterInfo.reason && <span className="score-breakdown">{setterInfo.reason}</span>}
+                                </span>
+                              </span>
+                            );
+                          })()}
+                          {scoreDetails && scoreDetails.length > 0 && (
+                            <span className="score-details-title">，得分详情：</span>
+                          )}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="game-end-body-cell">
+                        {/* 详细得分统计列表 */}
+                        {scoreDetails && scoreDetails.length > 0 && (
+                          <div className="score-details-list">
+                            {(() => {
+                              // 过滤出非出题人的条目，按得分降序排序
+                              const sortedDetails = scoreDetails
+                                .filter(item => item.type !== 'setter')
+                                .sort((a, b) => {
+                                  const scoreA = a.type === 'team' ? a.teamScore : a.score;
+                                  const scoreB = b.type === 'team' ? b.teamScore : b.score;
+                                  return scoreB - scoreA;
+                                });
+                              
+                              return sortedDetails.map((item, idx) => {
+                                const rank = idx + 1;
+                                if (item.type === 'team') {
+                                  // 团队得分 - 圆角矩形包裹
+                                  const scoreText = item.teamScore >= 0 ? `+${item.teamScore}分` : `${item.teamScore}分`;
+                                  const teamClass = item.teamScore > 0 ? 'team-box positive' : item.teamScore < 0 ? 'team-box negative' : 'team-box';
+                                  return (
+                                    <div key={`team-${item.teamId}`} className={teamClass}>
+                                      <div className="team-header">
+                                        <span className="player-rank">{rank}.</span>
+                                        <span className="player-name">{showNames ? `队伍${item.teamId}` : `队伍${rank}`}</span>
+                                        <span className={`score-value ${item.teamScore > 0 ? 'positive' : item.teamScore < 0 ? 'negative' : ''}`}>
+                                          {scoreText}
+                                        </span>
+                                      </div>
+                                      <div className="team-members">
+                                        {item.members.map((m, mIdx) => {
+                                          const memberScore = m.score >= 0 ? `+${m.score}分` : `${m.score}分`;
+                                          const hasReason = m.breakdown && (m.breakdown.bigWin || m.breakdown.quickGuess || m.breakdown.rank || m.breakdown.partial);
+                                          const reasonParts = [];
+                                          if (m.breakdown?.bigWin) reasonParts.push('大赢家');
+                                          if (m.breakdown?.quickGuess) reasonParts.push('好快的猜');
+                                          if (m.breakdown?.partial) reasonParts.push('作品分');
+                                          if (m.breakdown?.rank) reasonParts.push(`第${m.breakdown.rank}名`);
+                                          const reasonText = reasonParts.join(' ');
+                                          return (
+                                            <span key={m.id} className="member-item">
+                                              <span className="member-name">{showNames ? m.username : `成员${mIdx + 1}`}</span>
+                                              <span className={`member-score ${m.score > 0 ? 'positive' : m.score < 0 ? 'negative' : ''}`}>
+                                                {memberScore}
+                                              </span>
+                                              {hasReason && <span className="member-reason">{reasonText}</span>}
+                                            </span>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  // 个人得分 - 单行圆角矩形显示
+                                  const scoreText = item.score >= 0 ? `+${item.score}分` : `${item.score}分`;
+                                  const scoreClass = item.score > 0 ? 'positive' : item.score < 0 ? 'negative' : '';
+                                  const boxClass = item.score > 0 ? 'player-score-box positive' : item.score < 0 ? 'player-score-box negative' : 'player-score-box';
+                                  
+                                  // 构建得分明细
+                                  const breakdownParts = [];
+                                  if (item.breakdown?.base) breakdownParts.push(`基础${item.breakdown.base > 0 ? '+' : ''}${item.breakdown.base}`);
+                                  if (item.breakdown?.bigWin) breakdownParts.push(`大赢家+${item.breakdown.bigWin}`);
+                                  if (item.breakdown?.quickGuess) breakdownParts.push(`好快的猜+${item.breakdown.quickGuess}`);
+                                  if (item.breakdown?.partial) breakdownParts.push(`作品分+${item.breakdown.partial}`);
+                                  if (item.breakdown?.rank) breakdownParts.push(`第${item.breakdown.rank}名`);
+                                  const breakdownText = breakdownParts.length > 0 ? breakdownParts.join(' ') : '';
+                                  
+                                  return (
+                                    <span key={item.id || idx} className={boxClass}>
+                                      <span className="player-rank">{rank}.</span>
+                                      <span className="player-name">{showNames ? item.username : `玩家${rank}`}</span>
+                                      <span className={`score-value ${scoreClass}`}>{scoreText}</span>
+                                      {breakdownText && <span className="score-breakdown">{breakdownText}</span>}
+                                    </span>
+                                  );
+                                }
+                              });
+                            })()}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
               <div className="game-end-container">
                 {!isHost && (
@@ -1450,7 +1615,7 @@ const Multiplayer = () => {
                             <td key={playerGuesses.username}>
                               {playerGuesses.guesses[rowIndex] && (
                                 <>
-                                  <img className="character-icon" src={playerGuesses.guesses[rowIndex].guessData.image} alt={playerGuesses.guesses[rowIndex].guessData.name} />
+                                  <Image className="character-icon" src={playerGuesses.guesses[rowIndex].guessData.image} alt={playerGuesses.guesses[rowIndex].guessData.name} />
                                   <div className="character-name">{playerGuesses.guesses[rowIndex].guessData.name}</div>
                                   <div className="character-name-cn">{playerGuesses.guesses[rowIndex].guessData.nameCn}</div>
                                 </>
