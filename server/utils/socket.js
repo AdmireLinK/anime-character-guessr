@@ -613,6 +613,7 @@ function setupSocket(io, rooms) {
                 syncPlayersCompleted: new Set(), // 已完成当前轮次猜测的玩家集合
                 syncWinnerFound: false, // 当前轮是否已有玩家猜对（普通同步模式）
                 syncWinner: null, // 记录猜对的玩家信息
+                syncRoundStartRank: 1, // 同步模式+血战模式：当前轮开始时的排名（用于确保同轮玩家得分一致）
                 // 血战模式状态
                 nonstopWinners: [], // 按顺序记录猜对的玩家 [{id, username, isBigWin}]
                 // 普通模式胜者记录（用于并发提交时确定第一个胜者）
@@ -757,6 +758,11 @@ function setupSocket(io, rooms) {
                             room.currentGame.syncRound += 1;
                             room.currentGame.syncPlayersCompleted.clear();
                             
+                            // 同步+血战模式：记录下一轮开始时的排名（用于确保同轮玩家得分一致）
+                            if (room.currentGame.settings.nonstopMode) {
+                                room.currentGame.syncRoundStartRank = room.currentGame.nonstopWinners.length + 1;
+                            }
+                            
                             // 通知所有玩家可以开始下一轮
                             io.to(roomId).emit('syncRoundStart', {
                                 round: room.currentGame.syncRound
@@ -879,9 +885,12 @@ function setupSocket(io, rooms) {
             );
 
             // 计算当前玩家得分：玩家总数 - 已猜对的玩家数（当前排名）
-            // winnerRank 是当前玩家的排名（1-indexed），因为在 push 之前计算
+            // 同步+血战模式：使用本轮开始时的排名确保同轮玩家得分一致
+            // 非同步血战模式：使用实时排名
             const totalPlayers = activePlayers.length;
-            const winnerRank = room.currentGame.nonstopWinners.length + 1; // +1 因为还没 push
+            const winnerRank = room.currentGame.settings.syncMode 
+                ? room.currentGame.syncRoundStartRank  // 同步模式：使用轮次开始时的排名
+                : room.currentGame.nonstopWinners.length + 1; // 非同步：实时排名
             const rankScore = Math.max(1, totalPlayers - winnerRank + 1);
             
             // 获取总轮数上限
