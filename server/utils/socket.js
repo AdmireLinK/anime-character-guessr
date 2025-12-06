@@ -122,6 +122,74 @@ function calculateNonstopSetterScore({ hasBigWinner = false, bigWinnerScore = 0,
     return { score, reason };
 }
 
+// 同步模式：统一处理进度更新与轮次推进，支持血战模式
+function updateSyncProgress(room, roomId) {
+    if (!room?.currentGame || !room.currentGame.settings?.syncMode || !room.currentGame.syncPlayersCompleted) return;
+
+    // 仍需要在当前轮次提交的活跃玩家（排除出题人、旁观者、已断开、已结束的玩家）
+    const activePlayers = room.players.filter(p =>
+        !p.isAnswerSetter &&
+        p.team !== '0' &&
+        !p.disconnected &&
+        !p.guesses.includes('✌') &&
+        !p.guesses.includes('💀') &&
+        !p.guesses.includes('🏳️') &&
+        !p.guesses.includes('👑') &&
+        !p.guesses.includes('🏆')
+    );
+
+    if (activePlayers.length === 0) {
+        return;
+    }
+
+    const syncStatus = activePlayers.map(p => ({
+        id: p.id,
+        username: p.username,
+        completed: room.currentGame.syncPlayersCompleted.has(p.id)
+    }));
+
+    const allCompleted = activePlayers.every(p => room.currentGame.syncPlayersCompleted.has(p.id));
+
+    if (allCompleted) {
+        // 非血战同步模式：有人猜对则结束游戏（不再开新一轮）
+        if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
+            io.to(roomId).emit('syncGameEnding', {
+                winnerUsername: room.currentGame.syncWinner?.username,
+                message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
+            });
+            return;
+        }
+
+        // 开启下一同步轮次
+        room.currentGame.syncRound += 1;
+        room.currentGame.syncPlayersCompleted.clear();
+
+        // 同步+血战：记录本轮开始的排名基线，确保同轮玩家基础分一致
+        if (room.currentGame.settings.nonstopMode) {
+            room.currentGame.syncRoundStartRank = room.currentGame.nonstopWinners.length + 1;
+        }
+
+        io.to(roomId).emit('syncRoundStart', {
+            round: room.currentGame.syncRound
+        });
+    } else {
+        io.to(roomId).emit('syncWaiting', {
+            round: room.currentGame.syncRound,
+            syncStatus,
+            completedCount: syncStatus.filter(s => s.completed).length,
+            totalCount: syncStatus.length
+        });
+
+        // 非血战同步模式：有人已猜对，提示等待本轮结束
+        if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
+            io.to(roomId).emit('syncGameEnding', {
+                winnerUsername: room.currentGame.syncWinner?.username,
+                message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
+            });
+        }
+    }
+}
+
 /**
  * 生成游戏结束统计详情
  * @param {Object} options - 生成选项
@@ -717,77 +785,12 @@ function setupSocket(io, rooms) {
                 player.guesses += guessResult.isCorrect ? '✔' :  '❌';
             }
 
-            // 同步模式：跟踪玩家完成状态并处理回合同步
+            // 同步模式：标记完成并统一更新进度
             if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
-                // 如果玩家猜对了，不加入同步列表（猜对的玩家会通过 gameEnd 事件结束游戏）
                 if (!guessResult.isCorrect) {
-                    // 标记该玩家已完成当前同步轮次
                     room.currentGame.syncPlayersCompleted.add(socket.id);
                 }
-
-                // 获取所有需要完成本轮的活跃玩家（排除观察者、出题人、已断开连接、已结束的玩家）
-                const activePlayers = room.players.filter(p => 
-                    !p.isAnswerSetter && 
-                    p.team !== '0' && 
-                    !p.disconnected &&
-                    !p.guesses.includes('✌') &&
-                    !p.guesses.includes('💀') &&
-                    !p.guesses.includes('🏳️') &&
-                    !p.guesses.includes('👑') &&
-                    !p.guesses.includes('🏆')
-                );
-
-                if (activePlayers.length > 0) {
-                    // 构建所有活跃玩家的同步状态
-                    const syncStatus = activePlayers.map(p => ({
-                        id: p.id,
-                        username: p.username,
-                        completed: room.currentGame.syncPlayersCompleted.has(p.id)
-                    }));
-
-                    // 检查是否所有活跃玩家都已完成猜测
-                    const allCompleted = activePlayers.every(p => room.currentGame.syncPlayersCompleted.has(p.id));
-
-                    if (allCompleted) {
-                        // 仅同步模式（非血战）：如果有人猜对，本轮完成后不进入下一轮
-                        if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
-                            console.log(`[同步模式] 房间 ${roomId}: 本轮完成，有人猜对，等待游戏结束`);
-                            // 游戏结束会由 gameEnd 事件触发
-                        } else {
-                            // 所有玩家都已完成猜测，开始下一轮
-                            room.currentGame.syncRound += 1;
-                            room.currentGame.syncPlayersCompleted.clear();
-                            
-                            // 同步+血战模式：记录下一轮开始时的排名（用于确保同轮玩家得分一致）
-                            if (room.currentGame.settings.nonstopMode) {
-                                room.currentGame.syncRoundStartRank = room.currentGame.nonstopWinners.length + 1;
-                            }
-                            
-                            // 通知所有玩家可以开始下一轮
-                            io.to(roomId).emit('syncRoundStart', {
-                                round: room.currentGame.syncRound
-                            });
-                            console.log(`[同步模式] 房间 ${roomId}: 第 ${room.currentGame.syncRound} 轮开始 - 所有玩家已完成`);
-                        }
-                    } else {
-                        // 通知所有玩家当前同步状态
-                        io.to(roomId).emit('syncWaiting', {
-                            round: room.currentGame.syncRound,
-                            syncStatus: syncStatus,
-                            completedCount: syncStatus.filter(s => s.completed).length,
-                            totalCount: syncStatus.length
-                        });
-                        console.log(`[同步模式] 房间 ${roomId}: 等待中 - ${syncStatus.filter(s => s.completed).length}/${syncStatus.length} 玩家已完成`);
-                        
-                        // 仅同步模式（非血战）：如果有人猜对，通知等待中的玩家
-                        if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
-                            io.to(roomId).emit('syncGameEnding', {
-                                winnerUsername: room.currentGame.syncWinner?.username,
-                                message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
-                            });
-                        }
-                    }
-                }
+                updateSyncProgress(room, roomId);
             }
     
             // Broadcast updated players to all clients in the room
@@ -870,6 +873,19 @@ function setupSocket(io, rooms) {
                         });
                         console.log(`[血战模式] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利`);
                     });
+            }
+
+            // 同步+血战：胜者所在队伍本轮视为已完成，不再参与后续轮次
+            if (room.currentGame.settings.syncMode && room.currentGame.syncPlayersCompleted) {
+                room.currentGame.syncPlayersCompleted.add(socket.id);
+                if (player.team && player.team !== '0') {
+                    room.players
+                        .filter(p => p.team === player.team && p.id !== socket.id && !p.isAnswerSetter && !p.disconnected)
+                        .forEach(teammate => {
+                            room.currentGame.syncPlayersCompleted.add(teammate.id);
+                        });
+                }
+                updateSyncProgress(room, roomId);
             }
 
             // 获取活跃玩家（不含出题人、观察者）
@@ -1127,72 +1143,29 @@ function setupSocket(io, rooms) {
                 }
             }
 
-            // 同步模式：将已结束游戏的玩家从同步跟踪中移除，并检查是否可以进入下一轮
+            // 同步模式：已结束玩家/队伍标记完成并更新进度
             if (room.currentGame && room.currentGame.settings.syncMode && room.currentGame.syncPlayersCompleted) {
-                room.currentGame.syncPlayersCompleted.delete(socket.id);
-                
-                // 投降/失败后立即更新玩家列表，让其他玩家看到状态变化
+                // 纯同步：赢家也视为完成；失败/投降同样完成
+                if (!room.currentGame.settings.nonstopMode) {
+                    room.currentGame.syncPlayersCompleted.add(socket.id);
+                } else {
+                    // 同步+血战：本轮胜者及其队伍本轮完成，不再进入下一轮
+                    room.currentGame.syncPlayersCompleted.add(socket.id);
+                    if (player.team && player.team !== '0') {
+                        room.players
+                            .filter(p => p.team === player.team && p.id !== player.id && !p.isAnswerSetter && !p.disconnected)
+                            .forEach(teammate => {
+                                room.currentGame.syncPlayersCompleted.add(teammate.id);
+                            });
+                    }
+                }
+
+                // 状态变更后立即同步玩家列表
                 io.to(roomId).emit('updatePlayers', {
                     players: room.players
                 });
-                
-                // 获取剩余需要完成本轮的活跃玩家
-                const syncActivePlayers = room.players.filter(p => 
-                    !p.isAnswerSetter && 
-                    p.team !== '0' && 
-                    !p.disconnected &&
-                    !p.guesses.includes('✌') &&
-                    !p.guesses.includes('💀') &&
-                    !p.guesses.includes('🏳️') &&
-                    !p.guesses.includes('👑') &&
-                    !p.guesses.includes('🏆')
-                );
 
-                if (syncActivePlayers.length > 0) {
-                    const allCompleted = syncActivePlayers.every(p => room.currentGame.syncPlayersCompleted.has(p.id));
-                    
-                    if (allCompleted) {
-                        // 仅同步模式（非血战）：如果有人猜对，本轮完成后直接结束游戏
-                        if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
-                            // 游戏结束，不进入下一轮
-                            console.log(`[同步模式] 房间 ${roomId}: 本轮完成，有人猜对，游戏结束`);
-                            // 不在这里处理游戏结束，让后续的普通结束逻辑处理
-                        } else {
-                            // 所有剩余玩家都已完成，进入下一轮
-                            room.currentGame.syncRound += 1;
-                            room.currentGame.syncPlayersCompleted.clear();
-                            io.to(roomId).emit('syncRoundStart', {
-                                round: room.currentGame.syncRound
-                            });
-                            console.log(`[同步模式] 房间 ${roomId}: 玩家结束游戏，第 ${room.currentGame.syncRound} 轮开始`);
-                        }
-                    } else {
-                        // 玩家结束后更新同步状态
-                        const syncStatus = syncActivePlayers.map(p => ({
-                            id: p.id,
-                            username: p.username,
-                            completed: room.currentGame.syncPlayersCompleted.has(p.id)
-                        }));
-                        io.to(roomId).emit('syncWaiting', {
-                            round: room.currentGame.syncRound,
-                            syncStatus: syncStatus,
-                            completedCount: syncStatus.filter(s => s.completed).length,
-                            totalCount: syncStatus.length
-                        });
-                        
-                        // 仅同步模式（非血战）：如果有人猜对，阻止其他队开始下一轮猜测
-                        if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
-                            // 通知等待中的玩家游戏即将结束
-                            io.to(roomId).emit('syncGameEnding', {
-                                winnerUsername: room.currentGame.syncWinner?.username,
-                                message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
-                            });
-                        }
-                    }
-                } else if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
-                    // 所有人都结束了且有人猜对，游戏结束逻辑会在后续处理
-                    console.log(`[同步模式] 房间 ${roomId}: 所有玩家结束，有人猜对，游戏将结束`);
-                }
+                updateSyncProgress(room, roomId);
             }
 
             // 血战模式：检查是否所有人都结束
@@ -1500,59 +1473,7 @@ function setupSocket(io, rooms) {
                 if (!hasEnded) {
                     room.currentGame.syncPlayersCompleted.add(socket.id);
                 }
-
-                // 获取所有需要完成本轮的活跃玩家（剔除已结束的玩家）
-                const activePlayers = room.players.filter(p => 
-                    !p.isAnswerSetter && 
-                    p.team !== '0' && 
-                    !p.disconnected &&
-                    !p.guesses.includes('✌') &&
-                    !p.guesses.includes('💀') &&
-                    !p.guesses.includes('🏳️') &&
-                    !p.guesses.includes('👑') &&
-                    !p.guesses.includes('🏆')
-                );
-
-                if (activePlayers.length > 0) {
-                    const syncStatus = activePlayers.map(p => ({
-                        id: p.id,
-                        username: p.username,
-                        completed: room.currentGame.syncPlayersCompleted.has(p.id)
-                    }));
-
-                    const allCompleted = activePlayers.every(p => room.currentGame.syncPlayersCompleted.has(p.id));
-                    
-                    if (allCompleted) {
-                        if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
-                            // 已有人猜对，等待当前轮结束，不再开启新一轮
-                            io.to(roomId).emit('syncGameEnding', {
-                                winnerUsername: room.currentGame.syncWinner?.username,
-                                message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
-                            });
-                        } else {
-                            room.currentGame.syncRound += 1;
-                            room.currentGame.syncPlayersCompleted.clear();
-                            io.to(roomId).emit('syncRoundStart', {
-                                round: room.currentGame.syncRound
-                            });
-                            console.log(`[同步模式] 房间 ${roomId}: 超时后第 ${room.currentGame.syncRound} 轮开始`);
-                        }
-                    } else {
-                        io.to(roomId).emit('syncWaiting', {
-                            round: room.currentGame.syncRound,
-                            syncStatus: syncStatus,
-                            completedCount: syncStatus.filter(s => s.completed).length,
-                            totalCount: syncStatus.length
-                        });
-
-                        if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
-                            io.to(roomId).emit('syncGameEnding', {
-                                winnerUsername: room.currentGame.syncWinner?.username,
-                                message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
-                            });
-                        }
-                    }
-                }
+                updateSyncProgress(room, roomId);
             }
     
             // Broadcast updated players to all clients in the room
