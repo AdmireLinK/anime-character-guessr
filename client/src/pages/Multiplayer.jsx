@@ -93,6 +93,7 @@ const Multiplayer = () => {
   const gameEndedRef = useRef(false);
   const [scoreDetails, setScoreDetails] = useState(null);
   const [globalGameEnd, setGlobalGameEnd] = useState(false);
+  const [endGameSettings, setEndGameSettings] = useState(null); // 上一局的模式快照
   const [guessesHistory, setGuessesHistory] = useState([]);
   const [showNames, setShowNames] = useState(true);
   const [showCharacterPopup, setShowCharacterPopup] = useState(false);
@@ -237,6 +238,7 @@ const Multiplayer = () => {
       setUseImageHint(settings.useImageHint);
       setImgHint(settings.useImageHint > 0 ? decryptedCharacter.image : null);
       setGlobalGameEnd(false);
+      setEndGameSettings(null); // 新局开始时清空上一局模式快照
       setScoreDetails(null);
       setIsGameStarted(true);
       setGuesses([]);
@@ -287,6 +289,7 @@ const Multiplayer = () => {
     });
 
     newSocket.on('gameEnded', ({ guesses, scoreDetails }) => {
+      setEndGameSettings(gameSettingsRef.current); // 保存上一局的模式设置用于结算展示
       setScoreDetails(scoreDetails || null);
       setGlobalGameEnd(true);
       setGuessesHistory(guesses);
@@ -963,6 +966,8 @@ const Multiplayer = () => {
     return <div>Loading...</div>;
   }
 
+  const displaySettings = globalGameEnd ? (endGameSettings || gameSettings) : gameSettings;
+
   return (
     <div className="multiplayer-container">
       {/* 添加踢出通知 */}
@@ -1447,13 +1452,13 @@ const Multiplayer = () => {
                       <th className="game-end-header-cell">
                         <div className="game-end-header-content">
                           <div className="mode-tags">
-                            {!gameSettings.nonstopMode && !gameSettings.syncMode && (
+                            {!displaySettings.nonstopMode && !displaySettings.syncMode && (
                               <span className="mode-tag normal">普通模式</span>
                             )}
-                            {gameSettings.nonstopMode && (
+                            {displaySettings.nonstopMode && (
                               <span className="mode-tag nonstop">血战模式</span>
                             )}
-                            {gameSettings.syncMode && (
+                            {displaySettings.syncMode && (
                               <span className="mode-tag sync">同步模式</span>
                             )}
                           </div>
@@ -1464,11 +1469,17 @@ const Multiplayer = () => {
                             const playerGuesses = currentPlayer?.guesses || '';
                             const isObserver = currentPlayer?.team === '0';
                             const isCurrentPlayerWin = playerGuesses.includes('✌') || playerGuesses.includes('👑') || playerGuesses.includes('🏆');
-                            const isCurrentPlayerLose = !isCurrentPlayerWin && playerGuesses.length > 0;
+                            const isCurrentPlayerLose = !isCurrentPlayerWin && (
+                              playerGuesses.includes('💀') || // 次数用尽
+                              playerGuesses.includes('🏳️') || // 投降
+                              (playerGuesses.length > 0 && !playerGuesses.includes('⏱️')) // 已参与但未获胜（排除仅超时）
+                            );
                             let answerButtonClass = 'answer-character-button';
-                            if (!isObserver && isCurrentPlayerWin) {  
-                              answerButtonClass = 'answer-character-button win';  
-                            } else if (!isObserver && isCurrentPlayerLose) {  
+                            if (isObserver) {
+                              answerButtonClass = 'answer-character-button';
+                            } else if (isCurrentPlayerWin) {
+                              answerButtonClass = 'answer-character-button win';
+                            } else if (isCurrentPlayerLose) {
                               answerButtonClass = 'answer-character-button lose';
                             }
                             return (
@@ -1526,40 +1537,31 @@ const Multiplayer = () => {
                               return sortedDetails.map((item, idx) => {
                                 const rank = idx + 1;
                                 if (item.type === 'team') {
-                                  // 团队得分 - 圆角矩形包裹
+                                  // 团队得分
                                   const scoreText = item.teamScore >= 0 ? `+${item.teamScore}分` : `${item.teamScore}分`;
-                                  const teamClass = item.teamScore > 0 ? 'team-box positive' : item.teamScore < 0 ? 'team-box negative' : 'team-box';
+                                  const scoreClass = item.teamScore > 0 ? 'positive' : item.teamScore < 0 ? 'negative' : '';
+                                  const boxClass = item.teamScore > 0 ? 'player-score-box positive' : item.teamScore < 0 ? 'player-score-box negative' : 'player-score-box';
+                                  
+                                  // 构建队伍成员得分明细
+                                  const memberDetails = item.members.map((m, mIdx) => {
+                                    const memberScore = m.score >= 0 ? `+${m.score}` : `${m.score}`;
+                                    const reasonParts = [];
+                                    if (m.breakdown?.base) reasonParts.push(`基础${m.breakdown.base > 0 ? '+' : ''}${m.breakdown.base}`);
+                                    if (m.breakdown?.bigWin) reasonParts.push(`大赢家+${m.breakdown.bigWin}`);
+                                    if (m.breakdown?.quickGuess) reasonParts.push(`好快的猜+${m.breakdown.quickGuess}`);
+                                    if (m.breakdown?.partial) reasonParts.push(`作品分+${m.breakdown.partial}`);
+                                    const reasonText = reasonParts.length > 0 ? `(${reasonParts.join(' ')})` : '';
+                                    const displayName = showNames ? m.username : `成员${mIdx + 1}`;
+                                    return `${displayName}${memberScore}${reasonText}`;
+                                  }).join(' ');
+                                  
                                   return (
-                                    <div key={`team-${item.teamId}`} className={teamClass}>
-                                      <div className="team-header">
-                                        <span className="player-rank">{rank}.</span>
-                                        <span className="player-name">{showNames ? `队伍${item.teamId}` : `队伍${rank}`}</span>
-                                        <span className={`score-value ${item.teamScore > 0 ? 'positive' : item.teamScore < 0 ? 'negative' : ''}`}>
-                                          {scoreText}
-                                        </span>
-                                      </div>
-                                      <div className="team-members">
-                                        {item.members.map((m, mIdx) => {
-                                          const memberScore = m.score >= 0 ? `+${m.score}分` : `${m.score}分`;
-                                          const hasReason = m.breakdown && (m.breakdown.bigWin || m.breakdown.quickGuess || m.breakdown.rank || m.breakdown.partial);
-                                          const reasonParts = [];
-                                          if (m.breakdown?.bigWin) reasonParts.push('大赢家');
-                                          if (m.breakdown?.quickGuess) reasonParts.push('好快的猜');
-                                          if (m.breakdown?.partial) reasonParts.push('作品分');
-                                          if (m.breakdown?.rank) reasonParts.push(`第${m.breakdown.rank}名`);
-                                          const reasonText = reasonParts.join(' ');
-                                          return (
-                                            <span key={m.id} className="member-item">
-                                              <span className="member-name">{showNames ? m.username : `成员${mIdx + 1}`}</span>
-                                              <span className={`member-score ${m.score > 0 ? 'positive' : m.score < 0 ? 'negative' : ''}`}>
-                                                {memberScore}
-                                              </span>
-                                              {hasReason && <span className="member-reason">{reasonText}</span>}
-                                            </span>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
+                                    <span key={`team-${item.teamId}`} className={boxClass}>
+                                      <span className="player-rank">{rank}.</span>
+                                      <span className="player-name">{showNames ? `队伍${item.teamId}` : `队伍${rank}`}</span>
+                                      <span className={`score-value ${scoreClass}`}>{scoreText}</span>
+                                      {memberDetails && <span className="score-breakdown">{memberDetails}</span>}
+                                    </span>
                                   );
                                 } else {
                                   // 个人得分 - 单行圆角矩形显示
@@ -1573,7 +1575,6 @@ const Multiplayer = () => {
                                   if (item.breakdown?.bigWin) breakdownParts.push(`大赢家+${item.breakdown.bigWin}`);
                                   if (item.breakdown?.quickGuess) breakdownParts.push(`好快的猜+${item.breakdown.quickGuess}`);
                                   if (item.breakdown?.partial) breakdownParts.push(`作品分+${item.breakdown.partial}`);
-                                  if (item.breakdown?.rank) breakdownParts.push(`第${item.breakdown.rank}名`);
                                   const breakdownText = breakdownParts.length > 0 ? breakdownParts.join(' ') : '';
                                   
                                   return (
