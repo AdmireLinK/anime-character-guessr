@@ -1464,11 +1464,17 @@ const Multiplayer = () => {
                             const playerGuesses = currentPlayer?.guesses || '';
                             const isObserver = currentPlayer?.team === '0';
                             const isCurrentPlayerWin = playerGuesses.includes('✌') || playerGuesses.includes('👑') || playerGuesses.includes('🏆');
-                            const isCurrentPlayerLose = !isCurrentPlayerWin && playerGuesses.length > 0;
+                            const isCurrentPlayerLose = !isCurrentPlayerWin && (
+                              playerGuesses.includes('💀') || // 次数用尽
+                              playerGuesses.includes('🏳️') || // 投降
+                              (playerGuesses.length > 0 && !playerGuesses.includes('⏱️')) // 已参与但未获胜（排除仅超时）
+                            );
                             let answerButtonClass = 'answer-character-button';
-                            if (!isObserver && isCurrentPlayerWin) {  
-                              answerButtonClass = 'answer-character-button win';  
-                            } else if (!isObserver && isCurrentPlayerLose) {  
+                            if (isObserver) {
+                              answerButtonClass = 'answer-character-button';
+                            } else if (isCurrentPlayerWin) {
+                              answerButtonClass = 'answer-character-button win';
+                            } else if (isCurrentPlayerLose) {
                               answerButtonClass = 'answer-character-button lose';
                             }
                             return (

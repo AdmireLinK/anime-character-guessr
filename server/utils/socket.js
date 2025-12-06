@@ -11,7 +11,8 @@ function calculateWinnerScore({ guesses, baseScore = 0, totalRounds = 10 }) {
     const isBigWin = guesses.includes('👑');
     
     // 计算猜测轮数（去掉提示标记和结束标记）
-    const guessCount = guesses.replace(/[💡✌👑💀🏳️🏆⏱️]/g, '').length;
+    // 注意：💡 视为一次有效尝试，不能从计数中剔除
+    const guessCount = guesses.replace(/[✌👑💀🏳️🏆⏱️]/g, '').length;
     
     let totalScore = baseScore;
     const bonuses = {
