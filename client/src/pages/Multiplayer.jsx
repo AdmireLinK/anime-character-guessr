@@ -1466,11 +1466,9 @@ const Multiplayer = () => {
                             const isCurrentPlayerWin = playerGuesses.includes('✌') || playerGuesses.includes('👑') || playerGuesses.includes('🏆');
                             const isCurrentPlayerLose = !isCurrentPlayerWin && playerGuesses.length > 0;
                             let answerButtonClass = 'answer-character-button';
-                            if (isObserver) {
-                              answerButtonClass = 'answer-character-button';
-                            } else if (isCurrentPlayerWin) {
-                              answerButtonClass = 'answer-character-button win';
-                            } else if (isCurrentPlayerLose) {
+                            if (!isObserver && isCurrentPlayerWin) {  
+                              answerButtonClass = 'answer-character-button win';  
+                            } else if (!isObserver && isCurrentPlayerLose) {  
                               answerButtonClass = 'answer-character-button lose';
                             }
                             return (
