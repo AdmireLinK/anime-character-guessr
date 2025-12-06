@@ -118,6 +118,28 @@ app.get('/clean-rooms', (req, res) => {
     res.json({message: `已清理${cleaned}个房间`});
 });
 
+app.get('/close-room/:id', (req, res) => {
+    const roomId = req.params.id;
+
+    if (!roomId || typeof roomId !== 'string') {
+        return res.status(400).json({error: '房间ID不能为空'});
+    }
+
+    const room = rooms.get(roomId);
+    if (!room) {
+        return res.status(404).json({error: '房间不存在'});
+    }
+
+    io.to(roomId).emit('roomClosed', {message: '房间被管理关闭'});
+    rooms.delete(roomId);
+
+    res.json({
+        message: '房间已关闭',
+        roomId,
+        playerCount: room.players?.length || 0
+    });
+});
+
 app.get('/list-rooms', (req, res) => {
     const roomsList = Array.from(rooms.entries()).map(([id, room]) => {
         const hostPlayer = room.players.find(p => p.isHost) || room.players.find(p => p.id === room.host);
