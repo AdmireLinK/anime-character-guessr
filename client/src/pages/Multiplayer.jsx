@@ -1461,9 +1461,22 @@ const Multiplayer = () => {
                             // 判断当前玩家是否猜对
                             const currentPlayer = players.find(p => p.id === socket?.id);
                             const playerGuesses = currentPlayer?.guesses || '';
+                            const isObserver = currentPlayer?.team === '0';
                             const isCurrentPlayerWin = playerGuesses.includes('✌') || playerGuesses.includes('👑') || playerGuesses.includes('🏆');
-                            const isCurrentPlayerLose = playerGuesses.includes('💀') || playerGuesses.includes('🏳️');
-                            const answerButtonClass = isCurrentPlayerWin ? 'answer-character-button win' : isCurrentPlayerLose ? 'answer-character-button lose' : 'answer-character-button';
+                            const isCurrentPlayerLose = !isCurrentPlayerWin && (
+                              playerGuesses.includes('💀') ||
+                              playerGuesses.includes('🏳️') ||
+                              playerGuesses.includes('⏱️') ||
+                              playerGuesses.length > 0 // 已参与但未获胜的其他情况
+                            );
+                            let answerButtonClass = 'answer-character-button';
+                            if (isObserver) {
+                              answerButtonClass = 'answer-character-button';
+                            } else if (isCurrentPlayerWin) {
+                              answerButtonClass = 'answer-character-button win';
+                            } else if (isCurrentPlayerLose) {
+                              answerButtonClass = 'answer-character-button lose';
+                            }
                             return (
                               <button
                                 className={answerButtonClass}
