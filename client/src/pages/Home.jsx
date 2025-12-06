@@ -60,6 +60,7 @@ const Home = () => {
           <a href="https://space.bilibili.com/87983557">@作者</a>："感谢 <a href="https://github.com/trim21">Bangumi 管理员</a> 的优化支持，
           以及各位<a href="https://github.com/kennylimz/anime-character-guessr/graphs/contributors">网友</a>贡献的代码和数据。
           感谢大家这段时间的热情和支持。"<br/>
+          有Bug？到<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" rel="noopener noreferrer">Github Issues</a>反馈<br/>
           想找朋友一起玩？QQ群：467740403<br/>
           作者的新玩具：<a href="https://www.bilibili.com/video/BV1MstxzgEhg/">一个桌面挂件</a>
         </p>
