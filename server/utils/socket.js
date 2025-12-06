@@ -1299,10 +1299,10 @@ function setupSocket(io, rooms) {
             
             // 使用 firstWinner 来确定真正的胜者（处理并发提交情况）
             const firstWinner = room.currentGame?.firstWinner;
-            const bigwinner = firstWinner?.isBigWin 
+            let bigwinner = firstWinner?.isBigWin 
                 ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('👑'))
                 : activePlayers.find(p => p.guesses.includes('👑'));
-            const winner = !bigwinner && firstWinner && !firstWinner.isBigWin
+            let winner = !bigwinner && firstWinner && !firstWinner.isBigWin
                 ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('✌'))
                 : (!bigwinner ? activePlayers.find(p => p.guesses.includes('✌')) : null);
     
