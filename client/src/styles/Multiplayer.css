@@ -441,6 +441,7 @@
   overflow: hidden;
   width: 100%;
   box-sizing: border-box;
+  margin-top: 1rem;
 }
 
 .game-end-message-table {
@@ -536,7 +537,7 @@
 
 /* 出题人信息（第一行内联） */
 .setter-info-inline {
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: #1e293b;
   display: flex;
   align-items: center;
@@ -565,7 +566,7 @@
 
 .score-breakdown {
   color: #64748b;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   margin-left: 0.25rem;
   font-weight: normal;
 }
@@ -607,8 +608,14 @@
   border: 1px solid #86efac;
 }
 
+.mode-tag.global-bp {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
 .score-details-title {
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: #1e293b;
 }
 
@@ -626,22 +633,26 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: #1e293b;
-  padding: 0.25rem 0.75rem;
-  border-radius: 8px;
+  padding: 4px 12px;
+  border-radius: 4px;
   border: 1px solid #e2e8f0;
   background: #fff;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
 
 .player-score-box.positive {
   border-color: #86efac;
   background: #f0fdf4;
+  color: #01BE43;
 }
 
 .player-score-box.negative {
   border-color: #fca5a5;
   background: #fef2f2;
+  color: #E71C1C;
 }
 
 .player-score-box .player-rank {
@@ -651,48 +662,54 @@
 
 .player-score-box .player-name {
   font-weight: 500;
-  color: #1e293b;
+  color: inherit;
 }
 
 .player-score-box .score-value {
   font-weight: 600;
+  color: inherit;
 }
 
 .player-score-box .score-value.positive {
-  color: #10b981;
+  color: inherit;
 }
 
 .player-score-box .score-value.negative {
-  color: #ef4444;
+  color: inherit;
 }
 
 /* .score-breakdown 样式已在上方通用定义 */
 
-/* 团队圆角矩形样式 */
+/* 团队圆角矩形样式 - 与血战/同步模式样式一致 */
 .team-box {
-  border-radius: 8px;
+  border-radius: 4px;
   border: 1px solid #e2e8f0;
   background: #fff;
   overflow: hidden;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
 
 .team-box.positive {
   border-color: #86efac;
   background: #f0fdf4;
+  color: #15803d;
 }
 
 .team-box.negative {
   border-color: #fca5a5;
   background: #fef2f2;
+  color: #dc2626;
 }
 
 .team-box .team-header {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 1rem;
-  color: #1e293b;
+  padding: 4px 12px;
+  font-size: 0.9rem;
+  color: inherit;
 }
 
 .team-box .team-header .player-rank {
@@ -702,26 +719,27 @@
 
 .team-box .team-header .player-name {
   font-weight: 500;
-  color: #1e293b;
+  color: inherit;
 }
 
 .team-box .team-header .score-value {
   font-weight: 600;
+  color: inherit;
 }
 
 .team-box .team-header .score-value.positive {
-  color: #10b981;
+  color: inherit;
 }
 
 .team-box .team-header .score-value.negative {
-  color: #ef4444;
+  color: inherit;
 }
 
 .team-box .team-members {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
-  padding: 0.5rem 0.75rem;
+  padding: 4px 12px;
   border-top: 1px solid #e2e8f0;
 }
 

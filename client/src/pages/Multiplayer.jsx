@@ -1116,7 +1116,8 @@ const Multiplayer = () => {
           <div className="anonymous-mode-info">
             匿名模式？点表头"名"切换。<br/>
             沟通玩法？点自己名字编辑短信息。<br/>
-            有Bug？到<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" rel="noopener noreferrer">Github Issues</a>反馈。
+            有Bug？到<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" rel="noopener noreferrer">Github Issues</a>反馈或加入下方QQ群。<br/>
+            想找猜猜呗同好？QQ群：<a href="https://qm.qq.com/q/2sWbSsCwBu" target="_blank" rel="noopener noreferrer">467740403</a>。
           </div>
 
           {!isGameStarted && !globalGameEnd && (
@@ -1486,6 +1487,9 @@ const Multiplayer = () => {
                             )}
                             {displaySettings.syncMode && (
                               <span className="mode-tag sync">同步模式</span>
+                            )}
+                            {displaySettings.globalBanPick && (
+                              <span className="mode-tag global-bp">全局BP</span>
                             )}
                           </div>
                           <span className="answer-label">答案是</span>
