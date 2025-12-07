@@ -985,7 +985,13 @@ function setupSocket(io, rooms) {
             }
     
             // Team guess sharing: broadcast guessData to teammates, observers, and answerSetter (not self)
-            if (guessResult.guessData && !guessResult.isCorrect) {
+            if (guessResult.guessData) {
+                // rawTags 需要可序列化传输
+                const serializedGuessData = { ...guessResult.guessData };
+                if (serializedGuessData.rawTags instanceof Map) {
+                    serializedGuessData.rawTags = Array.from(serializedGuessData.rawTags.entries());
+                }
+
                 // Collect all intended recipients (teammates, observers, answerSetter), not self, no duplicates
                 const recipients = room.players.filter(p =>
                     p.id !== socket.id && (
@@ -996,7 +1002,7 @@ function setupSocket(io, rooms) {
                 );
                 recipients.forEach(recipient => {
                     io.to(recipient.id).emit('boardcastTeamGuess', {
-                        guessData: { ...guessResult.guessData, guessrName: player.username },
+                        guessData: { ...serializedGuessData, guessrName: player.username },
                         playerId: socket.id,
                         playerName: player.username
                     });
