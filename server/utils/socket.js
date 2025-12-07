@@ -2,7 +2,7 @@
  * 计算玩家胜利得分
  * @param {Object} options - 计算选项
  * @param {string} options.guesses - 玩家的猜测记录字符串
- * @param {number} options.baseScore - 基础得分（普通模式为2/14，血战模式根据排名计算）
+ * @param {number} options.baseScore - 基础得分（普通/同步模式为 2，血战模式根据排名计算）
  * @param {number} options.totalRounds - 总猜测轮数上限（用于计算快速猜对奖励，默认10）
  * @returns {Object} - { totalScore, guessCount, isBigWin, bonuses: { bigWin, quickGuess } }
  */
@@ -12,7 +12,9 @@ function calculateWinnerScore({ guesses, baseScore = 0, totalRounds = 10 }) {
     
     // 计算猜测轮数（去掉提示标记和结束标记）
     // 注意：💡 视为一次有效尝试，不能从计数中剔除
-    const guessCount = guesses.replace(/[✌👑💀🏳️🏆⏱️]/g, '').length;
+    // 使用 Array.from 正确计算emoji字符数
+    const cleaned = guesses.replace(/[✌👑💀🏳️🏆⏱️]/g, '');
+    const guessCount = Array.from(cleaned).length;
     
     let totalScore = baseScore;
     const bonuses = {
@@ -20,15 +22,14 @@ function calculateWinnerScore({ guesses, baseScore = 0, totalRounds = 10 }) {
         quickGuess: 0
     };
     
-    // bigwin 奖励
+    // bigwin 奖励（额外 +12 分）
     if (isBigWin) {
-        bonuses.bigWin = 14;
+        bonuses.bigWin = 12;
         totalScore += bonuses.bigWin;
     }
     
     // 快速猜对奖励
-    // 前三轮猜对（2-3轮）额外 +2，少于总轮数一半额外 +1
-    if (!isBigWin || guessCount > 1) {
+    if (!isBigWin) {
         if (guessCount >= 2 && guessCount <= 3) {
             bonuses.quickGuess = 2;
         } else if (guessCount > 3 && guessCount < totalRounds / 2) {
@@ -128,41 +129,59 @@ function updateSyncProgress(room, roomId, io) {
     if (!io) return;
     if (!room?.currentGame || !room.currentGame.settings?.syncMode || !room.currentGame.syncPlayersCompleted) return;
 
-    // 仍需要在当前轮次提交的活跃玩家（排除出题人、旁观者、已断开、已结束的玩家）
-    const activePlayers = room.players.filter(p =>
+    // 需要参与同步轮次的玩家（排除出题人、旁观者、已断开，但保留已结束的玩家以展示完成状态）
+    const syncPlayers = room.players.filter(p =>
         !p.isAnswerSetter &&
         p.team !== '0' &&
-        !p.disconnected &&
-        !p.guesses.includes('✌') &&
-        !p.guesses.includes('💀') &&
-        !p.guesses.includes('🏳️') &&
-        !p.guesses.includes('👑') &&
-        !p.guesses.includes('🏆')
+        !p.disconnected
     );
 
-    if (activePlayers.length === 0) {
+    if (syncPlayers.length === 0) {
         return;
     }
 
-    const syncStatus = activePlayers.map(p => ({
+    // 已结束的玩家也视为本轮完成，确保同步组件显示为已完成而不是消失
+    syncPlayers.forEach(p => {
+        const hasEnded =
+            p.guesses.includes('✌') ||
+            p.guesses.includes('💀') ||
+            p.guesses.includes('🏳️') ||
+            p.guesses.includes('👑') ||
+            p.guesses.includes('🏆') ||
+            p.guesses.includes('⏱️');
+        if (hasEnded) {
+            room.currentGame.syncPlayersCompleted.add(p.id);
+        }
+    });
+
+    const syncStatus = syncPlayers.map(p => ({
         id: p.id,
         username: p.username,
         completed: room.currentGame.syncPlayersCompleted.has(p.id)
     }));
 
-    const allCompleted = activePlayers.every(p => room.currentGame.syncPlayersCompleted.has(p.id));
+    const allCompleted = syncStatus.every(s => s.completed);
 
     if (allCompleted) {
-        // 非血战同步模式：有人猜对则结束游戏（不再开新一轮）
+        // 非血战同步模式：有人猜对则在本轮结束后结束游戏，不再开启新一轮
         if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
+            room.currentGame.syncReadyToEnd = true;
+            io.to(roomId).emit('syncWaiting', {
+                round: room.currentGame.syncRound,
+                syncStatus,
+                completedCount: syncStatus.length,
+                totalCount: syncStatus.length
+            });
             io.to(roomId).emit('syncGameEnding', {
                 winnerUsername: room.currentGame.syncWinner?.username,
                 message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
             });
+            finalizeStandardGame(room, roomId, io, { force: true });
             return;
         }
 
         // 开启下一同步轮次
+        room.currentGame.syncReadyToEnd = false;
         room.currentGame.syncRound += 1;
         room.currentGame.syncPlayersCompleted.clear();
 
@@ -171,8 +190,35 @@ function updateSyncProgress(room, roomId, io) {
             room.currentGame.syncRoundStartRank = room.currentGame.nonstopWinners.length + 1;
         }
 
+        // 新轮次保持已结束玩家为完成状态，便于前端显示
+        syncPlayers.forEach(p => {
+            const hasEnded =
+                p.guesses.includes('✌') ||
+                p.guesses.includes('💀') ||
+                p.guesses.includes('🏳️') ||
+                p.guesses.includes('👑') ||
+                p.guesses.includes('🏆') ||
+                p.guesses.includes('⏱️');
+            if (hasEnded) {
+                room.currentGame.syncPlayersCompleted.add(p.id);
+            }
+        });
+
+        const nextSyncStatus = syncPlayers.map(p => ({
+            id: p.id,
+            username: p.username,
+            completed: room.currentGame.syncPlayersCompleted.has(p.id)
+        }));
+
         io.to(roomId).emit('syncRoundStart', {
             round: room.currentGame.syncRound
+        });
+
+        io.to(roomId).emit('syncWaiting', {
+            round: room.currentGame.syncRound,
+            syncStatus: nextSyncStatus,
+            completedCount: nextSyncStatus.filter(s => s.completed).length,
+            totalCount: nextSyncStatus.length
         });
     } else {
         io.to(roomId).emit('syncWaiting', {
@@ -273,6 +319,173 @@ function generateScoreDetails({ players, scoreChanges, setterInfo, isNonstopMode
 }
 
 /**
+ * 结算普通/同步模式的游戏结果，可用于玩家事件或同步流程强制结束
+ * @param {Object} room
+ * @param {string} roomId
+ * @param {import('socket.io').Server} io
+ * @param {Object} options
+ * @param {boolean} options.force - 是否强制结算（绕过同步等待）
+ * @returns {boolean} 是否已经结算完成
+ */
+function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
+    if (!room?.currentGame || room.currentGame.settings?.nonstopMode) {
+        return false;
+    }
+
+    const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0');
+    const allEnded = activePlayers.every(p =>
+        p.guesses.includes('✌') ||
+        p.guesses.includes('💀') ||
+        p.guesses.includes('🏳️') ||
+        p.guesses.includes('👑') ||
+        p.guesses.includes('🏆') ||
+        p.disconnected
+    );
+
+    const firstWinner = room.currentGame.firstWinner;
+    const syncMode = room.currentGame?.settings?.syncMode && !room.currentGame.settings.nonstopMode;
+
+    // 同步模式：允许同轮多名胜者；普通模式保持单胜者
+    let actualWinners = [];
+    if (syncMode) {
+        actualWinners = activePlayers.filter(p => p.guesses.includes('✌') || p.guesses.includes('👑'));
+    } else {
+        let bigwinner = firstWinner?.isBigWin
+            ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('👑'))
+            : activePlayers.find(p => p.guesses.includes('👑'));
+        let winner = !bigwinner && firstWinner && !firstWinner.isBigWin
+            ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('✌'))
+            : (!bigwinner ? activePlayers.find(p => p.guesses.includes('✌')) : null);
+        const actualWinner = bigwinner || winner;
+        if (actualWinner) actualWinners = [actualWinner];
+    }
+
+    const actualWinner = actualWinners[0] || null;
+    const totalRounds = room.currentGame?.settings?.maxAttempts || 10;
+    const shouldWaitForSyncRound = syncMode && actualWinner && !allEnded && !room.currentGame.syncReadyToEnd && !force;
+
+    if (actualWinner && shouldWaitForSyncRound) {
+        io.to(roomId).emit('updatePlayers', {
+            players: room.players
+        });
+        return false;
+    }
+
+    if (!actualWinner && !allEnded) {
+        return false;
+    }
+
+    const answerSetter = room.players.find(p => p.isAnswerSetter);
+
+    // 计算胜者得分
+    const winnerScoreResults = {};
+    let primaryWinner = actualWinners.find(p => p.id === firstWinner?.id) || actualWinners[0] || null;
+    let sharedScoreResult = null;
+    let sharedDetailResult = null;
+
+    if (syncMode && primaryWinner) {
+        // 同步模式：所有胜者同分，使用代表胜者计算
+        sharedScoreResult = calculateWinnerScore({
+            guesses: primaryWinner.guesses,
+            baseScore: 2, // 统一基础分 2，bigwin 额外 +12 => 总 14
+            totalRounds
+        });
+        sharedDetailResult = calculateWinnerScore({ guesses: primaryWinner.guesses, baseScore: 0, totalRounds });
+        actualWinners.forEach(w => {
+            if (w.guesses.includes('💡')) w.score -= 1;
+            w.score += sharedScoreResult.totalScore;
+            winnerScoreResults[w.id] = {
+                totalScore: sharedScoreResult.totalScore,
+                guessCount: sharedDetailResult.guessCount,
+                bonuses: sharedScoreResult.bonuses
+            };
+        });
+    } else {
+        // 非同步模式：逐个胜者计分
+        actualWinners.forEach(w => {
+            const baseScore = 2; // 统一基础分 2，bigwin 额外 +12 => 总 14
+            const scoreResult = calculateWinnerScore({ guesses: w.guesses, baseScore, totalRounds });
+            if (w.guesses.includes('💡')) {
+                w.score -= 1;
+            }
+            w.score += scoreResult.totalScore;
+            winnerScoreResults[w.id] = scoreResult;
+        });
+        primaryWinner = primaryWinner || actualWinners[0] || null;
+        sharedDetailResult = primaryWinner ? calculateWinnerScore({ guesses: primaryWinner.guesses, baseScore: 0, totalRounds }) : null;
+    }
+
+    const winnerGuessCount = sharedDetailResult?.guessCount || 0;
+
+    // 出题人扣分用的 bigwinner 分数：同步模式取代表胜者分数是否为本命，否则取最大本命分
+    let bigWinnerActualScore = 0;
+    if (syncMode && primaryWinner && primaryWinner.guesses.includes('👑') && sharedScoreResult) {
+        bigWinnerActualScore = sharedScoreResult.totalScore;
+    } else {
+        actualWinners.filter(p => p.guesses.includes('👑')).forEach(p => {
+            const res = calculateWinnerScore({ guesses: p.guesses, baseScore: 2, totalRounds }).totalScore;
+            bigWinnerActualScore = Math.max(bigWinnerActualScore, res);
+        });
+    }
+
+        const scoreChanges = buildScoreChanges({
+            players: room.players,
+            actualWinners,
+            winnerScoreResults,
+            isNonstopMode: false
+        });
+
+    if (answerSetter) {
+        const setterResult = calculateSetterScore({
+            winnerGuesses: primaryWinner?.guesses || '',
+            winnerGuessCount,
+            bigWinnerScore: bigWinnerActualScore,
+            totalRounds
+        });
+
+        answerSetter.score += setterResult.score;
+
+        const scoreDetails = generateScoreDetails({
+            players: room.players,
+            scoreChanges,
+            setterInfo: { username: answerSetter.username, score: setterResult.score, reason: setterResult.reason },
+            isNonstopMode: false
+        });
+
+        io.to(roomId).emit('gameEnded', {
+            guesses: room.currentGame?.guesses || [],
+            scoreDetails
+        });
+    } else {
+        const scoreDetails = generateScoreDetails({
+            players: room.players,
+            scoreChanges,
+            setterInfo: null,
+            isNonstopMode: false
+        });
+
+        io.to(roomId).emit('gameEnded', {
+            guesses: room.currentGame?.guesses || [],
+            scoreDetails
+        });
+    }
+
+    room.players.forEach(p => {
+        p.isAnswerSetter = false;
+    });
+    io.to(roomId).emit('resetReadyStatus');
+    room.currentGame = null;
+    io.to(roomId).emit('updatePlayers', {
+        players: room.players,
+        isPublic: room.isPublic,
+        answerSetterId: null
+    });
+
+    console.log(`[普通模式] 房间 ${roomId} 游戏结束${force ? '（同步强制结算）' : ''}`);
+    return true;
+}
+
+/**
  * 生成玩家得分变化详情（统一处理血战模式和普通模式）
  * @param {Object} options - 生成选项
  * @param {Array} options.players - 房间玩家列表
@@ -282,7 +495,7 @@ function generateScoreDetails({ players, scoreChanges, setterInfo, isNonstopMode
  * @param {boolean} options.isNonstopMode - 是否为血战模式
  * @returns {Object} - scoreChanges 对象 { playerId: { score, breakdown, result } }
  */
-function buildScoreChanges({ players, actualWinner, winnerScoreResult, nonstopWinners, isNonstopMode }) {
+function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreResult, winnerScoreResults, nonstopWinners, isNonstopMode }) {
     const scoreChanges = {};
     const activePlayers = players.filter(p => !p.isAnswerSetter && p.team !== '0');
     
@@ -294,9 +507,21 @@ function buildScoreChanges({ players, actualWinner, winnerScoreResult, nonstopWi
         winners.forEach((w, idx) => {
             const winnerPlayer = players.find(p => p.id === w.id);
             const isBigWin = winnerPlayer && winnerPlayer.guesses.includes('👑');
+
+            // 基础分取排名分：totalScore - 奖励
+            const bonuses = w.bonuses || {};
+            const bigWinBonus = bonuses.bigWin || (isBigWin ? 12 : 0);
+            const quickGuessBonus = bonuses.quickGuess || 0;
+            const baseScore = Math.max(0, (w.score ?? 0) - bigWinBonus - quickGuessBonus);
+
             scoreChanges[w.id] = {
                 score: w.score,
-                breakdown: { rank: idx + 1, base: w.score },
+                breakdown: {
+                    rank: idx + 1,
+                    base: baseScore,
+                    ...(bigWinBonus ? { bigWin: bigWinBonus } : {}),
+                    ...(quickGuessBonus ? { quickGuess: quickGuessBonus } : {})
+                },
                 result: isBigWin ? 'bigwin' : 'win'
             };
         });
@@ -311,14 +536,18 @@ function buildScoreChanges({ players, actualWinner, winnerScoreResult, nonstopWi
             };
         });
     } else {
-        // 普通/同步模式：根据 actualWinner 生成得分
+        // 普通/同步模式：支持多名胜者（同步模式），否则单胜者
+        const winnerList = actualWinners && actualWinners.length ? actualWinners : (actualWinner ? [actualWinner] : []);
+        const winnerIdSet = new Set(winnerList.map(w => w.id));
+
         activePlayers.forEach(p => {
-            if (actualWinner && p.id === actualWinner.id) {
+            if (winnerIdSet.has(p.id)) {
+                const res = (winnerScoreResults && winnerScoreResults[p.id]) || winnerScoreResult;
                 scoreChanges[p.id] = {
-                    score: winnerScoreResult?.totalScore || 0,
+                    score: res?.totalScore || 0,
                     breakdown: {
-                        base: p.guesses.includes('👑') ? 14 : 2,
-                        ...winnerScoreResult?.bonuses
+                        base: 2,
+                        ...res?.bonuses
                     },
                     result: p.guesses.includes('👑') ? 'bigwin' : 'win'
                 };
@@ -679,10 +908,11 @@ function setupSocket(io, rooms) {
                 guesses: [], // 初始化猜测记录数组
                 hints: null, // 提示信息（如果使用）
                 // 同步模式状态
-                syncRound: 0, // 当前同步轮次
+                syncRound: 1, // 当前同步轮次，从第一轮开始
                 syncPlayersCompleted: new Set(), // 已完成当前轮次猜测的玩家集合
                 syncWinnerFound: false, // 当前轮是否已有玩家猜对（普通同步模式）
                 syncWinner: null, // 记录猜对的玩家信息
+                syncReadyToEnd: false, // 当前轮已完成且准备结算（纯同步模式）
                 syncRoundStartRank: 1, // 同步模式+血战模式：当前轮开始时的排名（用于确保同轮玩家得分一致）
                 // 血战模式状态
                 nonstopWinners: [], // 按顺序记录猜对的玩家 [{id, username, isBigWin}]
@@ -707,6 +937,11 @@ function setupSocket(io, rooms) {
                 isPublic: room.isPublic,
                 isGameStarted: true
             });
+
+            // 同步模式：开局同步初始等待状态
+            if (room.currentGame.settings?.syncMode) {
+                updateSyncProgress(room, roomId, io);
+            }
     
             console.log(`Game started in room ${roomId}`);
         });
@@ -849,6 +1084,12 @@ function setupSocket(io, rooms) {
                 }
             }
 
+            // 自动识别首猜即中为大赢家
+            const rawGuessCount = Array.from(player.guesses.replace(/[✌👑💀🏳️🏆⏱️]/g, '')).length;
+            if (!isBigWin && rawGuessCount === 1) {
+                isBigWin = true;
+            }
+
             // 更新玩家状态（先更新，确保后续过滤正确）
             player.guesses += isBigWin ? '👑' : '✌';
 
@@ -930,13 +1171,14 @@ function setupSocket(io, rooms) {
             player.score += score;
             console.log(`[血战模式调试] ${player.username}(id=${socket.id}) 得分计算: totalPlayers=${totalPlayers}, winnerRank=${winnerRank}, guessCount=${scoreResult.guessCount}, isBigWin=${isBigWin}, bonuses=${JSON.stringify(scoreResult.bonuses)}, score=${score}, newScore=${player.score}`);
 
-            // 记录猜对的玩家（包含得分）
+            // 记录猜对的玩家（包含得分和奖励明细，便于前端展示）
             room.currentGame.nonstopWinners.push({
                 id: socket.id,
                 username: player.username,
                 isBigWin: isBigWin,
                 team: player.team,
-                score: score // 在 push 时就记录得分
+                score: score, // 总分
+                bonuses: scoreResult.bonuses
             });
 
             // 广播血战模式进度（每个 winner 已经包含了正确的得分）
@@ -1049,8 +1291,13 @@ function setupSocket(io, rooms) {
                 return;
             }
     
+            // 自动识别首猜即中为大赢家
+            const rawGuessCount = Array.from(player.guesses.replace(/[✌👑💀🏳️🏆⏱️]/g, '')).length;
+            const shouldAutoBigWin = result === 'win' && rawGuessCount === 1 && !player.guesses.includes('👑');
+            const finalResult = shouldAutoBigWin ? 'bigwin' : result;
+
             // Update player's guesses string
-            switch (result) {
+            switch (finalResult) {
                 case 'surrender':
                     player.guesses += '🏳️';
                     break;
@@ -1134,13 +1381,13 @@ function setupSocket(io, rooms) {
 
             // 仅同步模式（非血战）：有人猜对后，标记游戏即将结束，等待本轮完成
             if (room.currentGame && room.currentGame.settings.syncMode && !room.currentGame.settings.nonstopMode) {
-                if (result === 'win' || result === 'bigwin') {
+                if (finalResult === 'win' || finalResult === 'bigwin') {
                     // 标记有人猜对，游戏将在本轮结束后结束
                     room.currentGame.syncWinnerFound = true;
                     room.currentGame.syncWinner = {
                         id: socket.id,
                         username: player.username,
-                        isBigWin: result === 'bigwin'
+                        isBigWin: finalResult === 'bigwin'
                     };
                 }
             }
@@ -1270,159 +1517,8 @@ function setupSocket(io, rooms) {
                 return; // 血战模式下不执行后续的普通结束逻辑
             }
     
-            // Check if all non-answer-setter players have ended their game or disconnected
-            const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0');
-            const allEnded = activePlayers.every(p => 
-                p.guesses.includes('✌') || 
-                p.guesses.includes('💀') || 
-                p.guesses.includes('🏳️') || 
-                p.guesses.includes('👑') ||
-                p.guesses.includes('🏆') ||
-                p.disconnected
-            );
-            
-            // 使用 firstWinner 来确定真正的胜者（处理并发提交情况）
-            const firstWinner = room.currentGame?.firstWinner;
-            let bigwinner = firstWinner?.isBigWin 
-                ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('👑'))
-                : activePlayers.find(p => p.guesses.includes('👑'));
-            let winner = !bigwinner && firstWinner && !firstWinner.isBigWin
-                ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('✌'))
-                : (!bigwinner ? activePlayers.find(p => p.guesses.includes('✌')) : null);
-    
-            const handleGameEnd = () => {
-                // Get the answer setter before resetting status
-                const answerSetter = room.players.find(p => p.isAnswerSetter);
-                
-                // 使用 firstWinner 的用户名（如果存在）
-                const bigwinnerName = bigwinner?.username || firstWinner?.username;
-                const winnerName = winner?.username || firstWinner?.username;
-                
-                // 获取总轮数上限
-                const totalRounds = room.currentGame?.settings?.maxAttempts || 10;
-                
-                // 使用统一函数计算
-                const actualWinner = bigwinner || winner;
-                const winnerScoreResult = actualWinner ? calculateWinnerScore({
-                    guesses: actualWinner.guesses,
-                    baseScore: 0, // 先不算基础分，只用于获取 guessCount
-                    totalRounds: totalRounds
-                }) : null;
-                const winnerGuessCount = winnerScoreResult?.guessCount || 0;
-
-                // 如果没有标记 bigwinner，但胜者一轮猜对，则提升为 bigwinner
-                if (!bigwinner && winner && winnerGuessCount <= 1) {
-                    winner.guesses += '👑';
-                    bigwinner = winner;
-                    winner = null;
-                    if (firstWinner && firstWinner.id === bigwinner.id) {
-                        firstWinner.isBigWin = true;
-                    }
-                }
-                
-                // 计算 bigwinner 的实际得分（用于出题人扣分计算）
-                const bigWinnerActualScore = bigwinner ? calculateWinnerScore({
-                    guesses: bigwinner.guesses,
-                    baseScore: 2,
-                    totalRounds: totalRounds
-                }).totalScore : 0;
-                
-                // 计算胜者的实际得分（用于 scoreDetails）
-                const winnerActualScoreResult = actualWinner ? calculateWinnerScore({
-                    guesses: actualWinner.guesses,
-                    baseScore: 2,
-                    totalRounds: totalRounds
-                }) : null;
-                
-                // 更新胜者总分
-                if (actualWinner && winnerActualScoreResult) {
-                    // 如果玩家之前获得了作品分，在获胜时扣除
-                    if (actualWinner.guesses.includes('💡')) {
-                        actualWinner.score -= 1;
-                    }
-                    actualWinner.score += winnerActualScoreResult.totalScore;
-                }
-                
-                // 生成得分详情
-                const scoreChanges = buildScoreChanges({
-                    isNonstopMode: false,
-                    actualWinner,
-                    winnerScoreResult: winnerActualScoreResult,
-                    players: room.players
-                });
-    
-                // If there was an answer setter (manual mode)
-                if (answerSetter) {
-                    const setterResult = calculateSetterScore({
-                        winnerGuesses: actualWinner?.guesses || '',
-                        winnerGuessCount: winnerGuessCount,
-                        bigWinnerScore: bigWinnerActualScore,
-                        totalRounds: totalRounds
-                    });
-                    
-                    answerSetter.score += setterResult.score;
-                    
-                    const scoreDetails = generateScoreDetails({
-                        players: room.players,
-                        scoreChanges,
-                        setterInfo: { username: answerSetter.username, score: setterResult.score, reason: setterResult.reason },
-                        isNonstopMode: false
-                    });
-                    
-                    io.to(roomId).emit('gameEnded', {
-                        guesses: room.currentGame?.guesses || [],
-                        scoreDetails
-                    });
-                } else {
-                    // Normal mode end messages (no answer setter)
-                    const scoreDetails = generateScoreDetails({
-                        players: room.players,
-                        scoreChanges,
-                        setterInfo: null,
-                        isNonstopMode: false
-                    });
-                    
-                    io.to(roomId).emit('gameEnded', {
-                        guesses: room.currentGame?.guesses || [],
-                        scoreDetails
-                    });
-                }
-    
-                // Reset answer setter status for all players
-                room.players.forEach(p => {
-                    p.isAnswerSetter = false;
-                });
-    
-                // Reset ready status
-                io.to(roomId).emit('resetReadyStatus');
-    
-                // Clear current game state
-                room.currentGame = null;
-    
-                // Broadcast updated players to ensure answer setter status is reset
-                io.to(roomId).emit('updatePlayers', {
-                    players: room.players,
-                    isPublic: room.isPublic,
-                    answerSetterId: null
-                });
-            };
-    
-            // 统一处理胜者得分
-            const actualWinner = bigwinner || winner;
-            if (actualWinner) {
-                const totalRounds = room.currentGame?.settings?.maxAttempts || 10;
-                const baseScore = actualWinner.guesses.includes('👑') ? 14 : 2;
-                const scoreResult = calculateWinnerScore({
-                    guesses: actualWinner.guesses,
-                    baseScore: baseScore,
-                    totalRounds: totalRounds
-                });
-                actualWinner.score += scoreResult.totalScore;
-                handleGameEnd();
-            } else if (allEnded) {
-                handleGameEnd();
-            } else {
-                // Just broadcast updated players for this individual player's end
+            const gameFinished = finalizeStandardGame(room, roomId, io);
+            if (!gameFinished) {
                 io.to(roomId).emit('updatePlayers', {
                     players: room.players
                 });
@@ -1625,8 +1721,8 @@ function setupSocket(io, rooms) {
                             // 生成得分详情（无赢家情况）
                             const scoreChanges = buildScoreChanges({
                                 isNonstopMode: false,
-                                actualWinner: null,
-                                winnerScoreResult: null,
+                                actualWinners: [],
+                                winnerScoreResults: {},
                                 players: room.players
                             });
                             
@@ -1882,6 +1978,12 @@ function setupSocket(io, rooms) {
                         players: room.players,
                         isPublic: room.isPublic
                     });
+
+                    // 同步模式：从等待队列移除被踢玩家
+                    if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
+                        room.currentGame.syncPlayersCompleted.delete(playerId);
+                        updateSyncProgress(room, roomId, io);
+                    }
                     
                     // 将被踢玩家从房间中移除
                     const kickedSocket = io.sockets.sockets.get(playerId);
@@ -1924,8 +2026,12 @@ function setupSocket(io, rooms) {
                 guesses: [], // Initialize guesses as an array of objects
                 hints: hints || null,
                 // 同步模式状态
-                syncRound: 0, // 当前同步轮次
+                syncRound: 1, // 当前同步轮次，从第一轮开始
                 syncPlayersCompleted: new Set(), // 已完成当前轮次猜测的玩家集合
+                syncWinnerFound: false,
+                syncWinner: null,
+                syncReadyToEnd: false,
+                syncRoundStartRank: 1,
                 // 血战模式状态
                 nonstopWinners: [], // 按顺序记录猜对的玩家 [{id, username, isBigWin}]
                 // 普通模式胜者记录（用于并发提交时确定第一个胜者）
@@ -1972,6 +2078,11 @@ function setupSocket(io, rooms) {
             });
     
             console.log(`Game started in room ${roomId} with custom answer`);
+
+            // 同步模式：开局同步初始等待状态
+            if (room.currentGame.settings?.syncMode) {
+                updateSyncProgress(room, roomId, io);
+            }
         });
     
         // 添加手动转移房主的功能

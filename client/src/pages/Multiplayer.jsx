@@ -107,6 +107,18 @@ const Multiplayer = () => {
   const [nonstopProgress, setNonstopProgress] = useState(null); // 血战模式：进度信息
   const [isObserver, setIsObserver] = useState(false); // 当前玩家是否为旁观者
 
+  // 同步模式队列展示过滤：已完成且（断线/投降/猜对/队伍胜利）的不显示
+  const getFilteredSyncStatus = () => {
+    const statusList = syncStatus?.syncStatus || [];
+    return statusList.filter((entry) => {
+      const player = players.find(p => p.id === entry.id);
+      const guesses = player?.guesses || '';
+      const isEndedByResult = guesses.includes('✌') || guesses.includes('👑') || guesses.includes('🏳️') || guesses.includes('🏆');
+      const isDisconnected = !!player?.disconnected;
+      return !(entry.completed && (isEndedByResult || isDisconnected));
+    });
+  };
+
   useEffect(() => {
     // Initialize socket connection
     const newSocket = io(SOCKET_URL);
@@ -1195,9 +1207,16 @@ const Multiplayer = () => {
                   {/* 同步模式等待提示 */}
                   {gameSettings.syncMode && (
                     <div className="sync-waiting-banner">
-                      <span>⏳ 同步模式 - 第 {syncStatus.round || 1} 轮 ({syncStatus.completedCount || 0}/{syncStatus.totalCount || players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length})</span>
+                      {(() => {
+                        const filtered = getFilteredSyncStatus();
+                        const completed = filtered.filter(p => p.completed).length;
+                        const total = filtered.length;
+                        return (
+                          <span>⏳ 同步模式 - 第 {syncStatus.round || 1} 轮 ({completed}/{total})</span>
+                        );
+                      })()}
                       <div className="sync-status">
-                        {syncStatus.syncStatus && syncStatus.syncStatus.map((player) => (
+                        {getFilteredSyncStatus().map((player) => (
                           <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
                             {player.username}: {player.completed ? '✓' : '...'}
                           </span>
@@ -1287,9 +1306,16 @@ const Multiplayer = () => {
                   {/* 同步模式进度显示（出题人/旁观者视角） */}
                   {gameSettings.syncMode && (
                     <div className="sync-waiting-banner">
-                      <span>⏳ 同步模式 - 第 {syncStatus.round || 1} 轮 ({syncStatus.completedCount || 0}/{syncStatus.totalCount || players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length})</span>
+                      {(() => {
+                        const filtered = getFilteredSyncStatus();
+                        const completed = filtered.filter(p => p.completed).length;
+                        const total = filtered.length;
+                        return (
+                          <span>⏳ 同步模式 - 第 {syncStatus.round || 1} 轮 ({completed}/{total})</span>
+                        );
+                      })()}
                       <div className="sync-status">
-                        {syncStatus.syncStatus && syncStatus.syncStatus.map((player) => (
+                        {getFilteredSyncStatus().map((player) => (
                           <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
                             {player.username}: {player.completed ? '✓' : '...'}
                           </span>
