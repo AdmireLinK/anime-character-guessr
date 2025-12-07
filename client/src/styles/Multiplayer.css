@@ -662,7 +662,7 @@
 
 .player-score-box .player-name {
   font-weight: 500;
-  color: inherit;
+  color: #000;
 }
 
 .player-score-box .score-value {
@@ -719,7 +719,7 @@
 
 .team-box .team-header .player-name {
   font-weight: 500;
-  color: inherit;
+  color: #000;
 }
 
 .team-box .team-header .score-value {
