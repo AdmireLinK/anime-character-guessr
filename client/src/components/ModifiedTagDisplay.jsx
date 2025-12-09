@@ -53,7 +53,23 @@ function ModifiedTagDisplay({ guessCharacter, answerCharacter }) {
   }
 
   if (!guessTagData) {
-    return <div className="modified-tag-display empty">没有标签……<br/>（可能是作者尚未录入）</div>;
+    return (
+      <div className="modified-tag-display empty">
+        <div>
+          没有标签……
+          <br />
+          （可以在
+          <a
+            href="https://github.com/kennylimz/anime-character-guessr/issues/new"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            这里
+          </a>
+          提醒作者添加）
+        </div>
+      </div>
+    );
   }
 
   const sections = Object.entries(guessTagData).filter(

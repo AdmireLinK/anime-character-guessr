@@ -1,12 +1,24 @@
 import '../styles/GuessesTable.css';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import ModifiedTagDisplay from './ModifiedTagDisplay';
 import Image from './Image';
 import { subjectsWithExtraTags } from '../data/extra_tag_subjects';
 
-function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount = 0 }) {
+function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount = 0, bannedTags = [] }) {
   const [clickedExpandTags, setClickedExpandTags] = useState(new Set());
   const [externalTagMode, setExternalTagMode] = useState(false);
+
+  const bannedTagSet = useMemo(() => {
+    if (!Array.isArray(bannedTags)) {
+      return new Set();
+    }
+    return new Set(
+      bannedTags
+        .filter(tag => typeof tag === 'string')
+        .map(tag => tag.trim())
+        .filter(Boolean)
+    );
+  }, [bannedTags]);
 
 
   // 如果指定了折叠数量，只显示最新的 N 条记录
@@ -158,15 +170,17 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
                     const isExpandTag = tag === '展开';
                     const tagKey = `${guessIndex}-${tagIndex}`;
                     const isClicked = clickedExpandTags.has(tagKey);
+                    const isSharedTag = Array.isArray(guess.sharedMetaTags) && guess.sharedMetaTags.includes(tag);
+                    const isBanned = bannedTagSet.has(tag);
                     
                     return (
                       <span 
                         key={tagIndex}
-                        className={`meta-tag ${guess.sharedMetaTags.includes(tag) ? 'shared' : ''} ${isExpandTag ? 'expand-tag' : ''}`}
+                        className={`meta-tag ${isSharedTag && !isBanned ? 'shared' : ''} ${isBanned ? 'banned-tag' : ''} ${isExpandTag ? 'expand-tag' : ''}`}
                         onClick={isExpandTag ? () => handleExpandTagClick(guessIndex, tagIndex) : undefined}
                         style={isExpandTag && !isClicked ? { color: '#0084B4', cursor: 'pointer' } : undefined}
                       >
-                        { tag }
+                        {isBanned ? '???' : tag}
                       </span>
                     );
                   })}

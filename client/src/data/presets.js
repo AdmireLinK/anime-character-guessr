@@ -6,183 +6,116 @@
 // 获取当前年份
 const currentYear = new Date().getFullYear();
 
+const createBasePreset = () => ({
+  startYear: currentYear - 10,
+  endYear: currentYear,
+  topNSubjects: 50,
+  useSubjectPerYear: false,
+  metaTags: ["", "", ""],
+  useIndex: false,
+  indexId: null,
+  addedSubjects: [],
+  mainCharacterOnly: true,
+  characterNum: 6,
+  maxAttempts: 10,
+  useHints: [],
+  useImageHint: 0,
+  includeGame: false,
+  subjectSearch: true,
+  subjectTagNum: 6,
+  characterTagNum: 6,
+  commonTags: true,
+});
+
+const createPreset = (overrides = {}, dynamicFields = []) => {
+  const preset = { ...createBasePreset(), ...overrides };
+  if (dynamicFields.length > 0) {
+    preset.dynamicFields = dynamicFields;
+  }
+  return preset;
+};
+
 // 游戏预设配置
 export const gamePresets = {
-  '入门': {
-    startYear: currentYear - 5,
-    endYear: currentYear,
-    topNSubjects: 30,
-    useSubjectPerYear: false,
-    metaTags: ["", "", ""],
-    useIndex: false,
-    indexId: null,
-    addedSubjects: [],
-    mainCharacterOnly: true,
-    characterNum: 3,
-    maxAttempts: 10,
-    useHints: [5,3],
-    useImageHint: 0,
-    includeGame: false,
-    subjectSearch: true,
-    subjectTagNum: 6,
-    characterTagNum: 6,
-    commonTags: true,
-    globalPick: false,
-    // 标记哪些字段是动态计算的
-    dynamicFields: ['startYear', 'endYear']
-  },
-  '冻鳗高手': {
-    startYear: currentYear - 20,
-    endYear: currentYear,
-    topNSubjects: 5,
-    useSubjectPerYear: true,
-    metaTags: ["", "", ""],
-    useIndex: false,
-    indexId: null,
-    addedSubjects: [],
-    mainCharacterOnly: false,
-    characterNum: 6,
-    maxAttempts: 10,
-    useHints: [],
-    useImageHint: 0,
-    includeGame: false,
-    subjectSearch: false,
-    subjectTagNum: 6,
-    characterTagNum: 6,
-    commonTags: true,
-    globalPick: false,
-    dynamicFields: ['startYear', 'endYear']
-  },
-  '老番享受者': {
+  '入门': createPreset(
+    {
+      startYear: currentYear - 5,
+      topNSubjects: 30,
+      characterNum: 3,
+      useHints: [5, 3],
+    },
+    ['startYear', 'endYear']
+  ),
+  '冻鳗高手': createPreset(
+    {
+      startYear: currentYear - 20,
+      topNSubjects: 5,
+      useSubjectPerYear: true,
+      mainCharacterOnly: false,
+      subjectSearch: false,
+    },
+    ['startYear', 'endYear']
+  ),
+  '老番享受者': createPreset({
     startYear: 2000,
     endYear: 2015,
     topNSubjects: 5,
     useSubjectPerYear: true,
-    metaTags: ["", "", ""],
-    useIndex: false,
-    indexId: null,
-    addedSubjects: [],
-    mainCharacterOnly: true,
-    characterNum: 6,
-    maxAttempts: 10,
-    useHints: [],
-    useImageHint: 0,
-    includeGame: false,
     subjectSearch: false,
-    subjectTagNum: 6,
-    characterTagNum: 6,
-    commonTags: true,
-    globalPick: false,
-    dynamicFields: []
-  },
-  '瓶子严选': {
-    startYear: 2005,
-    endYear: currentYear,
-    topNSubjects: 75,
-    useSubjectPerYear: false,
-    metaTags: ["", "", ""],
-    addedSubjects: [],
-    mainCharacterOnly: true,
-    characterNum: 10,
-    maxAttempts: 7,
-    useHints: [],
-    useImageHint: 0,
-    includeGame: false,
-    subjectSearch: true,
-    subjectTagNum: 6,
-    characterTagNum: 5,
-    commonTags: true,
-    globalPick: false,
-    dynamicFields: ['endYear']
-  },
-  '木柜子痴': {
-    startYear: currentYear - 10,
-    endYear: currentYear,
-    topNSubjects: 50,
-    useSubjectPerYear: false,
-    metaTags: ["", "", ""],
-    addedSubjects: [],
-    mainCharacterOnly: true,
-    characterNum: 6,
-    maxAttempts: 10,
-    useIndex: true,
-    indexId: "75522",
-    useHints: [],
-    useImageHint: 0,
-    includeGame: false,
-    subjectSearch: false,
-    subjectTagNum: 6,
-    characterTagNum: 6, 
-    commonTags: true,
-    globalPick: false,
-    dynamicFields: ['startYear', 'endYear']
-  },
-  '二游高手': {
-    startYear: currentYear - 10,
-    endYear: currentYear,
-    topNSubjects: 50,
-    useSubjectPerYear: false,
-    metaTags: ["", "", ""],
-    addedSubjects: [],
-    mainCharacterOnly: false,
-    characterNum: 30,
-    maxAttempts: 10,
-    useIndex: true,
-    indexId: "77344",
-    useHints: [],
-    useImageHint: 0,
-    includeGame: true,
-    subjectSearch: true,
-    subjectTagNum: 3,
-    characterTagNum: 6,
-    commonTags: true,
-    globalPick: false,
-    dynamicFields: ['startYear', 'endYear']
-  },
-  '米哈游高手': {
-    startYear: currentYear - 10,
-    endYear: currentYear,
-    topNSubjects: 50,
-    useSubjectPerYear: false,
-    metaTags: ["", "", ""],
-    addedSubjects: [],
-    mainCharacterOnly: false,
-    characterNum: 40,
-    maxAttempts: 10,
-    useIndex: true,
-    indexId: "77186",
-    useHints: [],
-    useImageHint: 0,
-    includeGame: true,
-    subjectSearch: false,
-    subjectTagNum: 3,
-    characterTagNum: 6,
-    commonTags: true,
-    globalPick: false,
-    dynamicFields: ['startYear', 'endYear']
-  },
-  'MOBA糕手': {
-    startYear: currentYear - 10,
-    endYear: currentYear,
-    topNSubjects: 50,
-    useSubjectPerYear: false,
-    metaTags: ["", "", ""],
-    addedSubjects: [],
-    mainCharacterOnly: false,
-    characterNum: 100,
-    maxAttempts: 10,
-    useIndex: true,
-    indexId: "76637",
-    useHints: [],
-    useImageHint: 0,
-    includeGame: true,
-    subjectSearch: false,
-    subjectTagNum: 3,
-    characterTagNum: 6,
-    commonTags: true,
-    globalPick: false,
-    dynamicFields: ['startYear', 'endYear']
-  }
+  }),
+  '瓶子严选': createPreset(
+    {
+      startYear: 2005,
+      topNSubjects: 75,
+      characterNum: 10,
+      maxAttempts: 7,
+      characterTagNum: 5,
+    },
+    ['endYear']
+  ),
+  '木柜子痴': createPreset(
+    {
+      useIndex: true,
+      indexId: '75522',
+      subjectSearch: false,
+    },
+    ['startYear', 'endYear']
+  ),
+  '二游高手': createPreset(
+    {
+      useIndex: true,
+      indexId: '77344',
+      mainCharacterOnly: false,
+      characterNum: 30,
+      includeGame: true,
+      subjectTagNum: 3,
+    },
+    ['startYear', 'endYear']
+  ),
+  '米哈游高手': createPreset(
+    {
+      useIndex: true,
+      indexId: '77186',
+      mainCharacterOnly: false,
+      characterNum: 40,
+      includeGame: true,
+      subjectSearch: false,
+      subjectTagNum: 3,
+    },
+    ['startYear', 'endYear']
+  ),
+  'MOBA糕手': createPreset(
+    {
+      useIndex: true,
+      indexId: '76637',
+      mainCharacterOnly: false,
+      characterNum: 100,
+      includeGame: true,
+      subjectSearch: false,
+      subjectTagNum: 3,
+    },
+    ['startYear', 'endYear']
+  ),
 };
 
 /**

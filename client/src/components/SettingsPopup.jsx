@@ -427,12 +427,33 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
               {isMultiplayer && (
                 <>
                   <div className="settings-row">
-                    <label>*全局BP</label>
+                    <label>*角色全局BP</label>
+                    <span className="tooltip-trigger">
+                      ?
+                      <span className="tooltip-text">
+                        角色只能被猜一次。
+                      </span>
+                    </span>
                     <input
                       type="checkbox"
                       checked={gameSettings.globalPick}
                       onChange={(e) => {
                         onSettingsChange('globalPick', e.target.checked);
+                      }}
+                      style={{ marginRight: '50px', marginLeft: '0px' }}
+                    />
+                    <label>*标签全局BP</label>
+                    <span className="tooltip-trigger">
+                      ?
+                      <span className="tooltip-text">
+                        解锁的标签会对别的玩家隐藏。
+                      </span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={gameSettings.tagBan}
+                      onChange={(e) => {
+                        onSettingsChange('tagBan', e.target.checked);
                       }}
                       style={{ marginRight: '50px', marginLeft: '0px' }}
                     />
@@ -552,7 +573,6 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                         newMetaTags[0] = value;
                         onSettingsChange('metaTags', newMetaTags);
                       }}
-                      // disabled={gameSettings.useIndex}
                     >
                       <option value="">全部</option>
                       <option value="TV">TV</option>

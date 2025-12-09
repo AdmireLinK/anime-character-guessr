@@ -161,10 +161,56 @@ function updateSyncProgress(room, roomId, io) {
     }));
 
     const allCompleted = syncStatus.every(s => s.completed);
+    let pendingBanBroadcast = null;
 
     if (allCompleted) {
+        if (room.currentGame.settings?.syncMode && Array.isArray(room.currentGame.tagBanStatePending) && room.currentGame.tagBanStatePending.length) {
+            const currentState = Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : [];
+            const existingTags = new Set(
+                currentState
+                    .filter(item => item && typeof item.tag === 'string')
+                    .map(item => item.tag)
+            );
+
+            const pendingNewEntries = room.currentGame.tagBanStatePending
+                .filter(entry => entry && typeof entry.tag === 'string')
+                .map(entry => {
+                    const tagName = entry.tag.trim();
+                    if (!tagName || existingTags.has(tagName)) {
+                        return null;
+                    }
+                    existingTags.add(tagName);
+                    const revealers = Array.isArray(entry.revealer)
+                        ? Array.from(new Set(entry.revealer.filter(Boolean)))
+                        : [];
+                    return { tag: tagName, revealer: revealers };
+                })
+                .filter(Boolean);
+
+            if (pendingNewEntries.length) {
+                const updatedState = currentState.concat(pendingNewEntries);
+                room.currentGame.tagBanState = updatedState;
+                pendingBanBroadcast = updatedState;
+            } else {
+                room.currentGame.tagBanState = currentState;
+            }
+
+            room.currentGame.tagBanStatePending = [];
+        }
+
+        if (pendingBanBroadcast) {
+            io.to(roomId).emit('tagBanStateUpdate', {
+                tagBanState: pendingBanBroadcast
+            });
+            pendingBanBroadcast = null;
+        }
+
         // 非血战同步模式：有人猜对则在本轮结束后结束游戏，不再开启新一轮
         if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
+            if (pendingBanBroadcast) {
+                io.to(roomId).emit('tagBanStateUpdate', { tagBanState: pendingBanBroadcast });
+                pendingBanBroadcast = null;
+            }
             room.currentGame.syncReadyToEnd = true;
             io.to(roomId).emit('syncWaiting', {
                 round: room.currentGame.syncRound,
@@ -330,6 +376,44 @@ function generateScoreDetails({ players, scoreChanges, setterInfo, isNonstopMode
 function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
     if (!room?.currentGame || room.currentGame.settings?.nonstopMode) {
         return false;
+    }
+
+    if (room.currentGame.settings?.syncMode) {
+        const pendingList = Array.isArray(room.currentGame.tagBanStatePending)
+            ? room.currentGame.tagBanStatePending
+            : [];
+        let tagBanChanged = false;
+        if (pendingList.length) {
+            if (!Array.isArray(room.currentGame.tagBanState)) {
+                room.currentGame.tagBanState = [];
+            }
+            pendingList.forEach(entry => {
+                if (!entry || typeof entry.tag !== 'string') return;
+                const tagName = entry.tag.trim();
+                if (!tagName) return;
+                const revealerList = Array.isArray(entry.revealer) ? entry.revealer.filter(Boolean) : [];
+                let targetEntry = room.currentGame.tagBanState.find(item => item && item.tag === tagName);
+                if (!targetEntry) {
+                    targetEntry = { tag: tagName, revealer: [] };
+                    room.currentGame.tagBanState.push(targetEntry);
+                    tagBanChanged = true;
+                }
+                const existingSet = new Set(Array.isArray(targetEntry.revealer) ? targetEntry.revealer : []);
+                const initialSize = existingSet.size;
+                revealerList.forEach(id => existingSet.add(id));
+                const mergedRevealers = Array.from(existingSet);
+                if (!Array.isArray(targetEntry.revealer) || mergedRevealers.length !== initialSize) {
+                    targetEntry.revealer = mergedRevealers;
+                    tagBanChanged = true;
+                }
+            });
+            room.currentGame.tagBanStatePending = [];
+            if (tagBanChanged) {
+                io.to(roomId).emit('tagBanStateUpdate', {
+                    tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
+                });
+            }
+        }
     }
 
     const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0');
@@ -692,6 +776,7 @@ function setupSocket(io, rooms) {
                     console.log(`Player ${username} reconnecting to room ${roomId}`);
                     
                     // Update the disconnected player's socket ID
+                    const previousSocketId = room.players[existingPlayerIndex].id;
                     room.players[existingPlayerIndex].id = socket.id;
                     room.players[existingPlayerIndex].disconnected = false;
                     
@@ -701,6 +786,31 @@ function setupSocket(io, rooms) {
                     }
                     if (avatarImage !== undefined) {
                         room.players[existingPlayerIndex].avatarImage = avatarImage;
+                    }
+                    
+                    if (room.currentGame) {
+                        const replaceRevealerId = (list) => {
+                            if (!Array.isArray(list) || !previousSocketId) return;
+                            list.forEach(entry => {
+                                if (!entry || !Array.isArray(entry.revealer)) return;
+                                let updated = false;
+                                const merged = [];
+                                entry.revealer.forEach(id => {
+                                    const nextId = id === previousSocketId ? socket.id : id;
+                                    if (!merged.includes(nextId)) {
+                                        merged.push(nextId);
+                                    }
+                                    if (nextId !== id) {
+                                        updated = true;
+                                    }
+                                });
+                                if (updated) {
+                                    entry.revealer = merged;
+                                }
+                            });
+                        };
+                        replaceRevealerId(room.currentGame.tagBanState);
+                        replaceRevealerId(room.currentGame.tagBanStatePending);
                     }
                     
                     // Join socket to room
@@ -729,6 +839,10 @@ function setupSocket(io, rooms) {
 
                         socket.emit('guessHistoryUpdate', {
                             guesses: room.currentGame.guesses
+                        });
+
+                        socket.emit('tagBanStateUpdate', {
+                            tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
                         });
                     }
                     
@@ -797,6 +911,10 @@ function setupSocket(io, rooms) {
 
                 socket.emit('guessHistoryUpdate', {
                     guesses: room.currentGame.guesses
+                });
+
+                socket.emit('tagBanStateUpdate', {
+                    tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
                 });
             }
     
@@ -917,7 +1035,10 @@ function setupSocket(io, rooms) {
                 // 血战模式状态
                 nonstopWinners: [], // 按顺序记录猜对的玩家 [{id, username, isBigWin}]
                 // 普通模式胜者记录（用于并发提交时确定第一个胜者）
-                firstWinner: null // {id, username, isBigWin, timestamp}
+                firstWinner: null, // {id, username, isBigWin, timestamp}
+                // tagBan：记录共享标签的揭示者列表
+                tagBanState: [],
+                tagBanStatePending: []
             };
     
             // Reset all players' game state
@@ -936,6 +1057,10 @@ function setupSocket(io, rooms) {
                 players: room.players,
                 isPublic: room.isPublic,
                 isGameStarted: true
+            });
+
+            io.to(roomId).emit('tagBanStateUpdate', {
+                tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
             });
 
             // 同步模式：开局同步初始等待状态
@@ -1046,6 +1171,62 @@ function setupSocket(io, rooms) {
             } else {
                 console.log(`Player ${player.username} made a guess in room ${roomId} with no valid guessData.`, guessResult);
             }
+        });
+
+        socket.on('tagBanSharedMetaTags', ({ roomId, tags }) => {
+            const room = rooms.get(roomId);
+            if (room) room.lastActive = Date.now();
+            if (!room || !room.currentGame || !room.currentGame.settings?.tagBan) {
+                return;
+            }
+
+            const player = room.players.find(p => p.id === socket.id);
+            if (!player) {
+                return;
+            }
+
+            if (!Array.isArray(tags) || !tags.length) {
+                return;
+            }
+            
+            if (!Array.isArray(room.currentGame.tagBanState)) {
+                room.currentGame.tagBanState = [];
+            }
+            if (!Array.isArray(room.currentGame.tagBanStatePending)) {
+                room.currentGame.tagBanStatePending = [];
+            }
+
+            const targetList = room.currentGame.settings.syncMode
+                ? room.currentGame.tagBanStatePending
+                : room.currentGame.tagBanState;
+
+            let changed = false;
+            tags.forEach(tagName => {
+                if (room.currentGame.tagBanState.find(entry => entry && entry.tag === tagName)) {
+                    return;
+                }
+                let entry = targetList.find(item => item && item.tag === tagName);
+                if (!entry) {
+                    entry = { tag: tagName, revealer: [] };
+                    targetList.push(entry);
+                    changed = true;
+                }
+                const existingRevealers = Array.isArray(entry.revealer) ? entry.revealer : [];
+                if (!existingRevealers.length) {
+                    entry.revealer = [player.id];
+                    changed = true;
+                } else if (room.currentGame.settings.syncMode && !existingRevealers.includes(player.id)) {
+                    entry.revealer = [...existingRevealers, player.id];
+                }
+            });
+
+            if (!changed || room.currentGame.settings?.syncMode) {
+                return;
+            }
+
+            io.to(roomId).emit('tagBanStateUpdate', {
+                tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
+            });
         });
 
         // 血战模式：处理玩家猜对事件
@@ -2041,8 +2222,13 @@ function setupSocket(io, rooms) {
                 // 血战模式状态
                 nonstopWinners: [], // 按顺序记录猜对的玩家 [{id, username, isBigWin}]
                 // 普通模式胜者记录（用于并发提交时确定第一个胜者）
-                firstWinner: null // {id, username, isBigWin, timestamp}
-            };            // Reset all players' game state and mark the answer setter
+                firstWinner: null, // {id, username, isBigWin, timestamp}
+                // tagBan：记录共享标签的揭示者列表
+                tagBanState: [],
+                tagBanStatePending: []
+            };
+
+            // Reset all players' game state and mark the answer setter
             room.players.forEach(p => {
                 p.guesses = '';
                 p.isAnswerSetter = (p.id === socket.id); // Mark the answer setter
@@ -2070,6 +2256,10 @@ function setupSocket(io, rooms) {
                 isGameStarted: true,
                 hints: hints,
                 isAnswerSetter: false
+            });
+
+            io.to(roomId).emit('tagBanStateUpdate', {
+                tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
             });
     
             // Send special game start event to answer setter

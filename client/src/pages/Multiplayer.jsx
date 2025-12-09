@@ -51,29 +51,32 @@ const Multiplayer = () => {
   const roomListExpandedRef = useRef(false);
   const isFirstLoadRoomsRef = useRef(true);
   const [gameSettings, setGameSettings] = useState({
-    startYear: new Date().getFullYear()-5,
-    endYear: new Date().getFullYear(),
-    topNSubjects: 20,
-    useSubjectPerYear: false,
-    metaTags: ["", "", ""],
-    useIndex: false,
-    indexId: null,
-    addedSubjects: [],
-    mainCharacterOnly: true,
-    characterNum: 6,
-    maxAttempts: 10,
-    enableHints: false,
-    includeGame: false,
-    timeLimit: 60,
-    subjectSearch: true,
-    characterTagNum: 6,
-    subjectTagNum: 6,
-    commonTags: true,
-    useHints: [],
-    useImageHint: 0,
-    imgHint: null,
-    syncMode: false,
-    nonstopMode: false  // 血战模式
+    // 默认设置
+    startYear: new Date().getFullYear()-5, // 起始年份
+    endYear: new Date().getFullYear(), // 结束年份
+    topNSubjects: 20, // 条目数
+    useSubjectPerYear: false, // 每年独立计算热度
+    metaTags: ["", "", ""], // 筛选用标签
+    useIndex: false, // 使用指定目录
+    indexId: null, // 目录ID
+    addedSubjects: [], // 已添加的作品
+    mainCharacterOnly: true, // 仅主角
+    characterNum: 6, // 每个作品的角色数
+    maxAttempts: 10, // 最大尝试次数
+    enableHints: false, // 提示出现次数
+    includeGame: false, // 包含游戏作品
+    timeLimit: 60, // 时间限制
+    subjectSearch: true, // 启用作品搜索
+    characterTagNum: 6, // 角色标签数量
+    subjectTagNum: 6, // 作品标签数量
+    commonTags: true, // 共同标签优先
+    useHints: [], // 提示出现次数
+    useImageHint: 0, // 图片提示时机
+    imgHint: null, // 图片提示
+    syncMode: false, // 同步模式
+    nonstopMode: false, // 血战模式
+    globalPick: false, // 角色全局BP
+    tagBan: false, // 标签全局BP
   });
 
   // Game state
@@ -106,6 +109,8 @@ const Multiplayer = () => {
   const [syncStatus, setSyncStatus] = useState({}); // 同步模式：各玩家状态
   const [nonstopProgress, setNonstopProgress] = useState(null); // 血战模式：进度信息
   const [isObserver, setIsObserver] = useState(false); // 当前玩家是否为旁观者
+  const [bannedSharedTags, setBannedSharedTags] = useState([]);
+  const latestPlayersRef = useRef([]);
 
   // 同步模式队列展示过滤：已完成且（断线/投降/猜对/队伍胜利）的不显示
   const getFilteredSyncStatus = () => {
@@ -124,6 +129,7 @@ const Multiplayer = () => {
     const newSocket = io(SOCKET_URL);
     setSocket(newSocket);
     socketRef.current = newSocket;
+    latestPlayersRef.current = [];
 
     // 用于追踪事件是否已经被处理
     const kickEventProcessed = {}; 
@@ -131,6 +137,7 @@ const Multiplayer = () => {
     // Socket event listeners
     newSocket.on('updatePlayers', ({ players, isPublic, answerSetterId }) => {
       setPlayers(players);
+      latestPlayersRef.current = Array.isArray(players) ? players : [];
       if (isPublic !== undefined) {
         setIsPublic(isPublic);
       }
@@ -174,6 +181,41 @@ const Multiplayer = () => {
     newSocket.on('nonstopProgress', (progress) => {
       setNonstopProgress(progress);
       console.log(`[血战模式] 进度更新: ${progress.winners?.length || 0}人猜对，剩余${progress.remainingCount}人`);
+    });
+
+    newSocket.on('tagBanStateUpdate', ({ tagBanState = [] }) => {
+      const normalizedState = Array.isArray(tagBanState) ? tagBanState : [];
+      const me = latestPlayersRef.current.find(player => player?.id === newSocket.id);
+      if (!me || me.isAnswerSetter || me.team === '0') {
+        setBannedSharedTags([]);
+        return;
+      }
+
+      const allowedIds = new Set([newSocket.id]);
+      if (me.team && me.team !== '0' && me.team !== '' && me.team !== null && me.team !== undefined) {
+        latestPlayersRef.current.forEach(player => {
+          if (player && player.team === me.team) {
+            allowedIds.add(player.id);
+          }
+        });
+      }
+
+      const banned = new Set();
+      normalizedState.forEach(entry => {
+        if (!entry || typeof entry.tag !== 'string') {
+          return;
+        }
+        const tagName = entry.tag.trim();
+        if (!tagName) {
+          return;
+        }
+        const revealerIds = Array.isArray(entry.revealer) ? entry.revealer : [];
+        const hasAccess = revealerIds.some(id => allowedIds.has(id));
+        if (!hasAccess) {
+          banned.add(tagName);
+        }
+      });
+      setBannedSharedTags(Array.from(banned));
     });
 
     // 血战模式+同步模式：队友猜对通知
@@ -418,7 +460,10 @@ const Multiplayer = () => {
       newSocket.off('nonstopProgress');
       newSocket.off('teamWin');
       newSocket.off('roomNameUpdated');
+      newSocket.off('tagBanStateUpdate');
       newSocket.disconnect();
+      latestPlayersRef.current = [];
+      setBannedSharedTags([]);
     };
   }, [navigate]);
 
@@ -602,29 +647,40 @@ const Multiplayer = () => {
     try {
       const appearances = await getCharacterAppearances(character.id, gameSettings);
 
+      const rawTagsEntries = Array.from(appearances.rawTags?.entries?.() || []);
       const guessData = {
         ...character,
-        ...appearances
+        ...appearances,
+        rawTags: rawTagsEntries
       };
-      const isCorrect = guessData.id === answerCharacter.id;
-      // Send guess result to server
-      guessData.rawTags = Array.from(appearances.rawTags?.entries?.() || []);
       if (!guessData || !guessData.id || !guessData.name) {
         console.warn('Invalid guessData, not emitting');
         return;
       }
-      let tempFeedback = generateFeedback(guessData, answerCharacter, gameSettings);
+      const rawTagsMap = new Map(rawTagsEntries);
+      const feedback = generateFeedback({ ...guessData, rawTags: rawTagsMap }, answerCharacter, gameSettings);
+      const isCorrect = guessData.id === answerCharacter.id;
+      if (
+        gameSettings.tagBan &&
+        Array.isArray(feedback?.metaTags?.shared) &&
+        feedback.metaTags.shared.length > 0
+      ) {
+        socketRef.current?.emit('tagBanSharedMetaTags', {
+          roomId,
+          tags: feedback.metaTags.shared
+        });
+      }
+      // Send guess result to server
       setGuessesLeft(prev => prev - 1);
       socketRef.current?.emit('playerGuess', {
         roomId,
         guessResult: {
           isCorrect,
-          isPartialCorrect: tempFeedback.shared_appearances.count > 0,
+          isPartialCorrect: feedback.shared_appearances?.count > 0,
           guessData
         }
       });
-      guessData.rawTags = new Map(guessData.rawTags);
-      const feedback = generateFeedback(guessData, answerCharacter, gameSettings);
+      guessData.rawTags = rawTagsMap;
       if (isCorrect) {
         setGuesses(prevGuesses => [...prevGuesses, {
           id: guessData.id,
@@ -1277,6 +1333,7 @@ const Multiplayer = () => {
                     guesses={guesses}
                     gameSettings={gameSettings}
                     answerCharacter={answerCharacter}
+                    bannedTags={bannedSharedTags}
                   />
                 </>
               ) : (
@@ -1402,6 +1459,7 @@ const Multiplayer = () => {
                         gameSettings={gameSettings}
                         answerCharacter={answerCharacter}
                         collapsedCount={isGuessTableCollapsed ? 3 : 0}
+                        bannedTags={bannedSharedTags}
                       />
                     </div>
                   )}
