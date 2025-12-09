@@ -13,7 +13,7 @@ function calculateWinnerScore({ guesses, baseScore = 0, totalRounds = 10 }) {
     // 计算猜测轮数（去掉提示标记和结束标记）
     // 注意：💡 视为一次有效尝试，不能从计数中剔除
     // 使用 Array.from 正确计算emoji字符数
-    const cleaned = guesses.replace(/[✌👑💀🏳️🏆⏱️]/g, '');
+    const cleaned = guesses.replace(/[✌👑💀🏳️🏆]/g, '');
     const guessCount = Array.from(cleaned).length;
     
     let totalScore = baseScore;
@@ -147,8 +147,7 @@ function updateSyncProgress(room, roomId, io) {
             p.guesses.includes('💀') ||
             p.guesses.includes('🏳️') ||
             p.guesses.includes('👑') ||
-            p.guesses.includes('🏆') ||
-            p.guesses.includes('⏱️');
+            p.guesses.includes('🏆');
         if (hasEnded) {
             room.currentGame.syncPlayersCompleted.add(p.id);
         }
@@ -157,7 +156,9 @@ function updateSyncProgress(room, roomId, io) {
     const syncStatus = syncPlayers.map(p => ({
         id: p.id,
         username: p.username,
-        completed: room.currentGame.syncPlayersCompleted.has(p.id)
+        completed:
+            room.currentGame.syncPlayersCompleted.has(p.id) ||
+            (typeof p.syncCompletedRound === 'number' && p.syncCompletedRound === room.currentGame.syncRound)
     }));
 
     const allCompleted = syncStatus.every(s => s.completed);
@@ -230,27 +231,31 @@ function updateSyncProgress(room, roomId, io) {
         room.currentGame.syncReadyToEnd = false;
         room.currentGame.syncRound += 1;
         room.currentGame.syncPlayersCompleted.clear();
+        // 清理上一轮的超时完成标记
+        syncPlayers.forEach(p => {
+            if (typeof p.syncCompletedRound === 'number') {
+                delete p.syncCompletedRound;
+            }
+        });
 
         // 同步+血战：记录本轮开始的排名基线，确保同轮玩家基础分一致
         if (room.currentGame.settings.nonstopMode) {
             room.currentGame.syncRoundStartRank = room.currentGame.nonstopWinners.length + 1;
         }
 
-        // 新轮次保持已结束玩家为完成状态，便于前端显示
-        syncPlayers.forEach(p => {
+        // 下一轮：移除已结束玩家（赢/输/投降/队伍胜利），只保留仍需参与的玩家
+        const nextSyncPlayers = syncPlayers.filter(p => {
             const hasEnded =
                 p.guesses.includes('✌') ||
                 p.guesses.includes('💀') ||
                 p.guesses.includes('🏳️') ||
                 p.guesses.includes('👑') ||
-                p.guesses.includes('🏆') ||
-                p.guesses.includes('⏱️');
-            if (hasEnded) {
-                room.currentGame.syncPlayersCompleted.add(p.id);
-            }
+                p.guesses.includes('🏆');
+            return !hasEnded;
         });
 
-        const nextSyncStatus = syncPlayers.map(p => ({
+        // 下一轮初始化完成状态（通常为空集合）
+        const nextSyncStatus = nextSyncPlayers.map(p => ({
             id: p.id,
             username: p.username,
             completed: room.currentGame.syncPlayersCompleted.has(p.id)
@@ -1272,7 +1277,7 @@ function setupSocket(io, rooms) {
             }
 
             // 自动识别首猜即中为大赢家
-            const rawGuessCount = Array.from(player.guesses.replace(/[✌👑💀🏳️🏆⏱️]/g, '')).length;
+            const rawGuessCount = Array.from(player.guesses.replace(/[✌👑💀🏳️🏆]/g, '')).length;
             if (!isBigWin && rawGuessCount === 1) {
                 isBigWin = true;
             }
@@ -1479,7 +1484,7 @@ function setupSocket(io, rooms) {
             }
     
             // 自动识别首猜即中为大赢家
-            const rawGuessCount = Array.from(player.guesses.replace(/[✌👑💀🏳️🏆⏱️]/g, '')).length;
+            const rawGuessCount = Array.from(player.guesses.replace(/[✌👑💀🏳️🏆]/g, '')).length;
             const shouldAutoBigWin = result === 'win' && rawGuessCount === 1 && !player.guesses.includes('👑');
             const finalResult = shouldAutoBigWin ? 'bigwin' : result;
 
@@ -1757,6 +1762,7 @@ function setupSocket(io, rooms) {
                 const hasEnded = player.guesses.includes('✌') || player.guesses.includes('💀') || player.guesses.includes('🏳️') || player.guesses.includes('👑') || player.guesses.includes('🏆');
                 if (!hasEnded) {
                     room.currentGame.syncPlayersCompleted.add(socket.id);
+                    player.syncCompletedRound = room.currentGame.syncRound;
                 }
                 updateSyncProgress(room, roomId, io);
             }

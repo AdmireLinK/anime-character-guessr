@@ -118,9 +118,9 @@ const Multiplayer = () => {
     return statusList.filter((entry) => {
       const player = players.find(p => p.id === entry.id);
       const guesses = player?.guesses || '';
-      const isEndedByResult = guesses.includes('✌') || guesses.includes('👑') || guesses.includes('🏳️') || guesses.includes('🏆');
       const isDisconnected = !!player?.disconnected;
-      return !(entry.completed && (isEndedByResult || isDisconnected));
+      // 保留已完成的赢家在当前轮展示，下一轮已被服务器移出列表；仅隐藏断线玩家
+      return !(entry.completed && isDisconnected);
     });
   };
 
@@ -1546,8 +1546,11 @@ const Multiplayer = () => {
                             {displaySettings.syncMode && (
                               <span className="mode-tag sync">同步模式</span>
                             )}
-                            {displaySettings.globalBanPick && (
-                              <span className="mode-tag global-bp">全局BP</span>
+                            {displaySettings.globalPick && (
+                              <span className="mode-tag global-bp">角色全局BP</span>
+                            )}
+                            {displaySettings.tagBan && (
+                              <span className="mode-tag global-bp">标签全局BP</span>
                             )}
                           </div>
                           <span className="answer-label">答案是</span>
