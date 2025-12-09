@@ -446,7 +446,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                     <span className="tooltip-trigger">
                       ?
                       <span className="tooltip-text">
-                        解锁的标签会对别的玩家隐藏。
+                        命中的标签会对别的玩家隐藏。
                       </span>
                     </span>
                     <input
