@@ -118,9 +118,9 @@ const Multiplayer = () => {
     return statusList.filter((entry) => {
       const player = players.find(p => p.id === entry.id);
       const guesses = player?.guesses || '';
-      const isEndedByResult = guesses.includes('✌') || guesses.includes('👑') || guesses.includes('🏳️') || guesses.includes('🏆');
       const isDisconnected = !!player?.disconnected;
-      return !(entry.completed && (isEndedByResult || isDisconnected));
+      // 保留已完成的赢家在当前轮展示，下一轮已被服务器移出列表；仅隐藏断线玩家
+      return !(entry.completed && isDisconnected);
     });
   };
 
