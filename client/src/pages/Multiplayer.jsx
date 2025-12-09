@@ -1546,8 +1546,11 @@ const Multiplayer = () => {
                             {displaySettings.syncMode && (
                               <span className="mode-tag sync">同步模式</span>
                             )}
-                            {displaySettings.globalBanPick && (
-                              <span className="mode-tag global-bp">全局BP</span>
+                            {displaySettings.globalPick && (
+                              <span className="mode-tag global-bp">角色全局BP</span>
+                            )}
+                            {displaySettings.tagBan && (
+                              <span className="mode-tag global-bp">标签全局BP</span>
                             )}
                           </div>
                           <span className="answer-label">答案是</span>
