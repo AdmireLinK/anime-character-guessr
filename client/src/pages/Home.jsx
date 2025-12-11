@@ -1,9 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import '../styles/Home.css';
-import UpdateAnnouncement from '../components/UpdateAnnouncement';
 import WelcomePopup from '../components/WelcomePopup';
-import announcements from '../data/announcements';
 
 const Home = () => {
   const [roomCount, setRoomCount] = useState(0);
@@ -43,26 +41,47 @@ const Home = () => {
         </Link>
       </div>
       
-      <UpdateAnnouncement 
-        announcements={announcements} 
-        defaultExpanded={false}
-        initialVisibleCount={1}
-      />
-      
       <div className="home-footer">
+        <div className="button-group-horizontal">
+          <a 
+            href="https://www.bilibili.com/video/BV14CVRzUELs" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="fotter-btn"
+          >
+            <i className="fab fa-bilibili" style={{marginRight: '8px'}}></i>玩法简介
+          </a>
+          <a 
+            href="https://github.com/kennylimz/anime-character-guessr" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="fotter-btn"
+          >
+            <i className="fab fa-github" style={{marginRight: '8px'}}></i>GitHub仓库
+          </a>
+          <a 
+            href="https://qm.qq.com/q/2sWbSsCwBu" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="fotter-btn"
+          >
+            <i className="fab fa-qq" style={{marginRight: '8px'}}></i>加入QQ群
+          </a>
+          <a 
+            href="https://www.bilibili.com/video/BV1MstxzgEhg/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="fotter-btn"
+          >
+            <i className="fas fa-desktop" style={{marginRight: '8px'}}></i>作者的新玩具
+          </a>
+        </div>
         <p>
           {/* <a href="https://vertikarl.github.io/anime-character-guessr-english/"> ENGLISH ver. </a> */}
+          一个猜动漫/游戏角色的网站，建议使用桌面端浏览器游玩
           <br/>
-          一个猜动漫/游戏角色的网站，建议使用桌面端浏览器游玩。
-          <br/>
-          <a href="https://www.bilibili.com/video/BV14CVRzUELs">玩法简介视频</a>，灵感来源<a href="https://blast.tv/counter-strikle"> BLAST.tv </a>,
-          数据来源<a href="https://bgm.tv/"> Bangumi </a>。<br />
-          <a href="https://space.bilibili.com/87983557">@作者</a>："感谢 <a href="https://github.com/trim21">Bangumi 管理员</a> 的优化支持，
-          以及各位<a href="https://github.com/kennylimz/anime-character-guessr/graphs/contributors">网友</a>贡献的代码和数据。
-          感谢大家这段时间的热情和支持。"<br/>
-          有Bug？到<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" rel="noopener noreferrer">Github Issues</a>反馈<br/>
-          想找朋友一起玩？QQ群：467740403<br/>
-          作者的新玩具：<a href="https://www.bilibili.com/video/BV1MstxzgEhg/">一个桌面挂件</a>
+          灵感来源<a href="https://blast.tv/counter-strikle"> BLAST.tv </a> &nbsp;
+          数据来源<a href="https://bgm.tv/"> Bangumi </a>
         </p>
       </div>
     </div>
