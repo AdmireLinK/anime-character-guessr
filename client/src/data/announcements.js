@@ -25,6 +25,28 @@ const announcements = [
   },
 
   {
+    version: '1.6.3',
+    date: '2025-12-12',
+    content: `
+      <b>新功能：</b><br/>
+      <ul>
+        <li>标签同步BP：启用后，所有标签只会显示给第一个猜出该标签的玩家</li>
+        <li>线路选择与服务器延迟展示</li>
+        <li>超帅的Logo！！！</li>
+      </ul>
+      <b>调整：</b><br/>
+      <ul>
+        <li>重构部分UI</li>
+      </ul>
+      <b>修复：</b><br/>
+      <ul>
+        <li>同步、血战模式的部分Bug</li>
+        <li>得分计算</li>
+      </ul>
+    `
+  },
+
+  {
     version: '1.6.2',
     date: '2025-12-06',
     content: `
