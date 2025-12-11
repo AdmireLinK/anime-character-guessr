@@ -10,7 +10,7 @@ function WelcomePopup({ onClose }) {
         <div className="popup-header welcome-header">
           <div className="title-container">
             <div className="title-line title-line-main" data-text="二刺猿笑傳">二刺猿笑傳</div>
-            <div className="title-line title-line-separator" data-text="Anime Character Guessr">Anime Character Guessr</div>
+            <div className="title-line title-line-separator" data-text="A N I M E &nbsp; C H A R A C T E R &nbsp; G U E S S R &nbsp;">A N I M E &nbsp; C H A R A C T E R &nbsp; G U E S S R &nbsp;</div>
             <div className="title-line title-line-sub" data-text="猜猜唄">猜猜唄</div>
           </div>
         </div>
@@ -31,7 +31,7 @@ function WelcomePopup({ onClose }) {
               <br/>
               <p>另外，我们的QQ群正在火热招新中，群中即将举办新一届新人杯，此后还将有新一届CCB Major等赛事，参与无门槛，获胜有奖品，欢迎点击主页下方按钮加入！</p>
 
-              <p><b>如果您有任何建议或问题，欢迎加入我们的QQ群或提交Issue！</b></p>
+              <p><b>如果您有任何建议或问题，欢迎加入我们的<a href="https://qm.qq.com/q/2sWbSsCwBu" target="_blank" >QQ群</a>或<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" >提交Issue</a>！</b></p>
               
               <hr style={{margin: '20px 0', border: '0', borderTop: '1px solid rgba(0,0,0,0.1)'}} />
               
