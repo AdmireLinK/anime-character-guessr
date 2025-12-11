@@ -2,8 +2,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  height: 100vh;
+  justify-content: center;
+  min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%);
   color: #2c3e50;
   overflow: hidden;
@@ -27,32 +27,16 @@
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* 居中包裹：包含模式按钮和线路选择 */
-.center-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  margin: auto 0; /* 在 header 与 footer 之间居中 */
-  padding-top: 150px;
-}
-
 .game-modes {
   display: flex;
-  gap: 1.25rem; /* 更紧凑的按钮间距 */
+  gap: 2rem;
   justify-content: center;
-  align-items: center;
   flex-wrap: wrap;
-  flex: none; /* 不占据剩余垂直空间，避免将线路选择推到底部 */
-  max-width: 100%;
-  margin-bottom: 0.25rem; /* 与下方线路选择靠得更近 */
 }
 
 .mode-button {
   position: relative;
   width: 300px;
-  height: 100px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -136,14 +120,11 @@
 }
 
 .home-footer {
-  margin-top: auto;
-  padding-bottom: 1rem;
-  width: 100%;
+  margin-top: 3rem;
   text-align: center;
   font-size: 0.9rem;
   color: #666;
   line-height: 1.6;
-  flex-shrink: 0;
 }
 
 .home-footer a {
