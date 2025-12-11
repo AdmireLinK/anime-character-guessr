@@ -50,6 +50,33 @@ button:hover {
   border-color: #646cff;
 }
 
+/* 自定义滚动条样式 */
+/* Webkit 浏览器 (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 0;
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
@@ -60,5 +87,18 @@ button:hover {
   }
   button {
     background-color: #f9f9f9;
+  }
+  
+  /* 浅色模式滚动条 */
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25);
+  }
+  
+  * {
+    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
   }
 }
