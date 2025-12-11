@@ -152,35 +152,16 @@
   width: 100%;
 }
 
-.button-group-horizontal {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-  width: 100%;
-  margin-bottom: 10px;
-}
-
-.fotter-btn {
-  font-size: 16px;
-  padding: 8px 20px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 500;
-  text-decoration: none;
-  text-align: center;
-  display: inline-flex;
+/* 3x2 grid 按钮整体居中且右偏心理调节 */
+.button-group-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, auto);
+  gap: 12px;
+  justify-items: start;
   align-items: center;
-  justify-content: center;
-}
-
-.fotter-btn:hover {
-  background: #e2e8f0;
-  color: #1e293b;
+  width: fit-content;
+  margin: 0 auto 10px auto;
+  transform: translateX(18px);
 }
 

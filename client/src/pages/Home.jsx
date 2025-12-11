@@ -42,7 +42,22 @@ const Home = () => {
       </div>
       
       <div className="home-footer">
-        <div className="button-group-horizontal">
+        <div className="button-group-grid">
+          <a
+            href="#"
+            className="fotter-btn"
+            onClick={e => { e.preventDefault(); setShowWelcomePopup(true); }}
+          >
+            <i className="fas fa-bullhorn" style={{marginRight: '8px'}}></i>显示公告
+          </a>
+          <a
+            href="https://status.baka.website/status/ccb"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="fotter-btn"
+          >
+            <i className="fas fa-server" style={{marginRight: '8px'}}></i>服务状态
+          </a>
           <a 
             href="https://www.bilibili.com/video/BV14CVRzUELs" 
             target="_blank" 
@@ -88,4 +103,4 @@ const Home = () => {
   );
 };
 
-export default Home; 
+export default Home;
