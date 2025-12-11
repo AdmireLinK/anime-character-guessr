@@ -37,6 +37,7 @@ const announcements = [
       <b>调整：</b><br/>
       <ul>
         <li>重构部分UI</li>
+        <li>更改全局字体为Google Noto家族</li>
       </ul>
       <b>修复：</b><br/>
       <ul>
