@@ -127,6 +127,22 @@
   margin-top: 0.5rem;
 }
 
+/* 多人按钮内的第二行信息更紧凑 */
+.mode-button small + small {
+  margin-top: 0.25rem;
+}
+
+.server-latency {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.server-latency-value {
+  font-weight: 600;
+}
+
 .home-footer {
   margin-top: auto;
   padding-bottom: 1rem;

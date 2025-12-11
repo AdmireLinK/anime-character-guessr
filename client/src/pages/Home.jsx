@@ -11,19 +11,15 @@ const LINE_OPTIONS = [
 const Home = () => {
   const [roomCount, setRoomCount] = useState(0);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [serverLatency, setServerLatency] = useState({
+    text: '-',
+    color: '#95a5a6',
+    loading: false
+  });
   // 线路选择当前域名状态
   const [currentOrigin, setCurrentOrigin] = useState('');
 
   useEffect(() => {
-    const serverUrl = import.meta.env.VITE_SERVER_URL || '';
-    fetch(`${serverUrl}/room-count`)
-      .then(response => {
-        if (!response.ok) throw new Error('Failed to fetch');
-        return response.json();
-      })
-      .then(data => setRoomCount(data.count))
-      .catch(error => console.error('Error fetching room count:', error));
-    
     setShowWelcomePopup(true);
   }, []);
 
@@ -36,6 +32,48 @@ const Home = () => {
   const handleCloseWelcomePopup = () => {
     setShowWelcomePopup(false);
   };
+
+  const refreshRoomCountAndServerLatency = useCallback(async () => {
+    const serverUrl = import.meta.env.VITE_SERVER_URL || '';
+    if (!serverUrl) {
+      setServerLatency(prev => ({ ...prev, text: '-', color: '#ef4444', loading: false }));
+      return;
+    }
+
+    // 保持旧值显示，只在刷新时做轻微提示
+    setServerLatency(prev => ({ ...prev, loading: true }));
+
+    const start = performance.now();
+    let latency = -1;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(`${serverUrl}/room-count`, {
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const end = performance.now();
+      latency = Math.round(end - start);
+
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      setRoomCount(data.count);
+    } catch (error) {
+      console.error('Error fetching room count:', error);
+    }
+
+    if (latency >= 0) {
+      let color = '#ef4444';
+      if (latency < 100) color = '#22c55e';
+      else if (latency < 500) color = '#f59e0b';
+
+      setServerLatency({ text: `${latency}ms`, color, loading: false });
+    } else {
+      setServerLatency({ text: '-', color: '#ef4444', loading: false });
+    }
+  }, []);
 
   const testLatency = useCallback(async () => {
     const links = document.querySelectorAll('.domain-link');
@@ -96,12 +134,16 @@ const Home = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (!currentOrigin) return;
+  const refreshAll = useCallback(() => {
+    refreshRoomCountAndServerLatency();
     testLatency();
-    const timer = setInterval(testLatency, 5000);
+  }, [refreshRoomCountAndServerLatency, testLatency]);
+
+  useEffect(() => {
+    refreshAll();
+    const timer = setInterval(refreshAll, 5000);
     return () => clearInterval(timer);
-  }, [currentOrigin, testLatency]);
+  }, [refreshAll]);
 
   const availableLines = currentOrigin
     ? [...LINE_OPTIONS, { url: currentOrigin }]
@@ -122,6 +164,25 @@ const Home = () => {
         <Link to="/multiplayer" className="mode-button">
           <h2>多人</h2>
           <small>当前房间数: {roomCount}</small>
+          <small className="server-latency">
+            服务器延迟：
+            <span
+              className="server-latency-value"
+              style={{
+                color: serverLatency.color,
+                opacity: serverLatency.loading ? 0.6 : 1
+              }}
+            >
+              {serverLatency.text}
+            </span>
+            <span
+              className="latency-dot"
+              style={{
+                backgroundColor: serverLatency.color,
+                opacity: serverLatency.loading ? 0.6 : 0.8
+              }}
+            ></span>
+          </small>
         </Link>
       </div>
 
