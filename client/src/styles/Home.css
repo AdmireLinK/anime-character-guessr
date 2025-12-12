@@ -6,9 +6,17 @@
   height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%);
   color: #2c3e50;
-  overflow: hidden; /* 防止出现滚动条 */
+  overflow: hidden;
   padding: 2vh 2rem;
   box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .home-container {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
 }
 
 .home-container h1 {
