@@ -1918,60 +1918,8 @@ function setupSocket(io, rooms) {
                         // 同步模式：移除断开连接的玩家，并检查是否可以进入下一轮
                         if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
                             room.currentGame.syncPlayersCompleted.delete(socket.id);
-                            
-                            // 获取所有需要完成本轮的活跃玩家（剔除已结束）
-                            const activePlayers = room.players.filter(p => 
-                                !p.isAnswerSetter && 
-                                p.team !== '0' && 
-                                !p.disconnected &&
-                                !p.guesses.includes('✌') &&
-                                !p.guesses.includes('💀') &&
-                                !p.guesses.includes('🏳️') &&
-                                !p.guesses.includes('👑') &&
-                                !p.guesses.includes('🏆')
-                            );
-
-                            if (activePlayers.length > 0) {
-                                const allCompleted = activePlayers.every(p => room.currentGame.syncPlayersCompleted.has(p.id));
-                                
-                                if (allCompleted) {
-                                    if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
-                                        // 已有胜者，本轮结束后不再开启新一轮
-                                        io.to(roomId).emit('syncGameEnding', {
-                                            winnerUsername: room.currentGame.syncWinner?.username,
-                                            message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
-                                        });
-                                    } else {
-                                        // 所有剩余玩家都已完成，进入下一轮
-                                        room.currentGame.syncRound += 1;
-                                        room.currentGame.syncPlayersCompleted.clear();
-                                        io.to(roomId).emit('syncRoundStart', {
-                                            round: room.currentGame.syncRound
-                                        });
-                                        console.log(`[同步模式] 房间 ${roomId}: 玩家断开连接，第 ${room.currentGame.syncRound} 轮开始`);
-                                    }
-                                } else {
-                                    // 玩家离开后更新同步状态
-                                    const syncStatus = activePlayers.map(p => ({
-                                        id: p.id,
-                                        username: p.username,
-                                        completed: room.currentGame.syncPlayersCompleted.has(p.id)
-                                    }));
-                                    io.to(roomId).emit('syncWaiting', {
-                                        round: room.currentGame.syncRound,
-                                        syncStatus: syncStatus,
-                                        completedCount: syncStatus.filter(s => s.completed).length,
-                                        totalCount: syncStatus.length
-                                    });
-
-                                    if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
-                                        io.to(roomId).emit('syncGameEnding', {
-                                            winnerUsername: room.currentGame.syncWinner?.username,
-                                            message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
-                                        });
-                                    }
-                                }
-                            }
+                            // 统一用 updateSyncProgress 处理所有同步队列推进逻辑，避免边界遗漏
+                            updateSyncProgress(room, roomId, io);
                         }
                     }
     
@@ -2265,6 +2213,7 @@ function setupSocket(io, rooms) {
                     // 同步模式：从等待队列移除被踢玩家
                     if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
                         room.currentGame.syncPlayersCompleted.delete(playerId);
+                        // 统一用 updateSyncProgress 处理所有同步队列推进逻辑，避免边界遗漏
                         updateSyncProgress(room, roomId, io);
                     }
                     
