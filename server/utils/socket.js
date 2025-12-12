@@ -760,6 +760,7 @@ function setupSocket(io, rooms) {
                     message: '',
                     team: null,
                     disconnected: false,
+                    joinedAt: Date.now(),
                     ...(avatarId !== undefined && { avatarId }),
                     ...(avatarImage !== undefined && { avatarImage })
                 }],
@@ -807,6 +808,7 @@ function setupSocket(io, rooms) {
                         message: '',
                         team: null,
                         disconnected: false,
+                        joinedAt: Date.now(),
                         ...(avatarId !== undefined && { avatarId }),
                         ...(avatarImage !== undefined && { avatarImage })
                     }],
@@ -851,6 +853,7 @@ function setupSocket(io, rooms) {
                     const previousSocketId = room.players[existingPlayerIndex].id;
                     room.players[existingPlayerIndex].id = socket.id;
                     room.players[existingPlayerIndex].disconnected = false;
+                    room.players[existingPlayerIndex].joinedAt = Date.now();
                     
                     // Update avatar if provided
                     if (avatarId !== undefined) {
@@ -954,6 +957,7 @@ function setupSocket(io, rooms) {
                 message: '',
                 team: room.currentGame? '0' : null,
                 disconnected: false,
+                joinedAt: Date.now(),
                 ...(avatarId !== undefined && { avatarId }),
                 ...(avatarImage !== undefined && { avatarImage })
             });
@@ -1079,9 +1083,23 @@ function setupSocket(io, rooms) {
                 socket.emit('error', {message: 'gameStart: 只有房主可以开始游戏'});
                 return;
             }
-    
-            // Check if all non-disconnected players are ready
-            const allReady = room.players.every(p => p.isHost || p.ready || p.disconnected);
+
+            // 极端竞态：房主点击开始同时有人加入。
+            // 若此时新玩家尚未准备，会导致 allReady 失败，前端弹窗(alert)阻塞进而出现“房主断线”的错觉（心跳超时）。
+            // 处理方式：把“刚加入且未准备”的玩家自动转为旁观者(team=0)，并在 ready 校验中放行旁观者。
+            const now = Date.now();
+            room.players.forEach(p => {
+                if (!p || p.isHost || p.disconnected) return;
+                if (p.ready) return;
+                if (p.team === '0') return;
+                const joinedAt = typeof p.joinedAt === 'number' ? p.joinedAt : 0;
+                if (joinedAt && (now - joinedAt) <= 1500) {
+                    p.team = '0';
+                }
+            });
+
+            // Check if all non-disconnected players are ready（旁观者不需要准备）
+            const allReady = room.players.every(p => p.isHost || p.disconnected || p.team === '0' || p.ready);
             if (!allReady) {
                 console.log(`[ERROR][gameStart][${socket.id}] 所有玩家必须准备好才能开始游戏`);
                 socket.emit('error', {message: 'gameStart: 所有玩家必须准备好才能开始游戏'});
