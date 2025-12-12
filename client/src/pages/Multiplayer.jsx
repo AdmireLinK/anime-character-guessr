@@ -1285,11 +1285,11 @@ const Multiplayer = () => {
                   {gameSettings.nonstopMode && (
                     <div className="nonstop-progress-banner">
                       <span>🔥 血战模式 - 剩余 {nonstopProgress?.remainingCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length}/{nonstopProgress?.totalCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length} 人</span>
-                      {nonstopProgress?.winners && nonstopProgress.winners.length > 0 && (
+                          {nonstopProgress?.winners && nonstopProgress.winners.length > 0 && (
                         <div className="nonstop-winners">
-                          {nonstopProgress.winners.map((winner) => (
+                          {nonstopProgress.winners.map((winner, idx) => (
                             <span key={winner.username} className="nonstop-winner">
-                              #{winner.rank} {winner.username} (+{winner.score}分)
+                              #{winner.rank} {showNames ? winner.username : `玩家${idx + 1}`} (+{winner.score})
                             </span>
                           ))}
                         </div>
@@ -1373,9 +1373,9 @@ const Multiplayer = () => {
                         );
                       })()}
                       <div className="sync-status">
-                        {getFilteredSyncStatus().map((player) => (
+                        {getFilteredSyncStatus().map((player, idx) => (
                           <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
-                            {player.username}: {player.completed ? '✓' : '...'}
+                            {showNames ? player.username : `玩家${idx + 1}`}: {player.completed ? '' : '...'}
                           </span>
                         ))}
                       </div>
