@@ -124,31 +124,82 @@ function calculateNonstopSetterScore({ hasBigWinner = false, bigWinnerScore = 0,
     return { score, reason };
 }
 
+/**
+ * 结算阶段：根据猜测历史计算“作品分(💡)”应归属给谁。
+ * 规则：每个队伍最多 1 分；无队伍玩家各自独立；优先给“最早在自己记录里出现💡的玩家”（无全局时间戳时的稳定近似）。
+ * 注意：该函数只负责确定归属，不负责加分。
+ * @param {Object} room
+ * @returns {Set<string>} playerId 集合
+ */
+function computePartialAwardeesFromGuessHistory(room) {
+    const awardees = new Set();
+    if (!room?.currentGame || !Array.isArray(room.currentGame.guesses)) {
+        return awardees;
+    }
+
+    const playersById = new Map((room.players || []).map(p => [p.id, p]));
+    const firstPartialIndexByPlayer = new Map();
+
+    // room.currentGame.guesses: [{ username, guesses: [{ playerId, isPartialCorrect, isCorrect, ... }, ...] }, ...]
+    room.currentGame.guesses.forEach(playerGuesses => {
+        const list = Array.isArray(playerGuesses?.guesses) ? playerGuesses.guesses : [];
+        list.forEach((g, idx) => {
+            if (!g || !g.playerId) return;
+            if (g.isPartialCorrect && !g.isCorrect) {
+                if (!firstPartialIndexByPlayer.has(g.playerId)) {
+                    firstPartialIndexByPlayer.set(g.playerId, idx);
+                }
+            }
+        });
+    });
+
+    // 每个队伍/个人选一个最佳归属
+    const bestByGroup = new Map();
+    firstPartialIndexByPlayer.forEach((idx, playerId) => {
+        const p = playersById.get(playerId);
+        if (!p) return;
+        if (p.isAnswerSetter) return;
+        if (p.team === '0') return; // 观察者不计入
+
+        const groupKey = p.team ? `team:${p.team}` : `solo:${playerId}`;
+        const current = bestByGroup.get(groupKey);
+        const username = String(p.username || '');
+        if (!current || idx < current.idx || (idx === current.idx && username.localeCompare(current.username) < 0)) {
+            bestByGroup.set(groupKey, { playerId, idx, username });
+        }
+    });
+
+    bestByGroup.forEach(v => awardees.add(v.playerId));
+    return awardees;
+}
+
 // 同步模式：统一处理进度更新与轮次推进，支持血战模式
 function updateSyncProgress(room, roomId, io) {
     if (!io) return;
     if (!room?.currentGame || !room.currentGame.settings?.syncMode || !room.currentGame.syncPlayersCompleted) return;
 
-    // 需要参与同步轮次的玩家（排除出题人、旁观者、已断开，但保留已结束的玩家以展示完成状态）
+    // 只保留本轮需要同步的活跃玩家（未结束）
+    const isEnded = p => (
+        p.guesses.includes('✌') ||
+        p.guesses.includes('💀') ||
+        p.guesses.includes('🏳️') ||
+        p.guesses.includes('👑') ||
+        p.guesses.includes('🏆')
+    );
     const syncPlayers = room.players.filter(p =>
         !p.isAnswerSetter &&
         p.team !== '0' &&
-        !p.disconnected
+        !p.disconnected &&
+        !isEnded(p)
     );
 
     if (syncPlayers.length === 0) {
         return;
     }
 
-    // 已结束的玩家也视为本轮完成，确保同步组件显示为已完成而不是消失
+    // 只在本轮将本轮超时玩家视为完成
     syncPlayers.forEach(p => {
-        const hasEnded =
-            p.guesses.includes('✌') ||
-            p.guesses.includes('💀') ||
-            p.guesses.includes('🏳️') ||
-            p.guesses.includes('👑') ||
-            p.guesses.includes('🏆');
-        if (hasEnded) {
+        if (typeof p.syncCompletedRound === 'number' && p.syncCompletedRound === room.currentGame.syncRound) {
             room.currentGame.syncPlayersCompleted.add(p.id);
         }
     });
@@ -156,9 +207,7 @@ function updateSyncProgress(room, roomId, io) {
     const syncStatus = syncPlayers.map(p => ({
         id: p.id,
         username: p.username,
-        completed:
-            room.currentGame.syncPlayersCompleted.has(p.id) ||
-            (typeof p.syncCompletedRound === 'number' && p.syncCompletedRound === room.currentGame.syncRound)
+        completed: room.currentGame.syncPlayersCompleted.has(p.id)
     }));
 
     const allCompleted = syncStatus.every(s => s.completed);
@@ -231,8 +280,8 @@ function updateSyncProgress(room, roomId, io) {
         room.currentGame.syncReadyToEnd = false;
         room.currentGame.syncRound += 1;
         room.currentGame.syncPlayersCompleted.clear();
-        // 清理上一轮的超时完成标记
-        syncPlayers.forEach(p => {
+        // 清理所有玩家的超时完成标记，确保新一轮不会被误判
+        room.players.forEach(p => {
             if (typeof p.syncCompletedRound === 'number') {
                 delete p.syncCompletedRound;
             }
@@ -243,16 +292,14 @@ function updateSyncProgress(room, roomId, io) {
             room.currentGame.syncRoundStartRank = room.currentGame.nonstopWinners.length + 1;
         }
 
-        // 下一轮：移除已结束玩家（赢/输/投降/队伍胜利），只保留仍需参与的玩家
-        const nextSyncPlayers = syncPlayers.filter(p => {
-            const hasEnded =
-                p.guesses.includes('✌') ||
-                p.guesses.includes('💀') ||
-                p.guesses.includes('🏳️') ||
-                p.guesses.includes('👑') ||
-                p.guesses.includes('🏆');
-            return !hasEnded;
-        });
+
+        // 下一轮：只保留未结束玩家
+        const nextSyncPlayers = room.players.filter(p =>
+            !p.isAnswerSetter &&
+            p.team !== '0' &&
+            !p.disconnected &&
+            !isEnded(p)
+        );
 
         // 下一轮初始化完成状态（通常为空集合）
         const nextSyncStatus = nextSyncPlayers.map(p => ({
@@ -439,9 +486,17 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
     if (syncMode) {
         actualWinners = activePlayers.filter(p => p.guesses.includes('✌') || p.guesses.includes('👑'));
     } else {
+        const answerId = room.currentGame?.character?.id;
         let bigwinner = firstWinner?.isBigWin
             ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('👑'))
             : activePlayers.find(p => p.guesses.includes('👑'));
+        if (!bigwinner && answerId) {
+            const avatarBigWinner = activePlayers.find(p => (p.guesses.includes('✌') || p.guesses.includes('👑')) && String(p.avatarId) === String(answerId));
+            if (avatarBigWinner) {
+                bigwinner = avatarBigWinner;
+                if (!avatarBigWinner.guesses.includes('👑')) avatarBigWinner.guesses = avatarBigWinner.guesses.replace('✌','') + '👑';
+            }
+        }
         let winner = !bigwinner && firstWinner && !firstWinner.isBigWin
             ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('✌'))
             : (!bigwinner ? activePlayers.find(p => p.guesses.includes('✌')) : null);
@@ -466,6 +521,9 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
 
     const answerSetter = room.players.find(p => p.isAnswerSetter);
 
+    // 结算阶段统一计算作品分（每队/个人最多+1）
+    const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+
     // 计算胜者得分
     const winnerScoreResults = {};
     let primaryWinner = actualWinners.find(p => p.id === firstWinner?.id) || actualWinners[0] || null;
@@ -481,7 +539,6 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
         });
         sharedDetailResult = calculateWinnerScore({ guesses: primaryWinner.guesses, baseScore: 0, totalRounds });
         actualWinners.forEach(w => {
-            if (w.guesses.includes('💡')) w.score -= 1;
             w.score += sharedScoreResult.totalScore;
             winnerScoreResults[w.id] = {
                 totalScore: sharedScoreResult.totalScore,
@@ -494,15 +551,23 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
         actualWinners.forEach(w => {
             const baseScore = 2; // 统一基础分 2，bigwin 额外 +12 => 总 14
             const scoreResult = calculateWinnerScore({ guesses: w.guesses, baseScore, totalRounds });
-            if (w.guesses.includes('💡')) {
-                w.score -= 1;
-            }
             w.score += scoreResult.totalScore;
             winnerScoreResults[w.id] = scoreResult;
         });
         primaryWinner = primaryWinner || actualWinners[0] || null;
         sharedDetailResult = primaryWinner ? calculateWinnerScore({ guesses: primaryWinner.guesses, baseScore: 0, totalRounds }) : null;
     }
+
+    // 给非胜者发放作品分（胜者/大赢家不叠加作品分）
+    const winnerIdSet = new Set((actualWinners || []).map(w => w.id));
+    (room.players || []).forEach(p => {
+        if (!p || p.isAnswerSetter) return;
+        if (p.team === '0') return;
+        if (winnerIdSet.has(p.id)) return;
+        if (partialAwardees.has(p.id)) {
+            p.score += 1;
+        }
+    });
 
     const winnerGuessCount = sharedDetailResult?.guessCount || 0;
 
@@ -521,6 +586,7 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
             players: room.players,
             actualWinners,
             winnerScoreResults,
+            partialAwardees,
             isNonstopMode: false
         });
 
@@ -584,7 +650,7 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
  * @param {boolean} options.isNonstopMode - 是否为血战模式
  * @returns {Object} - scoreChanges 对象 { playerId: { score, breakdown, result } }
  */
-function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreResult, winnerScoreResults, nonstopWinners, isNonstopMode }) {
+function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreResult, winnerScoreResults, nonstopWinners, partialAwardees, isNonstopMode }) {
     const scoreChanges = {};
     const activePlayers = players.filter(p => !p.isAnswerSetter && p.team !== '0');
     
@@ -615,12 +681,13 @@ function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreRe
             };
         });
         
-        // 标记失败的玩家
+        // 标记失败的玩家（作品分在结算阶段统一发放）
         activePlayers.filter(p => !winnerIds.has(p.id)).forEach(p => {
             const lastChar = p.guesses.slice(-1);
+            const hasPartial = !!partialAwardees && partialAwardees.has(p.id);
             scoreChanges[p.id] = {
-                score: 0,
-                breakdown: {},
+                score: hasPartial ? 1 : 0,
+                breakdown: hasPartial ? { partial: 1 } : {},
                 result: lastChar === '💀' ? 'lose' : lastChar === '🏳️' ? 'surrender' : ''
             };
         });
@@ -642,7 +709,7 @@ function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreRe
                 };
             } else {
                 const lastChar = p.guesses.slice(-1);
-                const hasPartial = p.guesses.includes('💡');
+                const hasPartial = !!partialAwardees && partialAwardees.has(p.id);
                 scoreChanges[p.id] = {
                     score: hasPartial ? 1 : 0,
                     breakdown: hasPartial ? { partial: 1 } : {},
@@ -693,6 +760,7 @@ function setupSocket(io, rooms) {
                     message: '',
                     team: null,
                     disconnected: false,
+                    joinedAt: Date.now(),
                     ...(avatarId !== undefined && { avatarId }),
                     ...(avatarImage !== undefined && { avatarImage })
                 }],
@@ -740,6 +808,7 @@ function setupSocket(io, rooms) {
                         message: '',
                         team: null,
                         disconnected: false,
+                        joinedAt: Date.now(),
                         ...(avatarId !== undefined && { avatarId }),
                         ...(avatarImage !== undefined && { avatarImage })
                     }],
@@ -784,6 +853,7 @@ function setupSocket(io, rooms) {
                     const previousSocketId = room.players[existingPlayerIndex].id;
                     room.players[existingPlayerIndex].id = socket.id;
                     room.players[existingPlayerIndex].disconnected = false;
+                    room.players[existingPlayerIndex].joinedAt = Date.now();
                     
                     // Update avatar if provided
                     if (avatarId !== undefined) {
@@ -887,6 +957,7 @@ function setupSocket(io, rooms) {
                 message: '',
                 team: room.currentGame? '0' : null,
                 disconnected: false,
+                joinedAt: Date.now(),
                 ...(avatarId !== undefined && { avatarId }),
                 ...(avatarImage !== undefined && { avatarImage })
             });
@@ -1012,9 +1083,23 @@ function setupSocket(io, rooms) {
                 socket.emit('error', {message: 'gameStart: 只有房主可以开始游戏'});
                 return;
             }
-    
-            // Check if all non-disconnected players are ready
-            const allReady = room.players.every(p => p.isHost || p.ready || p.disconnected);
+
+            // 极端竞态：房主点击开始同时有人加入。
+            // 若此时新玩家尚未准备，会导致 allReady 失败，前端弹窗(alert)阻塞进而出现“房主断线”的错觉（心跳超时）。
+            // 处理方式：把“刚加入且未准备”的玩家自动转为旁观者(team=0)，并在 ready 校验中放行旁观者。
+            const now = Date.now();
+            room.players.forEach(p => {
+                if (!p || p.isHost || p.disconnected) return;
+                if (p.ready) return;
+                if (p.team === '0') return;
+                const joinedAt = typeof p.joinedAt === 'number' ? p.joinedAt : 0;
+                if (joinedAt && (now - joinedAt) <= 1500) {
+                    p.team = '0';
+                }
+            });
+
+            // Check if all non-disconnected players are ready（旁观者不需要准备）
+            const allReady = room.players.every(p => p.isHost || p.disconnected || p.team === '0' || p.ready);
             if (!allReady) {
                 console.log(`[ERROR][gameStart][${socket.id}] 所有玩家必须准备好才能开始游戏`);
                 socket.emit('error', {message: 'gameStart: 所有玩家必须准备好才能开始游戏'});
@@ -1140,22 +1225,11 @@ function setupSocket(io, rooms) {
             }
     
             // Update player's guesses string
-            if (!guessResult.isCorrect && guessResult.isPartialCorrect && !player.guesses.includes('💡')) {
-                // 检查同队是否已有人获得过作品分
-                const teamHasPartialScore = player.team && player.team !== '0' && room.players.some(p => 
-                    p.team === player.team && p.guesses.includes('💡')
-                );
-                
-                if (!teamHasPartialScore) {
-                    player.score += 1;
-                    player.guesses += '💡';
-                } else {
-                    // 队伍已获得作品分，不加分但记录猜测
-                    player.guesses += guessResult.isCorrect ? '✔' : '❌';
-                }
-            }
-            else{
-                player.guesses += guessResult.isCorrect ? '✔' :  '❌';
+            // 作品分(💡)仅记录，计分在结算阶段统一处理，避免漏记/重复/同步状态扰动
+            if (!guessResult.isCorrect && guessResult.isPartialCorrect) {
+                player.guesses += '💡';
+            } else {
+                player.guesses += guessResult.isCorrect ? '✔' : '❌';
             }
 
             // 同步模式：标记完成并统一更新进度
@@ -1356,10 +1430,7 @@ function setupSocket(io, rooms) {
             const score = scoreResult.totalScore;
             
             // 先计算好分数，再加分和记录
-            // 如果玩家之前获得了作品分，在获胜时扣除（因为获胜分覆盖了作品分，或者规则互斥）
-            if (player.guesses.includes('💡')) {
-                player.score -= 1;
-            }
+            // 作品分(💡)不再在游戏过程中即时加分，因此胜者不需要扣除
             player.score += score;
             console.log(`[血战模式调试] ${player.username}(id=${socket.id}) 得分计算: totalPlayers=${totalPlayers}, winnerRank=${winnerRank}, guessCount=${scoreResult.guessCount}, isBigWin=${isBigWin}, bonuses=${JSON.stringify(scoreResult.bonuses)}, score=${score}, newScore=${player.score}`);
 
@@ -1397,6 +1468,18 @@ function setupSocket(io, rooms) {
                 const answerSetter = room.players.find(p => p.isAnswerSetter);
                 const winnersCount = room.currentGame.nonstopWinners.length;
                 const totalPlayersCount = activePlayers.length;
+
+                // 结算阶段统一计算作品分（每队/个人最多+1，胜者不叠加）
+                const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+                const winnerIds = new Set((room.currentGame.nonstopWinners || []).map(w => w.id));
+                (room.players || []).forEach(p => {
+                    if (!p || p.isAnswerSetter) return;
+                    if (p.team === '0') return;
+                    if (winnerIds.has(p.id)) return;
+                    if (partialAwardees.has(p.id)) {
+                        p.score += 1;
+                    }
+                });
                 
                 // 检查是否有 bigwinner 并获取其得分
                 const bigWinnerData = (room.currentGame.nonstopWinners || []).find(w => {
@@ -1410,6 +1493,7 @@ function setupSocket(io, rooms) {
                 const scoreChanges = buildScoreChanges({
                     isNonstopMode: true,
                     nonstopWinners: room.currentGame.nonstopWinners,
+                    partialAwardees,
                     players: room.players
                 });
 
@@ -1641,6 +1725,18 @@ function setupSocket(io, rooms) {
                     const answerSetter = room.players.find(p => p.isAnswerSetter);
                     const winnersCount = (room.currentGame.nonstopWinners || []).length;
                     const totalPlayersCount = activePlayers.length;
+
+                    // 结算阶段统一计算作品分（每队/个人最多+1，胜者不叠加）
+                    const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+                    const winnerIds = new Set((room.currentGame.nonstopWinners || []).map(w => w.id));
+                    (room.players || []).forEach(p => {
+                        if (!p || p.isAnswerSetter) return;
+                        if (p.team === '0') return;
+                        if (winnerIds.has(p.id)) return;
+                        if (partialAwardees.has(p.id)) {
+                            p.score += 1;
+                        }
+                    });
                     
                     // 检查是否有 bigwinner 并获取其得分
                     const bigWinnerData = (room.currentGame.nonstopWinners || []).find(w => {
@@ -1654,6 +1750,7 @@ function setupSocket(io, rooms) {
                     const scoreChanges = buildScoreChanges({
                         isNonstopMode: true,
                         nonstopWinners: room.currentGame.nonstopWinners || [],
+                        partialAwardees,
                         players: room.players
                     });
 
@@ -1796,6 +1893,8 @@ function setupSocket(io, rooms) {
                             const newHostIndex = room.players.findIndex(p => p.id === newHost.id);
                             if (newHostIndex !== -1) {
                                 room.players[newHostIndex].isHost = true;
+                                // 新房主可能之前已准备（ready=true），但房主无法取消准备，会导致无法更换队伍
+                                room.players[newHostIndex].ready = false;
                             }
                             
                             // 撤销原房主的状态
@@ -1839,60 +1938,8 @@ function setupSocket(io, rooms) {
                         // 同步模式：移除断开连接的玩家，并检查是否可以进入下一轮
                         if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
                             room.currentGame.syncPlayersCompleted.delete(socket.id);
-                            
-                            // 获取所有需要完成本轮的活跃玩家（剔除已结束）
-                            const activePlayers = room.players.filter(p => 
-                                !p.isAnswerSetter && 
-                                p.team !== '0' && 
-                                !p.disconnected &&
-                                !p.guesses.includes('✌') &&
-                                !p.guesses.includes('💀') &&
-                                !p.guesses.includes('🏳️') &&
-                                !p.guesses.includes('👑') &&
-                                !p.guesses.includes('🏆')
-                            );
-
-                            if (activePlayers.length > 0) {
-                                const allCompleted = activePlayers.every(p => room.currentGame.syncPlayersCompleted.has(p.id));
-                                
-                                if (allCompleted) {
-                                    if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
-                                        // 已有胜者，本轮结束后不再开启新一轮
-                                        io.to(roomId).emit('syncGameEnding', {
-                                            winnerUsername: room.currentGame.syncWinner?.username,
-                                            message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
-                                        });
-                                    } else {
-                                        // 所有剩余玩家都已完成，进入下一轮
-                                        room.currentGame.syncRound += 1;
-                                        room.currentGame.syncPlayersCompleted.clear();
-                                        io.to(roomId).emit('syncRoundStart', {
-                                            round: room.currentGame.syncRound
-                                        });
-                                        console.log(`[同步模式] 房间 ${roomId}: 玩家断开连接，第 ${room.currentGame.syncRound} 轮开始`);
-                                    }
-                                } else {
-                                    // 玩家离开后更新同步状态
-                                    const syncStatus = activePlayers.map(p => ({
-                                        id: p.id,
-                                        username: p.username,
-                                        completed: room.currentGame.syncPlayersCompleted.has(p.id)
-                                    }));
-                                    io.to(roomId).emit('syncWaiting', {
-                                        round: room.currentGame.syncRound,
-                                        syncStatus: syncStatus,
-                                        completedCount: syncStatus.filter(s => s.completed).length,
-                                        totalCount: syncStatus.length
-                                    });
-
-                                    if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
-                                        io.to(roomId).emit('syncGameEnding', {
-                                            winnerUsername: room.currentGame.syncWinner?.username,
-                                            message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
-                                        });
-                                    }
-                                }
-                            }
+                            // 统一用 updateSyncProgress 处理所有同步队列推进逻辑，避免边界遗漏
+                            updateSyncProgress(room, roomId, io);
                         }
                     }
     
@@ -1910,12 +1957,23 @@ function setupSocket(io, rooms) {
                         if (allEnded) {
                             // Find answer setter (if any)
                             const answerSetter = room.players.find(p => p.isAnswerSetter);
+
+                            // 结算阶段统一计算作品分（无人胜者也可能有人猜到作品）
+                            const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+                            (room.players || []).forEach(p => {
+                                if (!p || p.isAnswerSetter) return;
+                                if (p.team === '0') return;
+                                if (partialAwardees.has(p.id)) {
+                                    p.score += 1;
+                                }
+                            });
                             
                             // 生成得分详情（无赢家情况）
                             const scoreChanges = buildScoreChanges({
                                 isNonstopMode: false,
                                 actualWinners: [],
                                 winnerScoreResults: {},
+                                partialAwardees,
                                 players: room.players
                             });
                             
@@ -2153,42 +2211,42 @@ function setupSocket(io, rooms) {
                 playerId: playerId,
                 username: kickedPlayerUsername
             });
-            
-            // 延迟一小段时间确保通知送达
-            setTimeout(() => {
-                try {
-                    // 从房间中移除玩家
-                    room.players.splice(playerIndex, 1);
-                    
-                    // 通知房间内其他玩家
-                    socket.to(roomId).emit('playerKicked', {
-                        playerId: playerId,
-                        username: kickedPlayerUsername
-                    });
-                    
-                    // 更新玩家列表
-                    io.to(roomId).emit('updatePlayers', {
-                        players: room.players,
-                        isPublic: room.isPublic
-                    });
 
-                    // 同步模式：从等待队列移除被踢玩家
-                    if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
-                        room.currentGame.syncPlayersCompleted.delete(playerId);
-                        updateSyncProgress(room, roomId, io);
-                    }
-                    
-                    // 将被踢玩家从房间中移除
-                    const kickedSocket = io.sockets.sockets.get(playerId);
-                    if (kickedSocket) {
-                        kickedSocket.leave(roomId);
-                    }
-                    
-                    console.log(`Player ${kickedPlayerUsername} kicked from room ${roomId}`);
-                } catch (error) {
-                    console.error(`Error kicking player ${kickedPlayerUsername}:`, error);
+            try {
+                // 立即移除，避免延迟期间触发 disconnect 导致玩家被标记为 disconnected 而残留
+                const latestIndex = room.players.findIndex(p => p.id === playerId);
+                if (latestIndex !== -1) {
+                    room.players.splice(latestIndex, 1);
                 }
-            }, 300);
+
+                // 通知房间内其他玩家
+                socket.to(roomId).emit('playerKicked', {
+                    playerId: playerId,
+                    username: kickedPlayerUsername
+                });
+
+                // 更新玩家列表
+                io.to(roomId).emit('updatePlayers', {
+                    players: room.players,
+                    isPublic: room.isPublic
+                });
+
+                // 同步模式：从等待队列移除被踢玩家
+                if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
+                    room.currentGame.syncPlayersCompleted.delete(playerId);
+                    updateSyncProgress(room, roomId, io);
+                }
+
+                // 将被踢玩家从房间中移除（仅离开房间，不强制断开连接）
+                const kickedSocket = io.sockets.sockets.get(playerId);
+                if (kickedSocket) {
+                    kickedSocket.leave(roomId);
+                }
+
+                console.log(`Player ${kickedPlayerUsername} kicked from room ${roomId}`);
+            } catch (error) {
+                console.error(`Error kicking player ${kickedPlayerUsername}:`, error);
+            }
         });
     
         // Handle answer setting from designated player
@@ -2323,6 +2381,9 @@ function setupSocket(io, rooms) {
             room.players.forEach(p => {
                 p.isHost = p.id === newHostId;
             });
+
+            // 新房主可能之前已准备（ready=true），但房主无法取消准备，会导致无法更换队伍
+            newHost.ready = false;
     
             // 通知所有玩家房主已更换
             io.to(roomId).emit('hostTransferred', {

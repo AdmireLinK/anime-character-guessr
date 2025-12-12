@@ -169,7 +169,10 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
               </td>
               <td>
                 {player.avatarId && player.avatarImage && (
-                  <Image src={player.avatarImage} className="player-avatar" alt="avatar" />
+                  <Image 
+                    src={player.avatarImage} 
+                    className="player-avatar" 
+                    alt={player.memo ? player.memo : player.avatarName ? player.avatarName : player.username || 'avatar'} />
                 )}
               </td>
               <td>

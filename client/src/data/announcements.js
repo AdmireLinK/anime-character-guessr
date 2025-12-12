@@ -25,6 +25,27 @@ const announcements = [
   },
 
   {
+    version: '1.6.4',
+    date: '2025-12-13',
+    content: `
+      <b>新功能：</b><br/>
+      <ul>
+        <li>多赢家模式下获胜后可以旁观其他玩家</li>
+        <li>多人模式开局时会根据玩家队伍进行重排序</li>
+        <li>保存最新创建的多人模式房间设置</li>
+      </ul>
+      <b>调整：</b><br/>
+      <ul>
+        <li>部分样式</li>
+      </ul>
+      <b>修复：</b><br/>
+      <ul>
+        <li>较多，详见<a href="https://github.com/kennylimz/anime-character-guessr/commits/main/" target="_blank">Commit History</a></li>
+      </ul>
+    `
+  },
+
+  {
     version: '1.6.3',
     date: '2025-12-12',
     content: `

@@ -4,7 +4,7 @@ import ModifiedTagDisplay from './ModifiedTagDisplay';
 import Image from './Image';
 import { subjectsWithExtraTags } from '../data/extra_tag_subjects';
 
-function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount = 0, bannedTags = [] }) {
+function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount = 0, bannedTags = [], showNames = true }) {
   const [clickedExpandTags, setClickedExpandTags] = useState(new Set());
   const [externalTagMode, setExternalTagMode] = useState(false);
 
@@ -117,7 +117,9 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
               <td>
                 <div className={`character-name-container ${guess.isAnswer ? 'correct' : ''}`}>
                   {guess.guessrName && (
-                    <div className="character-guessr-name" style={{ fontSize: '12px', color: '#888' }}>来自：{guess.guessrName}</div>
+                    <div className="character-guessr-name" style={{ fontSize: '12px', color: '#888' }}>
+                      来自：{showNames ? guess.guessrName : '玩家'}
+                    </div>
                   )}
                   <div className="character-name">{guess.name}</div>
                   <div className="character-name-cn">{guess.nameCn}</div>

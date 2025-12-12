@@ -455,6 +455,35 @@
   white-space: pre-wrap;
 }
 
+/* GameEndPopup 简介富文本：mask/url */
+.summary-mask {
+  display: inline-block;
+  background: #0f172a;
+  color: transparent;
+  border-radius: 4px;
+  padding: 0 6px;
+  margin: 0 2px;
+  cursor: help;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.summary-mask:hover,
+.summary-mask:focus {
+  color: inherit;
+  background: rgba(15, 23, 42, 0.08);
+  outline: none;
+}
+
+.summary-link {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.summary-link:hover {
+  color: #1d4ed8;
+}
+
 .filter-row {
   display: flex;
   align-items: center;

@@ -264,7 +264,31 @@ const Multiplayer = () => {
       
       setIsAnswerSetter(isAnswerSetterFlag);
       if (players) {
-        setPlayers(players);
+        // --- 玩家重排列 ---
+        // 1. 房主和其队伍（队伍号优先，房主在最前）
+        // 2. 无队伍玩家（team为空）
+        // 3. 1-8队（同队相邻，按队号升序）
+        // 4. 旁观者（team==='0'）
+        let host = players.find(p => p.isHost);
+        let hostTeam = host && host.team && host.team !== '0' && host.team !== '' ? host.team : null;
+        let hostTeamPlayers = hostTeam ? players.filter(p => p.team === hostTeam && !p.isHost) : [];
+        let noTeamPlayers = players.filter(p => !p.team && !p.isHost);
+        let numberedTeams = [];
+        for (let i = 1; i <= 8; i++) {
+          let teamStr = i.toString();
+          let teamPlayers = players.filter(p => p.team === teamStr && (!hostTeam || teamStr !== hostTeam));
+          if (teamPlayers.length > 0) numberedTeams.push(...teamPlayers);
+        }
+        let observers = players.filter(p => p.team === '0');
+        let rest = players.filter(p => ![host?.id, ...hostTeamPlayers.map(p=>p.id), ...noTeamPlayers.map(p=>p.id), ...numberedTeams.map(p=>p.id), ...observers.map(p=>p.id)].includes(p.id));
+        let sorted = [];
+        if (host) sorted.push(host);
+        if (hostTeamPlayers.length > 0) sorted.push(...hostTeamPlayers);
+        if (noTeamPlayers.length > 0) sorted.push(...noTeamPlayers);
+        if (numberedTeams.length > 0) sorted.push(...numberedTeams);
+        if (rest.length > 0) sorted.push(...rest);
+        if (observers.length > 0) sorted.push(...observers);
+        setPlayers(sorted);
       }
       if (isPublic !== undefined) {
         setIsPublic(isPublic);
@@ -576,7 +600,12 @@ const Multiplayer = () => {
 
   const handleGameEnd = (isWin) => {
     if (gameEndedRef.current) return;
-    
+
+    // 猜中后进入旁观模式（isObserver=true），但不加入旁观队伍（team不变）
+    if (isWin) {
+      setIsObserver(true);
+    }
+
     // 血战模式下，猜对不结束游戏，只发送 nonstopWin 事件
     if (isWin && gameSettings.nonstopMode) {
       socketRef.current?.emit('nonstopWin', {
@@ -623,17 +652,19 @@ const Multiplayer = () => {
     }
 
     if (gameSettings.globalPick) {
-      console.log(guessesHistory);
       const duplicateInHistory = guessesHistory.filter(playerHistory => playerHistory.username !== username).some(playerHistory =>
         Array.isArray(playerHistory.guesses) &&
         playerHistory.guesses.some(guessEntry => guessEntry?.guessData?.id === character.id)
       );
+      const isCorrectAnswer = character.id === answerCharacter?.id;
+      // 非同步模式下，或（同步模式下自己已猜中/本轮已完成）才阻止
       if (duplicateInHistory) {
-        // 血战模式下，如果该角色是正确答案（别人猜对了），允许当前玩家继续猜
-        const isCorrectAnswer = character.id === answerCharacter?.id;
-        if (gameSettings.nonstopMode && isCorrectAnswer) {
+        if (
+          (gameSettings.syncMode && isCorrectAnswer) // 同步+全局BP+答对，允许
+        ) {
+          // 允许同步模式下多名玩家本轮内猜中
+        } else if (gameSettings.nonstopMode && isCorrectAnswer) {
           // 血战模式下允许多人猜正确答案
-          console.log('【全局BP】血战模式下允许猜正确答案');
         } else {
           alert('【全局BP】已经被别人猜过了！请尝试其他角色');
           return;
@@ -810,6 +841,10 @@ const Multiplayer = () => {
 
   const handleStartGame = async () => {
     if (isHost) {
+      // 保存最新创建的多人模式设置
+      try {
+        localStorage.setItem('latestMultiplayerSettings', JSON.stringify(gameSettings));
+      } catch (e) { /* ignore */ }
       try {
         if (gameSettings.addedSubjects.length > 0) {
           await axios.post(SOCKET_URL + '/api/subject-added', {
@@ -866,6 +901,12 @@ const Multiplayer = () => {
       setAnswerSetterId(null);
       setIsManualMode(false);
     } else {
+      // 保存最新创建的多人模式设置
+      if (isHost) {
+        try {
+          localStorage.setItem('latestMultiplayerSettings', JSON.stringify(gameSettings));
+        } catch (e) { /* ignore */ }
+      }
       // Set all players as ready when entering manual mode
       socketRef.current?.emit('enterManualMode', { roomId });
       setIsManualMode(true);
@@ -1030,11 +1071,20 @@ const Multiplayer = () => {
     socketRef.current.emit('updatePlayerTeam', { roomId, team: newTeam || null });
   };
 
+
+  const displaySettings = globalGameEnd ? (endGameSettings || gameSettings) : gameSettings;
+
+  // 区分：真正旁观者（team==='0'） vs. 答对后进入旁观模式（isObserver===true 但仍保留原队伍）
+  const isTeamObserver = useMemo(() => {
+    const myId = socketRef.current?.id;
+    if (!myId) return false;
+    const me = players.find(p => p.id === myId);
+    return me?.team === '0';
+  }, [players]);
+
   if (!roomId) {
     return <div>Loading...</div>;
   }
-
-  const displaySettings = globalGameEnd ? (endGameSettings || gameSettings) : gameSettings;
 
   return (
     <div className="multiplayer-container">
@@ -1222,14 +1272,14 @@ const Multiplayer = () => {
                       <button
                         onClick={handleStartGame}
                         className="start-game-button"
-                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
+                        disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
                       >
                         开始
                       </button>
                       <button
                         onClick={handleManualMode}
                         className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
+                        disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
                       >
                         有人想出题？
                       </button>
@@ -1285,11 +1335,11 @@ const Multiplayer = () => {
                   {gameSettings.nonstopMode && (
                     <div className="nonstop-progress-banner">
                       <span>🔥 血战模式 - 剩余 {nonstopProgress?.remainingCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length}/{nonstopProgress?.totalCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length} 人</span>
-                      {nonstopProgress?.winners && nonstopProgress.winners.length > 0 && (
+                          {nonstopProgress?.winners && nonstopProgress.winners.length > 0 && (
                         <div className="nonstop-winners">
-                          {nonstopProgress.winners.map((winner) => (
+                          {nonstopProgress.winners.map((winner, idx) => (
                             <span key={winner.username} className="nonstop-winner">
-                              #{winner.rank} {winner.username} (+{winner.score}分)
+                              #{winner.rank} {showNames ? winner.username : `玩家${idx + 1}`} (+{winner.score})
                             </span>
                           ))}
                         </div>
@@ -1373,9 +1423,9 @@ const Multiplayer = () => {
                         );
                       })()}
                       <div className="sync-status">
-                        {getFilteredSyncStatus().map((player) => (
+                        {getFilteredSyncStatus().map((player, idx) => (
                           <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
-                            {player.username}: {player.completed ? '✓' : '...'}
+                            {showNames ? player.username : `玩家${idx + 1}`}: {player.completed ? '' : '...'}
                           </span>
                         ))}
                       </div>
@@ -1388,14 +1438,14 @@ const Multiplayer = () => {
                       style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: answerViewMode === 'simple' ? '#e0e0e0' : '#fff', cursor: 'pointer', color: 'inherit' }}
                       onClick={() => setAnswerViewMode('simple')}
                     >
-                      简单
+                      {(isObserver && !isTeamObserver && !isAnswerSetter) ? '旁观' : '简单'}
                     </button>
                     <button
                       className={answerViewMode === 'detailed' ? 'active' : ''}
                       style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: answerViewMode === 'detailed' ? '#e0e0e0' : '#fff', cursor: 'pointer', color: 'inherit'}}
                       onClick={() => setAnswerViewMode('detailed')}
                     >
-                      详细
+                      {(isObserver && !isTeamObserver && !isAnswerSetter) ? '我的' : '详细'}
                     </button>
                     <div className="settings-row" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
                       <label style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => setIsGuessTableCollapsed(!isGuessTableCollapsed)}>
@@ -1514,14 +1564,14 @@ const Multiplayer = () => {
                         <button
                           onClick={handleStartGame}
                           className="start-game-button"
-                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
+                          disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected)}
                         >
                           开始
                         </button>
                         <button
                           onClick={handleManualMode}
                           className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
+                          disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected)}
                         >
                           有人想出题？
                         </button>
