@@ -1357,7 +1357,7 @@
   margin: -3px 0 -7px 0;
   color: #111827;
   position: relative;
-  font-family: 'NotoSerif', 'Noto Serif', serif;
+  font-family: 'NotoSerif', serif !important;
 }
 
 .title-line-separator::after {
