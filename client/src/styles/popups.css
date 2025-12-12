@@ -1,10 +1,12 @@
 @font-face {
   font-family: 'HGPMinchoB';
-  src: url('https://cloud.baka.website/d/GZ/HGPMinchoB.woff2?sign=Jx-gvnxJ3cAFXNnBJRjmEM8FfIf4bBw5qJ4A3kDHgMs=:0') format('woff2');
+  src: url('/assets/fonts/HGPMinchoB.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
 }
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700&display=swap');
 
 .popup-overlay {
   position: fixed;
@@ -1310,7 +1312,7 @@
   justify-content: center;
   gap: 2px;
   color: #111827;
-  font-family: 'HGPMinchoB', 'Noto Serif SC', serif;
+  font-family: 'HGPMinchoB', 'Noto Serif', serif;
   line-height: 1.1;
 }
 
@@ -1350,7 +1352,7 @@
   margin: -3px 0 -7px 0;
   color: #111827;
   position: relative;
-  font-family: 'Noto Serif SC', serif;
+  font-family: 'Noto Serif', serif;
 }
 
 .title-line-separator::after {
