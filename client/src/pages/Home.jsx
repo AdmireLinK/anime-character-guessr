@@ -1,12 +1,9 @@
 import { Link } from 'react-router-dom';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import '../styles/Home.css';
+import UpdateAnnouncement from '../components/UpdateAnnouncement';
 import WelcomePopup from '../components/WelcomePopup';
-
-const LINE_OPTIONS = [
-  { url: 'https://anime-character-guessr.netlify.app/', name: 'Netlify' },
-  { url: 'https://ccb.baka.website/', name: 'Baka专线' }
-];
+import announcements from '../data/announcements';
 
 const Home = () => {
   const [roomCount, setRoomCount] = useState(0);
@@ -25,12 +22,6 @@ const Home = () => {
       .catch(error => console.error('Error fetching room count:', error));
     
     setShowWelcomePopup(true);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setCurrentOrigin(window.location.origin);
-    }
   }, []);
 
   const handleCloseWelcomePopup = () => {
@@ -111,12 +102,10 @@ const Home = () => {
 
   return (
     <div className="home-container">
-
       {showWelcomePopup && (
         <WelcomePopup onClose={handleCloseWelcomePopup} />
       )}
-
-      <div className="center-block">
+      
       <div className="game-modes">
         <Link to="/singleplayer" className="mode-button">
           <h2>单人</h2>
@@ -126,100 +115,31 @@ const Home = () => {
           <small>当前房间数: {roomCount}</small>
         </Link>
       </div>
-
-      <div className="line-selector">
-        <div className="line-selector-header">
-          <span className="line-selector-title">线路选择</span>
-          <span className="line-selector-hint">如页面加载缓慢可尝试切换</span>
-        </div>
-        <div className="line-selector-list">
-          {availableLines.map((line, idx) => {
-            if (!line.url) return null;
-            const cleanedOrigin = (currentOrigin || '').replace(/\/$/, '');
-            const cleanedLine = line.url.replace(/\/$/, '');
-            const isCurrent = cleanedOrigin && cleanedOrigin === cleanedLine;
-            return (
-              <a
-                key={`${line.url}-${idx}`}
-                className={`domain-link${isCurrent ? ' active' : ''}`}
-                data-url={line.url}
-                href={isCurrent ? '#' : line.url}
-                onClick={e => { if (isCurrent) e.preventDefault(); }}
-                style={{ pointerEvents: isCurrent ? 'none' : 'auto' }}
-              >
-                <div className="domain-info">
-                  <span className="status-indicator"></span>
-                  <span className="line-name">{line.name || line.url}</span>
-                </div>
-                <span className="latency-text">-</span>
-                <span className="latency-dot"></span>
-              </a>
-            );
-          })}
-        </div>
-      </div>
-      </div>
-
+      
+      <UpdateAnnouncement 
+        announcements={announcements} 
+        defaultExpanded={false}
+        initialVisibleCount={1}
+      />
+      
       <div className="home-footer">
-        <div className="button-group-grid">
-          <a
-            href="#"
-            className="fotter-btn"
-            onClick={e => { e.preventDefault(); setShowWelcomePopup(true); }}
-          >
-            <i className="fas fa-bullhorn" style={{marginRight: '8px'}}></i>显示公告
-          </a>
-          <a
-            href="https://status.baka.website/status/ccb"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="fotter-btn"
-          >
-            <i className="fas fa-server" style={{marginRight: '8px'}}></i>服务状态
-          </a>
-          <a 
-            href="https://www.bilibili.com/video/BV14CVRzUELs" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="fotter-btn"
-          >
-            <i className="fab fa-bilibili" style={{marginRight: '8px'}}></i>玩法简介
-          </a>
-          <a 
-            href="https://github.com/kennylimz/anime-character-guessr" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="fotter-btn"
-          >
-            <i className="fab fa-github" style={{marginRight: '8px'}}></i>GitHub仓库
-          </a>
-          <a 
-            href="https://qm.qq.com/q/2sWbSsCwBu" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="fotter-btn"
-          >
-            <i className="fab fa-qq" style={{marginRight: '8px'}}></i>加入QQ群
-          </a>
-          <a 
-            href="https://www.bilibili.com/video/BV1MstxzgEhg/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="fotter-btn"
-          >
-            <i className="fas fa-desktop" style={{marginRight: '8px'}}></i>作者的新玩具
-          </a>
-        </div>
         <p>
           {/* <a href="https://vertikarl.github.io/anime-character-guessr-english/"> ENGLISH ver. </a> */}
-          一个猜动漫/游戏角色的网站，建议使用桌面端浏览器游玩
           <br/>
-          灵感来源<a href="https://blast.tv/counter-strikle"> BLAST.tv </a> &nbsp;
-          数据来源<a href="https://bgm.tv/"> Bangumi </a>
+          一个猜动漫/游戏角色的网站，建议使用桌面端浏览器游玩。
+          <br/>
+          <a href="https://www.bilibili.com/video/BV14CVRzUELs">玩法简介视频</a>，灵感来源<a href="https://blast.tv/counter-strikle"> BLAST.tv </a>,
+          数据来源<a href="https://bgm.tv/"> Bangumi </a>。<br />
+          <a href="https://space.bilibili.com/87983557">@作者</a>："感谢 <a href="https://github.com/trim21">Bangumi 管理员</a> 的优化支持，
+          以及各位<a href="https://github.com/kennylimz/anime-character-guessr/graphs/contributors">网友</a>贡献的代码和数据。
+          感谢大家这段时间的热情和支持。"<br/>
+          有Bug？到<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" rel="noopener noreferrer">Github Issues</a>反馈<br/>
+          想找朋友一起玩？QQ群：467740403<br/>
+          作者的新玩具：<a href="https://www.bilibili.com/video/BV1MstxzgEhg/">一个桌面挂件</a>
         </p>
       </div>
     </div>
   );
 };
 
-export default Home;
+export default Home; 
