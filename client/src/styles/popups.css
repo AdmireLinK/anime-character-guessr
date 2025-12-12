@@ -1,12 +1,19 @@
 @font-face {
-  font-family: 'HGPMinchoB';
-  src: url('/assets/fonts/HGPMinchoB.woff2') format('woff2');
+  font-family: 'NotoSerifLocal';
+  src: url('/assets/fonts/Noto Serif.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700&display=swap');
+@font-face {
+  font-family: 'HGPMinchoB';
+  src: url('/assets/fonts/HGPMinchoB.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
 
 .popup-overlay {
   position: fixed;
@@ -1352,7 +1359,7 @@
   margin: -3px 0 -7px 0;
   color: #111827;
   position: relative;
-  font-family: 'Noto Serif', serif;
+  font-family: 'NotoSerifLocal', 'Noto Serif', serif;
 }
 
 .title-line-separator::after {
