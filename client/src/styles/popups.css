@@ -1360,6 +1360,13 @@
   font-family: 'NotoSerif', serif !important;
 }
 
+/* 仅苹果端微调字间距，解决NotoSerif在iOS/macOS下字间距异常 */
+@supports (-webkit-touch-callout: none) {
+  .title-line-separator {
+    letter-spacing: 0.02em;
+  }
+}
+
 .title-line-separator::after {
   content: attr(data-text);
   position: absolute;
