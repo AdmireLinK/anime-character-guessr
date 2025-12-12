@@ -4,6 +4,101 @@ import { useState } from 'react';
 import TagContributionPopup from './TagContributionPopup';
 import { idToTags } from '../data/id_tags';
 
+function renderSummaryWithTags(summary) {
+  if (!summary || typeof summary !== 'string') return summary;
+
+  const nodes = [];
+  let i = 0;
+  let key = 0;
+
+  const pushText = (text) => {
+    if (!text) return;
+    nodes.push(<span key={`t-${key++}`}>{text}</span>);
+  };
+
+  while (i < summary.length) {
+    const nextMask = summary.indexOf('[mask]', i);
+    const nextUrl = summary.indexOf('[url=', i);
+    const candidates = [nextMask, nextUrl].filter((n) => n !== -1);
+    const next = candidates.length ? Math.min(...candidates) : -1;
+
+    if (next === -1) {
+      pushText(summary.slice(i));
+      break;
+    }
+
+    if (next > i) {
+      pushText(summary.slice(i, next));
+    }
+
+    // [mask]...[/mask]
+    if (next === nextMask) {
+      const start = next + '[mask]'.length;
+      const end = summary.indexOf('[/mask]', start);
+      if (end === -1) {
+        // 不完整标签：按纯文本处理剩余内容
+        pushText(summary.slice(next));
+        break;
+      }
+      const inner = summary.slice(start, end);
+      nodes.push(
+        <span
+          key={`m-${key++}`}
+          className="summary-mask"
+          tabIndex={0}
+          aria-label="隐藏内容，悬停或聚焦以显示"
+          title="悬停显示"
+        >
+          {inner}
+        </span>
+      );
+      i = end + '[/mask]'.length;
+      continue;
+    }
+
+    // [url=https://...]text[/url]
+    if (next === nextUrl) {
+      const closeBracket = summary.indexOf(']', next);
+      if (closeBracket === -1) {
+        pushText(summary.slice(next));
+        break;
+      }
+      const urlRaw = summary.slice(next + '[url='.length, closeBracket).trim();
+      const end = summary.indexOf('[/url]', closeBracket + 1);
+      if (end === -1) {
+        pushText(summary.slice(next));
+        break;
+      }
+      const label = summary.slice(closeBracket + 1, end);
+      const isSafeHttp = /^https?:\/\//i.test(urlRaw);
+      if (isSafeHttp) {
+        nodes.push(
+          <a
+            key={`u-${key++}`}
+            className="summary-link"
+            href={urlRaw}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {label}
+          </a>
+        );
+      } else {
+        // 非 http(s) 链接：降级为纯文本，避免注入
+        pushText(label);
+      }
+      i = end + '[/url]'.length;
+      continue;
+    }
+
+    // 兜底：避免死循环
+    pushText(summary.slice(next, next + 1));
+    i = next + 1;
+  }
+
+  return nodes;
+}
+
 function GameEndPopup({ result, answer, onClose }) {
   const [showTagPopup, setShowTagPopup] = useState(false);
 
@@ -94,7 +189,7 @@ function GameEndPopup({ result, answer, onClose }) {
               {answer.summary && (
                 <div className="answer-summary">
                   <h3>角色简介：</h3>
-                  <div className="summary-content">{answer.summary}</div>
+                  <div className="summary-content">{renderSummaryWithTags(answer.summary)}</div>
                 </div>
               )}
             </div>
