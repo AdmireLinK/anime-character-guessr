@@ -812,6 +812,10 @@ const Multiplayer = () => {
 
   const handleStartGame = async () => {
     if (isHost) {
+      // 保存最新创建的多人模式设置
+      try {
+        localStorage.setItem('latestMultiplayerSettings', JSON.stringify(gameSettings));
+      } catch (e) { /* ignore */ }
       try {
         if (gameSettings.addedSubjects.length > 0) {
           await axios.post(SOCKET_URL + '/api/subject-added', {
@@ -868,6 +872,12 @@ const Multiplayer = () => {
       setAnswerSetterId(null);
       setIsManualMode(false);
     } else {
+      // 保存最新创建的多人模式设置
+      if (isHost) {
+        try {
+          localStorage.setItem('latestMultiplayerSettings', JSON.stringify(gameSettings));
+        } catch (e) { /* ignore */ }
+      }
       // Set all players as ready when entering manual mode
       socketRef.current?.emit('enterManualMode', { roomId });
       setIsManualMode(true);
