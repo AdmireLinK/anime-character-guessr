@@ -623,17 +623,19 @@ const Multiplayer = () => {
     }
 
     if (gameSettings.globalPick) {
-      console.log(guessesHistory);
       const duplicateInHistory = guessesHistory.filter(playerHistory => playerHistory.username !== username).some(playerHistory =>
         Array.isArray(playerHistory.guesses) &&
         playerHistory.guesses.some(guessEntry => guessEntry?.guessData?.id === character.id)
       );
+      const isCorrectAnswer = character.id === answerCharacter?.id;
+      // 非同步模式下，或（同步模式下自己已猜中/本轮已完成）才阻止
       if (duplicateInHistory) {
-        // 血战模式下，如果该角色是正确答案（别人猜对了），允许当前玩家继续猜
-        const isCorrectAnswer = character.id === answerCharacter?.id;
-        if (gameSettings.nonstopMode && isCorrectAnswer) {
+        if (
+          (gameSettings.syncMode && isCorrectAnswer) // 同步+全局BP+答对，允许
+        ) {
+          // 允许同步模式下多名玩家本轮内猜中
+        } else if (gameSettings.nonstopMode && isCorrectAnswer) {
           // 血战模式下允许多人猜正确答案
-          console.log('【全局BP】血战模式下允许猜正确答案');
         } else {
           alert('【全局BP】已经被别人猜过了！请尝试其他角色');
           return;
