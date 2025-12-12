@@ -439,9 +439,17 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
     if (syncMode) {
         actualWinners = activePlayers.filter(p => p.guesses.includes('✌') || p.guesses.includes('👑'));
     } else {
+        const answerId = room.currentGame?.character?.id;
         let bigwinner = firstWinner?.isBigWin
             ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('👑'))
             : activePlayers.find(p => p.guesses.includes('👑'));
+        if (!bigwinner && answerId) {
+            const avatarBigWinner = activePlayers.find(p => (p.guesses.includes('✌') || p.guesses.includes('👑')) && String(p.avatarId) === String(answerId));
+            if (avatarBigWinner) {
+                bigwinner = avatarBigWinner;
+                if (!avatarBigWinner.guesses.includes('👑')) avatarBigWinner.guesses = avatarBigWinner.guesses.replace('✌','') + '👑';
+            }
+        }
         let winner = !bigwinner && firstWinner && !firstWinner.isBigWin
             ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('✌'))
             : (!bigwinner ? activePlayers.find(p => p.guesses.includes('✌')) : null);
