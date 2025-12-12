@@ -138,6 +138,24 @@ const Home = () => {
             const cleanedOrigin = (currentOrigin || '').replace(/\/$/, '');
             const cleanedLine = line.url.replace(/\/$/, '');
             const isCurrent = cleanedOrigin && cleanedOrigin === cleanedLine;
+            // 判断是否为本地/局域网
+            let displayName = line.name || line.url;
+            if (idx === 2 || (!line.name && availableLines.length > 2 && idx === availableLines.length - 1)) {
+              // 仅对第三线路或动态添加的线路做本地判断
+              try {
+                const urlObj = new URL(line.url, window.location.origin);
+                const host = urlObj.hostname;
+                if (
+                  host === 'localhost' ||
+                  host === '127.0.0.1' ||
+                  /^192\.168\./.test(host) ||
+                  /^10\./.test(host) ||
+                  /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)
+                ) {
+                  displayName = '本地部署';
+                }
+              } catch {}
+            }
             return (
               <a
                 key={`${line.url}-${idx}`}
@@ -149,7 +167,7 @@ const Home = () => {
               >
                 <div className="domain-info">
                   <span className="status-indicator"></span>
-                  <span className="line-name">{line.name || line.url}</span>
+                  <span className="line-name">{displayName}</span>
                 </div>
                 <span className="latency-text">-</span>
                 <span className="latency-dot"></span>
