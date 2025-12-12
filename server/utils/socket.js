@@ -1875,6 +1875,8 @@ function setupSocket(io, rooms) {
                             const newHostIndex = room.players.findIndex(p => p.id === newHost.id);
                             if (newHostIndex !== -1) {
                                 room.players[newHostIndex].isHost = true;
+                                // 新房主可能之前已准备（ready=true），但房主无法取消准备，会导致无法更换队伍
+                                room.players[newHostIndex].ready = false;
                             }
                             
                             // 撤销原房主的状态
@@ -2362,6 +2364,9 @@ function setupSocket(io, rooms) {
             room.players.forEach(p => {
                 p.isHost = p.id === newHostId;
             });
+
+            // 新房主可能之前已准备（ready=true），但房主无法取消准备，会导致无法更换队伍
+            newHost.ready = false;
     
             // 通知所有玩家房主已更换
             io.to(roomId).emit('hostTransferred', {
