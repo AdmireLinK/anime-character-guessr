@@ -129,26 +129,28 @@ function updateSyncProgress(room, roomId, io) {
     if (!io) return;
     if (!room?.currentGame || !room.currentGame.settings?.syncMode || !room.currentGame.syncPlayersCompleted) return;
 
-    // 需要参与同步轮次的玩家（排除出题人、旁观者、已断开，但保留已结束的玩家以展示完成状态）
+    // 只保留本轮需要同步的活跃玩家（未结束）
+    const isEnded = p => (
+        p.guesses.includes('✌') ||
+        p.guesses.includes('💀') ||
+        p.guesses.includes('🏳️') ||
+        p.guesses.includes('👑') ||
+        p.guesses.includes('🏆')
+    );
     const syncPlayers = room.players.filter(p =>
         !p.isAnswerSetter &&
         p.team !== '0' &&
-        !p.disconnected
+        !p.disconnected &&
+        !isEnded(p)
     );
 
     if (syncPlayers.length === 0) {
         return;
     }
 
-    // 已结束的玩家也视为本轮完成，确保同步组件显示为已完成而不是消失
+    // 只在本轮将本轮超时玩家视为完成
     syncPlayers.forEach(p => {
-        const hasEnded =
-            p.guesses.includes('✌') ||
-            p.guesses.includes('💀') ||
-            p.guesses.includes('🏳️') ||
-            p.guesses.includes('👑') ||
-            p.guesses.includes('🏆');
-        if (hasEnded) {
+        if (typeof p.syncCompletedRound === 'number' && p.syncCompletedRound === room.currentGame.syncRound) {
             room.currentGame.syncPlayersCompleted.add(p.id);
         }
     });
@@ -156,9 +158,7 @@ function updateSyncProgress(room, roomId, io) {
     const syncStatus = syncPlayers.map(p => ({
         id: p.id,
         username: p.username,
-        completed:
-            room.currentGame.syncPlayersCompleted.has(p.id) ||
-            (typeof p.syncCompletedRound === 'number' && p.syncCompletedRound === room.currentGame.syncRound)
+        completed: room.currentGame.syncPlayersCompleted.has(p.id)
     }));
 
     const allCompleted = syncStatus.every(s => s.completed);
@@ -231,8 +231,8 @@ function updateSyncProgress(room, roomId, io) {
         room.currentGame.syncReadyToEnd = false;
         room.currentGame.syncRound += 1;
         room.currentGame.syncPlayersCompleted.clear();
-        // 清理上一轮的超时完成标记
-        syncPlayers.forEach(p => {
+        // 清理所有玩家的超时完成标记，确保新一轮不会被误判
+        room.players.forEach(p => {
             if (typeof p.syncCompletedRound === 'number') {
                 delete p.syncCompletedRound;
             }
@@ -243,16 +243,14 @@ function updateSyncProgress(room, roomId, io) {
             room.currentGame.syncRoundStartRank = room.currentGame.nonstopWinners.length + 1;
         }
 
-        // 下一轮：移除已结束玩家（赢/输/投降/队伍胜利），只保留仍需参与的玩家
-        const nextSyncPlayers = syncPlayers.filter(p => {
-            const hasEnded =
-                p.guesses.includes('✌') ||
-                p.guesses.includes('💀') ||
-                p.guesses.includes('🏳️') ||
-                p.guesses.includes('👑') ||
-                p.guesses.includes('🏆');
-            return !hasEnded;
-        });
+
+        // 下一轮：只保留未结束玩家
+        const nextSyncPlayers = room.players.filter(p =>
+            !p.isAnswerSetter &&
+            p.team !== '0' &&
+            !p.disconnected &&
+            !isEnded(p)
+        );
 
         // 下一轮初始化完成状态（通常为空集合）
         const nextSyncStatus = nextSyncPlayers.map(p => ({
