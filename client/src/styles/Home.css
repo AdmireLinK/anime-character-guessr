@@ -191,13 +191,13 @@
   padding: 16px;
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(12px);
-  border-radius: 16px;
+  border-radius: 8px;
   box-shadow: 0 8px 32px rgba(31, 38, 135, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.4);
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 250px;
+  max-width: 210px;
   transition: transform 0.3s ease;
 }
 
@@ -221,7 +221,7 @@
 }
 
 .line-selector-hint {
-  font-size: 0.85rem;
+  font-size: 10px;
   color: #95a5a6;
   font-weight: 400;
 }
@@ -242,7 +242,7 @@
   align-items: center;
   justify-content: flex-start;
   padding: 7px 20px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: #ffffff;
   border: 1.5px solid #eef2f7;
   color: #57606f;
