@@ -600,7 +600,12 @@ const Multiplayer = () => {
 
   const handleGameEnd = (isWin) => {
     if (gameEndedRef.current) return;
-    
+
+    // 猜中后进入旁观模式（isObserver=true），但不加入旁观队伍（team不变）
+    if (isWin) {
+      setIsObserver(true);
+    }
+
     // 血战模式下，猜对不结束游戏，只发送 nonstopWin 事件
     if (isWin && gameSettings.nonstopMode) {
       socketRef.current?.emit('nonstopWin', {
@@ -1072,6 +1077,14 @@ const Multiplayer = () => {
 
   const displaySettings = globalGameEnd ? (endGameSettings || gameSettings) : gameSettings;
 
+  // 区分：真正旁观者（team==='0'） vs. 答对后进入旁观模式（isObserver===true 但仍保留原队伍）
+  const isTeamObserver = useMemo(() => {
+    const myId = socketRef.current?.id;
+    if (!myId) return false;
+    const me = players.find(p => p.id === myId);
+    return me?.team === '0';
+  }, [players]);
+
   return (
     <div className="multiplayer-container">
       {/* 添加踢出通知 */}
@@ -1424,14 +1437,14 @@ const Multiplayer = () => {
                       style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: answerViewMode === 'simple' ? '#e0e0e0' : '#fff', cursor: 'pointer', color: 'inherit' }}
                       onClick={() => setAnswerViewMode('simple')}
                     >
-                      简单
+                      {(isObserver && !isTeamObserver && !isAnswerSetter) ? '旁观' : '简单'}
                     </button>
                     <button
                       className={answerViewMode === 'detailed' ? 'active' : ''}
                       style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: answerViewMode === 'detailed' ? '#e0e0e0' : '#fff', cursor: 'pointer', color: 'inherit'}}
                       onClick={() => setAnswerViewMode('detailed')}
                     >
-                      详细
+                      {(isObserver && !isTeamObserver && !isAnswerSetter) ? '我的' : '详细'}
                     </button>
                     <div className="settings-row" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
                       <label style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => setIsGuessTableCollapsed(!isGuessTableCollapsed)}>
