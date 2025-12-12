@@ -124,6 +124,55 @@ function calculateNonstopSetterScore({ hasBigWinner = false, bigWinnerScore = 0,
     return { score, reason };
 }
 
+/**
+ * 结算阶段：根据猜测历史计算“作品分(💡)”应归属给谁。
+ * 规则：每个队伍最多 1 分；无队伍玩家各自独立；优先给“最早在自己记录里出现💡的玩家”（无全局时间戳时的稳定近似）。
+ * 注意：该函数只负责确定归属，不负责加分。
+ * @param {Object} room
+ * @returns {Set<string>} playerId 集合
+ */
+function computePartialAwardeesFromGuessHistory(room) {
+    const awardees = new Set();
+    if (!room?.currentGame || !Array.isArray(room.currentGame.guesses)) {
+        return awardees;
+    }
+
+    const playersById = new Map((room.players || []).map(p => [p.id, p]));
+    const firstPartialIndexByPlayer = new Map();
+
+    // room.currentGame.guesses: [{ username, guesses: [{ playerId, isPartialCorrect, isCorrect, ... }, ...] }, ...]
+    room.currentGame.guesses.forEach(playerGuesses => {
+        const list = Array.isArray(playerGuesses?.guesses) ? playerGuesses.guesses : [];
+        list.forEach((g, idx) => {
+            if (!g || !g.playerId) return;
+            if (g.isPartialCorrect && !g.isCorrect) {
+                if (!firstPartialIndexByPlayer.has(g.playerId)) {
+                    firstPartialIndexByPlayer.set(g.playerId, idx);
+                }
+            }
+        });
+    });
+
+    // 每个队伍/个人选一个最佳归属
+    const bestByGroup = new Map();
+    firstPartialIndexByPlayer.forEach((idx, playerId) => {
+        const p = playersById.get(playerId);
+        if (!p) return;
+        if (p.isAnswerSetter) return;
+        if (p.team === '0') return; // 观察者不计入
+
+        const groupKey = p.team ? `team:${p.team}` : `solo:${playerId}`;
+        const current = bestByGroup.get(groupKey);
+        const username = String(p.username || '');
+        if (!current || idx < current.idx || (idx === current.idx && username.localeCompare(current.username) < 0)) {
+            bestByGroup.set(groupKey, { playerId, idx, username });
+        }
+    });
+
+    bestByGroup.forEach(v => awardees.add(v.playerId));
+    return awardees;
+}
+
 // 同步模式：统一处理进度更新与轮次推进，支持血战模式
 function updateSyncProgress(room, roomId, io) {
     if (!io) return;
@@ -472,6 +521,9 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
 
     const answerSetter = room.players.find(p => p.isAnswerSetter);
 
+    // 结算阶段统一计算作品分（每队/个人最多+1）
+    const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+
     // 计算胜者得分
     const winnerScoreResults = {};
     let primaryWinner = actualWinners.find(p => p.id === firstWinner?.id) || actualWinners[0] || null;
@@ -487,7 +539,6 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
         });
         sharedDetailResult = calculateWinnerScore({ guesses: primaryWinner.guesses, baseScore: 0, totalRounds });
         actualWinners.forEach(w => {
-            if (w.guesses.includes('💡')) w.score -= 1;
             w.score += sharedScoreResult.totalScore;
             winnerScoreResults[w.id] = {
                 totalScore: sharedScoreResult.totalScore,
@@ -500,15 +551,23 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
         actualWinners.forEach(w => {
             const baseScore = 2; // 统一基础分 2，bigwin 额外 +12 => 总 14
             const scoreResult = calculateWinnerScore({ guesses: w.guesses, baseScore, totalRounds });
-            if (w.guesses.includes('💡')) {
-                w.score -= 1;
-            }
             w.score += scoreResult.totalScore;
             winnerScoreResults[w.id] = scoreResult;
         });
         primaryWinner = primaryWinner || actualWinners[0] || null;
         sharedDetailResult = primaryWinner ? calculateWinnerScore({ guesses: primaryWinner.guesses, baseScore: 0, totalRounds }) : null;
     }
+
+    // 给非胜者发放作品分（胜者/大赢家不叠加作品分）
+    const winnerIdSet = new Set((actualWinners || []).map(w => w.id));
+    (room.players || []).forEach(p => {
+        if (!p || p.isAnswerSetter) return;
+        if (p.team === '0') return;
+        if (winnerIdSet.has(p.id)) return;
+        if (partialAwardees.has(p.id)) {
+            p.score += 1;
+        }
+    });
 
     const winnerGuessCount = sharedDetailResult?.guessCount || 0;
 
@@ -527,6 +586,7 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
             players: room.players,
             actualWinners,
             winnerScoreResults,
+            partialAwardees,
             isNonstopMode: false
         });
 
@@ -590,7 +650,7 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
  * @param {boolean} options.isNonstopMode - 是否为血战模式
  * @returns {Object} - scoreChanges 对象 { playerId: { score, breakdown, result } }
  */
-function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreResult, winnerScoreResults, nonstopWinners, isNonstopMode }) {
+function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreResult, winnerScoreResults, nonstopWinners, partialAwardees, isNonstopMode }) {
     const scoreChanges = {};
     const activePlayers = players.filter(p => !p.isAnswerSetter && p.team !== '0');
     
@@ -621,12 +681,13 @@ function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreRe
             };
         });
         
-        // 标记失败的玩家
+        // 标记失败的玩家（作品分在结算阶段统一发放）
         activePlayers.filter(p => !winnerIds.has(p.id)).forEach(p => {
             const lastChar = p.guesses.slice(-1);
+            const hasPartial = !!partialAwardees && partialAwardees.has(p.id);
             scoreChanges[p.id] = {
-                score: 0,
-                breakdown: {},
+                score: hasPartial ? 1 : 0,
+                breakdown: hasPartial ? { partial: 1 } : {},
                 result: lastChar === '💀' ? 'lose' : lastChar === '🏳️' ? 'surrender' : ''
             };
         });
@@ -648,7 +709,7 @@ function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreRe
                 };
             } else {
                 const lastChar = p.guesses.slice(-1);
-                const hasPartial = p.guesses.includes('💡');
+                const hasPartial = !!partialAwardees && partialAwardees.has(p.id);
                 scoreChanges[p.id] = {
                     score: hasPartial ? 1 : 0,
                     breakdown: hasPartial ? { partial: 1 } : {},
@@ -1146,22 +1207,11 @@ function setupSocket(io, rooms) {
             }
     
             // Update player's guesses string
-            if (!guessResult.isCorrect && guessResult.isPartialCorrect && !player.guesses.includes('💡')) {
-                // 检查同队是否已有人获得过作品分
-                const teamHasPartialScore = player.team && player.team !== '0' && room.players.some(p => 
-                    p.team === player.team && p.guesses.includes('💡')
-                );
-                
-                if (!teamHasPartialScore) {
-                    player.score += 1;
-                    player.guesses += '💡';
-                } else {
-                    // 队伍已获得作品分，不加分但记录猜测
-                    player.guesses += guessResult.isCorrect ? '✔' : '❌';
-                }
-            }
-            else{
-                player.guesses += guessResult.isCorrect ? '✔' :  '❌';
+            // 作品分(💡)仅记录，计分在结算阶段统一处理，避免漏记/重复/同步状态扰动
+            if (!guessResult.isCorrect && guessResult.isPartialCorrect) {
+                player.guesses += '💡';
+            } else {
+                player.guesses += guessResult.isCorrect ? '✔' : '❌';
             }
 
             // 同步模式：标记完成并统一更新进度
@@ -1362,10 +1412,7 @@ function setupSocket(io, rooms) {
             const score = scoreResult.totalScore;
             
             // 先计算好分数，再加分和记录
-            // 如果玩家之前获得了作品分，在获胜时扣除（因为获胜分覆盖了作品分，或者规则互斥）
-            if (player.guesses.includes('💡')) {
-                player.score -= 1;
-            }
+            // 作品分(💡)不再在游戏过程中即时加分，因此胜者不需要扣除
             player.score += score;
             console.log(`[血战模式调试] ${player.username}(id=${socket.id}) 得分计算: totalPlayers=${totalPlayers}, winnerRank=${winnerRank}, guessCount=${scoreResult.guessCount}, isBigWin=${isBigWin}, bonuses=${JSON.stringify(scoreResult.bonuses)}, score=${score}, newScore=${player.score}`);
 
@@ -1403,6 +1450,18 @@ function setupSocket(io, rooms) {
                 const answerSetter = room.players.find(p => p.isAnswerSetter);
                 const winnersCount = room.currentGame.nonstopWinners.length;
                 const totalPlayersCount = activePlayers.length;
+
+                // 结算阶段统一计算作品分（每队/个人最多+1，胜者不叠加）
+                const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+                const winnerIds = new Set((room.currentGame.nonstopWinners || []).map(w => w.id));
+                (room.players || []).forEach(p => {
+                    if (!p || p.isAnswerSetter) return;
+                    if (p.team === '0') return;
+                    if (winnerIds.has(p.id)) return;
+                    if (partialAwardees.has(p.id)) {
+                        p.score += 1;
+                    }
+                });
                 
                 // 检查是否有 bigwinner 并获取其得分
                 const bigWinnerData = (room.currentGame.nonstopWinners || []).find(w => {
@@ -1416,6 +1475,7 @@ function setupSocket(io, rooms) {
                 const scoreChanges = buildScoreChanges({
                     isNonstopMode: true,
                     nonstopWinners: room.currentGame.nonstopWinners,
+                    partialAwardees,
                     players: room.players
                 });
 
@@ -1647,6 +1707,18 @@ function setupSocket(io, rooms) {
                     const answerSetter = room.players.find(p => p.isAnswerSetter);
                     const winnersCount = (room.currentGame.nonstopWinners || []).length;
                     const totalPlayersCount = activePlayers.length;
+
+                    // 结算阶段统一计算作品分（每队/个人最多+1，胜者不叠加）
+                    const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+                    const winnerIds = new Set((room.currentGame.nonstopWinners || []).map(w => w.id));
+                    (room.players || []).forEach(p => {
+                        if (!p || p.isAnswerSetter) return;
+                        if (p.team === '0') return;
+                        if (winnerIds.has(p.id)) return;
+                        if (partialAwardees.has(p.id)) {
+                            p.score += 1;
+                        }
+                    });
                     
                     // 检查是否有 bigwinner 并获取其得分
                     const bigWinnerData = (room.currentGame.nonstopWinners || []).find(w => {
@@ -1660,6 +1732,7 @@ function setupSocket(io, rooms) {
                     const scoreChanges = buildScoreChanges({
                         isNonstopMode: true,
                         nonstopWinners: room.currentGame.nonstopWinners || [],
+                        partialAwardees,
                         players: room.players
                     });
 
@@ -1916,12 +1989,23 @@ function setupSocket(io, rooms) {
                         if (allEnded) {
                             // Find answer setter (if any)
                             const answerSetter = room.players.find(p => p.isAnswerSetter);
+
+                            // 结算阶段统一计算作品分（无人胜者也可能有人猜到作品）
+                            const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+                            (room.players || []).forEach(p => {
+                                if (!p || p.isAnswerSetter) return;
+                                if (p.team === '0') return;
+                                if (partialAwardees.has(p.id)) {
+                                    p.score += 1;
+                                }
+                            });
                             
                             // 生成得分详情（无赢家情况）
                             const scoreChanges = buildScoreChanges({
                                 isNonstopMode: false,
                                 actualWinners: [],
                                 winnerScoreResults: {},
+                                partialAwardees,
                                 players: room.players
                             });
                             
