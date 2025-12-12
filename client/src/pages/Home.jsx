@@ -103,9 +103,11 @@ const Home = () => {
     return () => clearInterval(timer);
   }, [currentOrigin, testLatency]);
 
-  const availableLines = currentOrigin
-    ? [...LINE_OPTIONS, { url: currentOrigin }]
-    : LINE_OPTIONS;
+  // 只在当前域名不在LINE_OPTIONS时才添加，否则只显示两条
+  const cleanedOrigin = (currentOrigin || '').replace(/\/$/, '');
+  const availableLines = LINE_OPTIONS.some(line => line.url.replace(/\/$/, '') === cleanedOrigin)
+    ? LINE_OPTIONS
+    : [...LINE_OPTIONS, { url: currentOrigin }];
 
   return (
     <div className="home-container">
