@@ -264,7 +264,31 @@ const Multiplayer = () => {
       
       setIsAnswerSetter(isAnswerSetterFlag);
       if (players) {
-        setPlayers(players);
+        // --- 玩家重排列 ---
+        // 1. 房主和其队伍（队伍号优先，房主在最前）
+        // 2. 无队伍玩家（team为空）
+        // 3. 1-8队（同队相邻，按队号升序）
+        // 4. 旁观者（team==='0'）
+        let host = players.find(p => p.isHost);
+        let hostTeam = host && host.team && host.team !== '0' && host.team !== '' ? host.team : null;
+        let hostTeamPlayers = hostTeam ? players.filter(p => p.team === hostTeam && !p.isHost) : [];
+        let noTeamPlayers = players.filter(p => !p.team && !p.isHost);
+        let numberedTeams = [];
+        for (let i = 1; i <= 8; i++) {
+          let teamStr = i.toString();
+          let teamPlayers = players.filter(p => p.team === teamStr && (!hostTeam || teamStr !== hostTeam));
+          if (teamPlayers.length > 0) numberedTeams.push(...teamPlayers);
+        }
+        let observers = players.filter(p => p.team === '0');
+        let rest = players.filter(p => ![host?.id, ...hostTeamPlayers.map(p=>p.id), ...noTeamPlayers.map(p=>p.id), ...numberedTeams.map(p=>p.id), ...observers.map(p=>p.id)].includes(p.id));
+        let sorted = [];
+        if (host) sorted.push(host);
+        if (hostTeamPlayers.length > 0) sorted.push(...hostTeamPlayers);
+        if (noTeamPlayers.length > 0) sorted.push(...noTeamPlayers);
+        if (numberedTeams.length > 0) sorted.push(...numberedTeams);
+        if (rest.length > 0) sorted.push(...rest);
+        if (observers.length > 0) sorted.push(...observers);
+        setPlayers(sorted);
       }
       if (isPublic !== undefined) {
         setIsPublic(isPublic);
