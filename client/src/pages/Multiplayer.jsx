@@ -1071,9 +1071,6 @@ const Multiplayer = () => {
     socketRef.current.emit('updatePlayerTeam', { roomId, team: newTeam || null });
   };
 
-  if (!roomId) {
-    return <div>Loading...</div>;
-  }
 
   const displaySettings = globalGameEnd ? (endGameSettings || gameSettings) : gameSettings;
 
@@ -1084,6 +1081,10 @@ const Multiplayer = () => {
     const me = players.find(p => p.id === myId);
     return me?.team === '0';
   }, [players]);
+
+  if (!roomId) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="multiplayer-container">
