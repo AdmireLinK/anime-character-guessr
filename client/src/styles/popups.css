@@ -1,5 +1,5 @@
 @font-face {
-  font-family: 'NotoSerifLocal';
+  font-family: 'NotoSerif';
   src: url('/assets/fonts/NotoSerif.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
@@ -1357,7 +1357,7 @@
   margin: -3px 0 -7px 0;
   color: #111827;
   position: relative;
-  font-family: 'NotoSerifLocal', 'Noto Serif', serif;
+  font-family: 'NotoSerif', 'Noto Serif', serif;
 }
 
 .title-line-separator::after {
