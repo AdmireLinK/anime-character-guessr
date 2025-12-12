@@ -2193,43 +2193,42 @@ function setupSocket(io, rooms) {
                 playerId: playerId,
                 username: kickedPlayerUsername
             });
-            
-            // 延迟一小段时间确保通知送达
-            setTimeout(() => {
-                try {
-                    // 从房间中移除玩家
-                    room.players.splice(playerIndex, 1);
-                    
-                    // 通知房间内其他玩家
-                    socket.to(roomId).emit('playerKicked', {
-                        playerId: playerId,
-                        username: kickedPlayerUsername
-                    });
-                    
-                    // 更新玩家列表
-                    io.to(roomId).emit('updatePlayers', {
-                        players: room.players,
-                        isPublic: room.isPublic
-                    });
 
-                    // 同步模式：从等待队列移除被踢玩家
-                    if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
-                        room.currentGame.syncPlayersCompleted.delete(playerId);
-                        // 统一用 updateSyncProgress 处理所有同步队列推进逻辑，避免边界遗漏
-                        updateSyncProgress(room, roomId, io);
-                    }
-                    
-                    // 将被踢玩家从房间中移除
-                    const kickedSocket = io.sockets.sockets.get(playerId);
-                    if (kickedSocket) {
-                        kickedSocket.leave(roomId);
-                    }
-                    
-                    console.log(`Player ${kickedPlayerUsername} kicked from room ${roomId}`);
-                } catch (error) {
-                    console.error(`Error kicking player ${kickedPlayerUsername}:`, error);
+            try {
+                // 立即移除，避免延迟期间触发 disconnect 导致玩家被标记为 disconnected 而残留
+                const latestIndex = room.players.findIndex(p => p.id === playerId);
+                if (latestIndex !== -1) {
+                    room.players.splice(latestIndex, 1);
                 }
-            }, 300);
+
+                // 通知房间内其他玩家
+                socket.to(roomId).emit('playerKicked', {
+                    playerId: playerId,
+                    username: kickedPlayerUsername
+                });
+
+                // 更新玩家列表
+                io.to(roomId).emit('updatePlayers', {
+                    players: room.players,
+                    isPublic: room.isPublic
+                });
+
+                // 同步模式：从等待队列移除被踢玩家
+                if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
+                    room.currentGame.syncPlayersCompleted.delete(playerId);
+                    updateSyncProgress(room, roomId, io);
+                }
+
+                // 将被踢玩家从房间中移除（仅离开房间，不强制断开连接）
+                const kickedSocket = io.sockets.sockets.get(playerId);
+                if (kickedSocket) {
+                    kickedSocket.leave(roomId);
+                }
+
+                console.log(`Player ${kickedPlayerUsername} kicked from room ${roomId}`);
+            } catch (error) {
+                console.error(`Error kicking player ${kickedPlayerUsername}:`, error);
+            }
         });
     
         // Handle answer setting from designated player
