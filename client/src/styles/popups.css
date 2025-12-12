@@ -5,8 +5,6 @@
   font-style: normal;
   font-display: swap;
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700&display=swap');
 @font-face {
   font-family: 'HGPMinchoB';
   src: url('/assets/fonts/HGPMinchoB.woff2') format('woff2');
