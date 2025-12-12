@@ -135,9 +135,10 @@ function GameEndPopup({ result, answer, onClose }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="character-link"
+                  style={{ display: 'block', textAlign: 'left' }}
                 >
-                  <div className="answer-character-name">{answer.name}</div>
-                  <div className="answer-character-name-cn">{answer.nameCn}</div>
+                  <div className="answer-character-name" style={{ textAlign: 'left' }}>{answer.name}</div>
+                  <div className="answer-character-name-cn" style={{ textAlign: 'left' }}>{answer.nameCn}</div>
                 </a>
                 <div className="button-container">
                   <div className="button-group-vertical">
