@@ -16,15 +16,26 @@ const Home = () => {
 
   useEffect(() => {
     const serverUrl = import.meta.env.VITE_SERVER_URL || '';
-    fetch(`${serverUrl}/room-count`)
-      .then(response => {
-        if (!response.ok) throw new Error('Failed to fetch');
-        return response.json();
-      })
-      .then(data => setRoomCount(data.count))
-      .catch(error => console.error('Error fetching room count:', error));
-    
+    let mounted = true;
+
+    const fetchRoomCount = () => {
+      fetch(`${serverUrl}/room-count`)
+        .then(response => {
+          if (!response.ok) throw new Error('Failed to fetch');
+          return response.json();
+        })
+        .then(data => { if (mounted) setRoomCount(data.count); })
+        .catch(error => console.error('Error fetching room count:', error));
+    };
+
+    // initial fetch
+    fetchRoomCount();
+    // refresh every 5 seconds
+    const intervalId = setInterval(fetchRoomCount, 5000);
+
     setShowWelcomePopup(true);
+
+    return () => { mounted = false; clearInterval(intervalId); };
   }, []);
 
   useEffect(() => {

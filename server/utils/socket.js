@@ -1413,10 +1413,16 @@ function setupSocket(io, rooms) {
             // 同步+血战模式：使用本轮开始时的排名确保同轮玩家得分一致
             // 非同步血战模式：使用实时排名
             const totalPlayers = activePlayers.length;
-            const winnerRank = room.currentGame.settings.syncMode 
-                ? room.currentGame.syncRoundStartRank  // 同步模式：使用轮次开始时的排名
-                : room.currentGame.nonstopWinners.length + 1; // 非同步：实时排名
-            const rankScore = Math.max(1, totalPlayers - winnerRank + 1);
+            let winnerRank, rankScore;
+            if (room.currentGame.settings.syncMode) {
+                // 同步+血战：本轮所有猜中玩家基础分一致
+                winnerRank = room.currentGame.syncRoundStartRank;
+                rankScore = Math.max(1, totalPlayers - winnerRank + 1);
+            } else {
+                // 非同步血战：实时排名
+                winnerRank = room.currentGame.nonstopWinners.length + 1;
+                rankScore = Math.max(1, totalPlayers - winnerRank + 1);
+            }
             
             // 获取总轮数上限
             const totalRounds = room.currentGame.settings?.maxAttempts || 10;

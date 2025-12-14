@@ -1339,6 +1339,41 @@
   margin-bottom: 24px;
 }
 
+/* Layout for header with title on left and QQ image on right */
+.welcome-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.title-divider {
+  width: 1px;
+  height: 96px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.06), rgba(0,0,0,0.12));
+  border-radius: 1px;
+}
+
+.welcome-qq-img {
+  width: 128px;
+  height: 128px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 6px 18px rgba(16,24,40,0.08);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+/* Responsive: stack vertically on small screens */
+@media (max-width: 640px) {
+  .welcome-header-inner {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .title-divider {
+    display: none;
+  }
+}
+
 .title-container {
   display: flex;
   flex-direction: column;
