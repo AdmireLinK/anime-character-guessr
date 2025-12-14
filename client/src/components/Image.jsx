@@ -12,8 +12,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 function Image({ 
   src, 
   alt = '', 
-  maxRetries = 3, 
-  retryDelay = 1000, 
+  maxRetries = 10, 
+  retryDelay = 5000, 
   fallbackSrc = null,
   onLoadSuccess,
   onLoadError,

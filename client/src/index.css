@@ -50,6 +50,11 @@ button:hover {
   border-color: #646cff;
 }
 
+/* Ensure all form controls inherit the global font family */
+input, textarea, select, optgroup, option {
+  font-family: inherit;
+}
+
 /* 自定义滚动条样式 */
 /* Webkit 浏览器 (Chrome, Safari, Edge) */
 ::-webkit-scrollbar {
