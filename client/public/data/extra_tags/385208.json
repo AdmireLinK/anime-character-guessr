@@ -422,5 +422,113 @@
     "武器类型": {
       "长刃": "<img src='/assets/tag/mc/长刃.png'/>长刃"
     }
+  },
+    "164646": {
+      "_name": "弗洛洛",
+      "稀有度": {
+        "5星": "<img src='/assets/tag/mc/5星.png' alt='5星' />"
+      },
+      "属性": {
+        "湮灭": "<img src='/assets/tag/mc/湮灭.png'/>湮灭"
+      },
+      "武器类型": {
+        "音感仪": "<img src='/assets/tag/mc/音感仪.png'/>音感仪"
+    }
+  },
+    "176907": {
+      "_name": "奥古斯塔",
+      "稀有度": {
+        "5星": "<img src='/assets/tag/mc/5星.png' alt='5星' />"
+      },
+      "属性": {
+        "导电": "<img src='/assets/tag/mc/导电.png'/>导电"
+      },
+      "武器类型": {
+        "长刃": "<img src='/assets/tag/mc/长刃.png'/>长刃"
+    }
+  },
+  "176906": {
+    "_name": "尤诺",
+    "稀有度": {
+      "5星": "<img src='/assets/tag/mc/5星.png' alt='5星' />"
+    },
+    "属性": {
+      "气动": "<img src='/assets/tag/mc/气动.png'/>气动"
+    },
+    "武器类型": {
+      "臂铠": "<img src='/assets/tag/mc/臂铠.png'/>臂铠"
+    }
+  },
+  "176903": {
+    "_name": "嘉贝莉娜",
+    "稀有度": {
+      "5星": "<img src='/assets/tag/mc/5星.png' alt='5星' />"
+    },
+    "属性": {
+      "热熔": "<img src='/assets/tag/mc/热熔.png'/>热熔"
+    },
+    "武器类型": {
+      "佩枪": "<img src='/assets/tag/mc/佩枪.png'/>佩枪"
+    }
+  },
+  "176900": {
+    "_name": "仇远",
+    "稀有度": {
+      "5星": "<img src='/assets/tag/mc/5星.png' alt='5星' />"
+    },
+    "属性": {
+      "气动": "<img src='/assets/tag/mc/气动.png'/>气动"
+    },
+    "武器类型": {
+      "迅刀": "<img src='/assets/tag/mc/迅刀.png'/>迅刀"
+    }
+  },
+  "176899": {
+    "_name": "千咲",
+    "稀有度": {
+      "5星": "<img src='/assets/tag/mc/5星.png' alt='5星' />"
+    },
+    "属性": {
+      "湮灭": "<img src='/assets/tag/mc/湮灭.png'/>湮灭"
+    },
+    "武器类型": {
+      "长刃": "<img src='/assets/tag/mc/长刃.png'/>长刃"
+    }
+  },
+  "177796": {
+    "_name": "卜灵",
+    "稀有度": {
+      "4星": "<img src='/assets/tag/mc/4星.png' alt='4星' />"
+    },
+    "属性": {
+      "导电": "<img src='/assets/tag/mc/导电.png'/>导电"
+    },
+    "武器类型": {
+      "音感仪": "<img src='/assets/tag/mc/音感仪.png'/>音感仪"
+    }
+  },
+  "191863": {
+    "_name": "琳奈",
+    "稀有度": {
+      "5星": "<img src='/assets/tag/mc/5星.png' alt='5星' />"
+    },
+    "属性": {
+      "衍射": "<img src='/assets/tag/mc/衍射.png'/>衍射"
+    },
+    "武器类型": {
+      "佩枪": "<img src='/assets/tag/mc/佩枪.png'/>佩枪"
+    }
+  },
+  "191859": {
+    "_name": "莫宁",
+    "稀有度": {
+      "5星": "<img src='/assets/tag/mc/5星.png' alt='5星' />"
+    },
+    "属性": {
+      "热熔": "<img src='/assets/tag/mc/热熔.png'/>热熔"
+    },
+    "武器类型": {
+      "长刃": "<img src='/assets/tag/mc/长刃.png'/>长刃"
+    }
   }
 }
