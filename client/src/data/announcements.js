@@ -37,6 +37,7 @@ const announcements = [
       <b>调整：</b><br/>
       <ul>
         <li>部分样式</li>
+        <li>重构设置UI</li>
       </ul>
       <b>修复：</b><br/>
       <ul>
