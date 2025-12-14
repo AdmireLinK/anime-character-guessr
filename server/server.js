@@ -140,6 +140,34 @@ app.get('/close-room/:id', (req, res) => {
     });
 });
 
+// 支持通过 POST 提交关闭原因: { reason: string }
+app.post('/close-room/:id', (req, res) => {
+    const roomId = req.params.id;
+
+    if (!roomId || typeof roomId !== 'string') {
+        return res.status(400).json({error: '房间ID不能为空'});
+    }
+
+    const room = rooms.get(roomId);
+    if (!room) {
+        return res.status(404).json({error: '房间不存在'});
+    }
+
+    const reason = req.body && typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+    const message = reason ? `房间因${reason}被关闭，如有疑问请添加首页QQ群` : '房间被管理关闭，如有疑问请添加首页QQ群';
+
+    io.to(roomId).emit('roomClosed', {message});
+    rooms.delete(roomId);
+
+    res.json({
+        message: '房间已关闭',
+        roomId,
+        playerCount: room.players?.length || 0,
+        closeMessage: message,
+        reason: reason || null
+    });
+});
+
 app.get('/list-rooms', (req, res) => {
     const roomsList = Array.from(rooms.entries()).map(([id, room]) => {
         const hostPlayer = room.players.find(p => p.isHost) || room.players.find(p => p.id === room.host);
