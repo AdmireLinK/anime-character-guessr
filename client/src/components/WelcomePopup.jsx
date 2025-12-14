@@ -8,10 +8,20 @@ function WelcomePopup({ onClose }) {
       <div className="popup-content welcome-popup">
         <button className="popup-close" onClick={onClose}><i className="fas fa-xmark"></i></button>
         <div className="popup-header welcome-header">
-          <div className="title-container">
-            <div className="title-line title-line-main" data-text="二刺猿笑傳">二刺猿笑傳</div>
-            <div className="title-line title-line-separator" data-text="A N I M E &nbsp; C H A R A C T E R &nbsp; G U E S S R &nbsp;">A N I M E &nbsp; C H A R A C T E R &nbsp; G U E S S R &nbsp;</div>
-            <div className="title-line title-line-sub" data-text="猜猜唄">猜猜唄</div>
+          <div className="welcome-header-inner">
+            <div className="title-container">
+              <div className="title-line title-line-main" data-text="二刺猿笑傳">二刺猿笑傳</div>
+              <div className="title-line title-line-separator" data-text="A N I M E &nbsp; C H A R A C T E R &nbsp; G U E S S R &nbsp;">A N I M E &nbsp; C H A R A C T E R &nbsp; G U E S S R &nbsp;</div>
+              <div className="title-line title-line-sub" data-text="猜猜唄">猜猜唄</div>
+            </div>
+
+            <div className="title-divider" aria-hidden="true" />
+
+            <div className="welcome-qq">
+              <a href="https://qm.qq.com/q/2sWbSsCwBu" target="_blank" rel="noopener noreferrer" title="加入QQ群">
+                <img src="/assets/qqgroup.png" alt="QQ群" className="welcome-qq-img" />
+              </a>
+            </div>
           </div>
         </div>
         <div className="popup-body">
@@ -29,7 +39,7 @@ function WelcomePopup({ onClose }) {
                 以及各位<a href="https://github.com/kennylimz/anime-character-guessr/graphs/contributors" target="_blank" rel="noopener noreferrer">网友</a>贡献的代码和数据。
                 感谢大家这段时间的热情和支持
               <br/>
-              <p>另外，我们的QQ群正在火热招新中，群中即将举办新一届新人杯，此后还将有新一届CCB Major等赛事，参与无门槛，获胜有奖品，欢迎点击主页下方按钮加入！</p>
+              <p>另外，我们的QQ群正在火热招新中，群中即将举办新一届新人杯，此后还将有新一届CCB Major等赛事，参与无门槛，获胜有奖品，欢迎点击主页下方按钮或扫描Logo旁的二维码加入！</p>
 
               <p><b>如果您有任何建议或问题，欢迎加入我们的<a href="https://qm.qq.com/q/2sWbSsCwBu" target="_blank" >QQ群</a>或<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" >提交Issue</a>！</b></p>
               
