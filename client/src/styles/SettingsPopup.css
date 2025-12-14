@@ -36,6 +36,12 @@
     gap: 20px;
 }
 
+/* Reserve scrollbar space to avoid layout shift when it appears/disappears */
+.settings-scroll-area {
+    /* Modern browsers: reserve stable gutter so .settings-group doesn't reflow */
+    scrollbar-gutter: stable both-edges;
+}
+
 /* Custom Scrollbar for the scroll area */
 .settings-scroll-area::-webkit-scrollbar {
     width: 6px;

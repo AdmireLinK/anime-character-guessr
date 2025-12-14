@@ -32,6 +32,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
   const searchContainerRef = useRef(null);
   const [hintInputs, setHintInputs] = useState(['8','5','3']);
   const [localSettings, setLocalSettings] = useState(() => JSON.parse(JSON.stringify(gameSettings)));
+  const [isGuessSettingsOpen, setIsGuessSettingsOpen] = useState(false);
+  const [isAnswerSettingsOpen, setIsAnswerSettingsOpen] = useState(false);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -368,11 +370,33 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
 
             {/* Group 2: Game Rules */}
             <div className="settings-group">
-              <div className="group-header">
-                <h3 className="group-title">猜测设置</h3>
-                <div className="group-subtitle">影响和玩家猜测有关的内容</div>
+              <div 
+                className="group-header" 
+                onClick={() => setIsGuessSettingsOpen(!isGuessSettingsOpen)}
+                style={{ 
+                    cursor: 'pointer', 
+                    justifyContent: 'space-between',
+                    marginBottom: isGuessSettingsOpen ? '16px' : '0',
+                    borderBottom: isGuessSettingsOpen ? '1px solid #f0f0f0' : 'none',
+                    paddingBottom: isGuessSettingsOpen ? '12px' : '0',
+                    transition: 'all 0.3s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                    <h3 className="group-title">猜测设置</h3>
+                    <div className="group-subtitle">影响和玩家猜测有关的内容</div>
+                </div>
+                <i 
+                    className="fas fa-chevron-down" 
+                    style={{ 
+                        transform: isGuessSettingsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.3s ease'
+                    }}
+                ></i>
               </div>
 
+              {isGuessSettingsOpen && (
+              <>
               {/* Row 1: Search, Rounds, Time */}
               <div className="settings-row compact-row">
                 <div className="setting-item-compact">
@@ -511,15 +535,39 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                   </div>
                 </div>
               </div>
+              </>
+              )}
             </div>
 
             {/* Group 3: Question Scope */}
             <div className="settings-group">
-              <div className="group-header">
-                <h3 className="group-title">答案设置</h3>
-                <div className="group-subtitle">影响和答案角色有关的内容</div>
+              <div 
+                className="group-header" 
+                onClick={() => setIsAnswerSettingsOpen(!isAnswerSettingsOpen)}
+                style={{ 
+                    cursor: 'pointer', 
+                    justifyContent: 'space-between',
+                    marginBottom: isAnswerSettingsOpen ? '16px' : '0',
+                    borderBottom: isAnswerSettingsOpen ? '1px solid #f0f0f0' : 'none',
+                    paddingBottom: isAnswerSettingsOpen ? '12px' : '0',
+                    transition: 'all 0.3s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                    <h3 className="group-title">答案设置</h3>
+                    <div className="group-subtitle">影响和答案角色有关的内容</div>
+                </div>
+                <i 
+                    className="fas fa-chevron-down" 
+                    style={{ 
+                        transform: isAnswerSettingsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.3s ease'
+                    }}
+                ></i>
               </div>
 
+              {isAnswerSettingsOpen && (
+              <>
               {/* Row 1: Subject Filter & Related Games */}
               <div className="settings-row compact-row">
                 <div className="setting-item-compact" style={{ gap: '16px' }}>
@@ -841,6 +889,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                           </div>
                       )}
                   </div>
+              )}
+              </>
               )}
             </div>
 
