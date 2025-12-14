@@ -616,31 +616,43 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <div className="compact-input-container" style={{ width: '78px' }} title="数值范围1800-2038">
                             <input 
-                                className="compact-input"
-                                type="number" 
-                                value={gameSettings.startYear || ''}
-                                onChange={(e) => {
-                                    const value = e.target.value === '' ? 1800 : parseInt(e.target.value);
-                                    onSettingsChange('startYear', value);
-                                }}
-                                min="1800"
-                                max="2038"
-                                disabled={gameSettings.useIndex}
+                              className="compact-input"
+                              type="number" 
+                              value={gameSettings.startYear || ''}
+                              onChange={(e) => {
+                                const newStart = e.target.value === '' ? 1800 : parseInt(e.target.value);
+                                const currentEnd = gameSettings.endYear || 2038;
+                                let newEnd = currentEnd;
+                                if (!isNaN(newStart) && newStart > currentEnd) {
+                                  newEnd = Math.min(2038, newStart);
+                                }
+                                onSettingsChange('startYear', newStart);
+                                if (newEnd !== currentEnd) onSettingsChange('endYear', newEnd);
+                              }}
+                              min="1800"
+                              max="2038"
+                              disabled={gameSettings.useIndex}
                             />
                         </div>
                         <span>-</span>
                         <div className="compact-input-container" style={{ width: '78px' }} title="数值范围1800-2038">
                             <input 
-                                className="compact-input"
-                                type="number" 
-                                value={gameSettings.endYear || ''}
-                                onChange={(e) => {
-                                    const value = e.target.value === '' ? 2038 : parseInt(e.target.value);
-                                    onSettingsChange('endYear', value);
-                                }}
-                                min="1800"
-                                max="2038"
-                                disabled={gameSettings.useIndex}
+                              className="compact-input"
+                              type="number" 
+                              value={gameSettings.endYear || ''}
+                              onChange={(e) => {
+                                const newEnd = e.target.value === '' ? 2038 : parseInt(e.target.value);
+                                const currentStart = gameSettings.startYear || 1800;
+                                let newStart = currentStart;
+                                if (!isNaN(newEnd) && newEnd < currentStart) {
+                                  newStart = Math.max(1800, newEnd);
+                                }
+                                onSettingsChange('endYear', newEnd);
+                                if (newStart !== currentStart) onSettingsChange('startYear', newStart);
+                              }}
+                              min="1800"
+                              max="2038"
+                              disabled={gameSettings.useIndex}
                             />
                         </div>
                     </div>
