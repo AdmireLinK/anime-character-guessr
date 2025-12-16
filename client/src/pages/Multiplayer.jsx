@@ -10,6 +10,7 @@ import Timer from '../components/Timer';
 import PlayerList from '../components/PlayerList';
 import GameEndPopup from '../components/GameEndPopup';
 import SetAnswerPopup from '../components/SetAnswerPopup';
+import FeedbackPopup from '../components/FeedbackPopup';
 import GameSettingsDisplay from '../components/GameSettingsDisplay';
 import Leaderboard from '../components/Leaderboard';
 import Roulette from '../components/Roulette';
@@ -101,6 +102,7 @@ const Multiplayer = () => {
   const [showNames, setShowNames] = useState(true);
   const [showCharacterPopup, setShowCharacterPopup] = useState(false);
   const [showSetAnswerPopup, setShowSetAnswerPopup] = useState(false);
+  const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
   const [isAnswerSetter, setIsAnswerSetter] = useState(false);
   const [kickNotification, setKickNotification] = useState(null);
   const [answerViewMode, setAnswerViewMode] = useState('simple'); // 'simple' or 'detailed'
@@ -122,6 +124,14 @@ const Multiplayer = () => {
       // 保留已完成的赢家在当前轮展示，下一轮已被服务器移出列表；仅隐藏断线玩家
       return !(entry.completed && isDisconnected);
     });
+  };
+
+  const handleFeedbackSubmit = async ({ type, description }) => {
+    const payload = {
+      bugType: type,
+      description: roomId ? `[房间 ${roomId}] ${description}` : description,
+    };
+    await axios.post('/api/bug-feedback', payload);
   };
 
   useEffect(() => {
@@ -1097,17 +1107,22 @@ const Multiplayer = () => {
           </div>
         </div>
       )}
-      <a
-          href="/"
-          className="social-link floating-back-button"
-          title="Back"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/');
-          }}
+      <button
+        type="button"
+        className="social-link floating-back-button"
+        title="Back"
+        onClick={() => navigate('/')}
       >
-        <i className="fas fa-angle-left"></i>
-      </a>
+        &larr;
+      </button>
+      <button
+        type="button"
+        className="social-link floating-feedback-button"
+        title="Bug/标签反馈"
+        onClick={() => setShowFeedbackPopup(true)}
+      >
+        📝
+      </button>
       {!isJoined ? (
         <>
           <div className="join-container">
@@ -1806,6 +1821,12 @@ const Multiplayer = () => {
           )}
         </>
 
+      )}
+      {showFeedbackPopup && (
+        <FeedbackPopup
+          onClose={() => setShowFeedbackPopup(false)}
+          onSubmit={handleFeedbackSubmit}
+        />
       )}
     </div>
   );

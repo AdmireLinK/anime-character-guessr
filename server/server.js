@@ -454,6 +454,38 @@ app.post('/api/feedback-tags', async (req, res) => {
     }
 });
 
+app.post('/api/bug-feedback', async (req, res) => {
+    try {
+        const { bugType, description } = req.body;
+
+        if (!bugType || !description || typeof bugType !== 'string' || typeof description !== 'string') {
+            return res.status(400).json({
+                error: 'Invalid request body. Required format: { bugType: string, description: string }'
+            });
+        }
+
+        const client = db.getClient();
+        const database = client.db('misc');
+        const collection = database.collection('bug_feedback');
+
+        const document = {
+            bugType: bugType.trim(),
+            description: description.trim(),
+            createdAt: new Date()
+        };
+
+        const result = await collection.insertOne(document);
+
+        res.status(201).json({
+            message: 'Bug feedback submitted successfully',
+            feedbackId: result.insertedId
+        });
+    } catch (error) {
+        console.error('Error submitting tag feedback:', error);
+        res.status(500).json({ error: 'Failed to submit tag feedback' });
+    }
+});
+
 // Count character usage
 app.post('/api/answer-character-count', async (req, res) => {
     try {
@@ -537,6 +569,8 @@ app.post('/api/guess-character-count', async (req, res) => {
         res.status(500).json({ error: 'Failed to update character answer count' });
     }
 });
+
+
 
 // Get character usage by _id
 app.get('/api/character-usage/:id', async (req, res) => {

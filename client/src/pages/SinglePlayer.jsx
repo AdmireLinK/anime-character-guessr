@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getRandomCharacter, getCharacterAppearances, generateFeedback } from '../utils/bangumi';
 import SearchBar from '../components/SearchBar';
 import GuessesTable from '../components/GuessesTable';
@@ -8,8 +9,10 @@ import GameEndPopup from '../components/GameEndPopup';
 import SocialLinks from '../components/SocialLinks';
 import GameInfo from '../components/GameInfo';
 import Timer from '../components/Timer';
+import FeedbackPopup from '../components/FeedbackPopup';
 import '../styles/game.css';
 import '../styles/SinglePlayer.css';
+import '../styles/social.css';
 import axios from 'axios';
 import { useLocalStorage } from 'usehooks-ts';
 
@@ -27,6 +30,8 @@ function SinglePlayer() {
   const [hints, setHints] = useState([]);
   const [imgHint, setImgHint] = useState(null);
   const [useImageHint, setUseImageHint] = useState(0);
+  const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
+  const navigate = useNavigate();
   const [gameSettings, setGameSettings] = useLocalStorage('singleplayer-game-settings', {
     startYear: new Date().getFullYear()-10,
     endYear: new Date().getFullYear(),
@@ -53,10 +58,6 @@ function SinglePlayer() {
   // Initialize game
   useEffect(() => {
     let isMounted = true;
-
-    axios.get(import.meta.env.VITE_SERVER_URL).then(response => {
-      console.log(response.data);
-    });
 
     const initializeGame = async () => {
       try {
@@ -324,8 +325,33 @@ function SinglePlayer() {
     alert('已投降！查看角色详情');
   };
 
+  const handleFeedbackSubmit = async ({ type, description }) => {
+    const payload = {
+      bugType: type,
+      description,
+    };
+    await axios.post('/api/bug-feedback', payload);
+  };
+
   return (
     <div className="single-player-container">
+      <button
+        type="button"
+        className="social-link floating-back-button"
+        title="Back"
+        onClick={() => navigate('/')}
+      >
+        &larr;
+      </button>
+      <button
+        type="button"
+        className="social-link floating-feedback-button"
+        title="Bug/标签反馈"
+        onClick={() => setShowFeedbackPopup(true)}
+      >
+        🐞
+      </button>
+
       <SocialLinks
         onSettingsClick={() => setSettingsPopup(true)}
         onHelpClick={() => setHelpPopup(true)}
@@ -386,6 +412,13 @@ function SinglePlayer() {
           result={gameEndPopup.result}
           answer={gameEndPopup.answer}
           onClose={() => setGameEndPopup(null)}
+        />
+      )}
+
+      {showFeedbackPopup && (
+        <FeedbackPopup
+          onClose={() => setShowFeedbackPopup(false)}
+          onSubmit={handleFeedbackSubmit}
         />
       )}
     </div>
