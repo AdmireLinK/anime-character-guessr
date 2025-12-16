@@ -1,7 +1,7 @@
 import '../styles/game.css';
 import Image from './Image';
 
-function GameInfo({ gameEnd, guessesLeft, onRestart, finishInit, hints, useHints = [], onSurrender, imgHint=null, useImageHint=0 }) {
+function GameInfo({ gameEnd, guessesLeft, onRestart, finishInit, hints, useHints = [], onSurrender, imgHint=null, useImageHint=0, initFailed=false }) {
   return (
     <div className="game-info">
       {gameEnd ? (
@@ -12,10 +12,16 @@ function GameInfo({ gameEnd, guessesLeft, onRestart, finishInit, hints, useHints
         <div className="game-info-container">
           <div className="game-controls">
             <span>剩余次数: {guessesLeft}</span>
-            {onSurrender && (
-              <button disabled={!finishInit} className="surrender-button" onClick={onSurrender}>
-                投降 🏳️
+            {initFailed ? (
+              <button className="restart-button" onClick={onRestart}>
+                重试
               </button>
+            ) : (
+              onSurrender && (
+                <button disabled={!finishInit} className="surrender-button" onClick={onSurrender}>
+                  投降 🏳️
+                </button>
+              )
             )}
           </div>
           {useHints && hints && useHints.map((val, idx) => (

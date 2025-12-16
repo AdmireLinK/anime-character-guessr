@@ -25,6 +25,23 @@ const announcements = [
   },
 
   {
+    version: '1.6.5',
+    date: '2025-12-16',
+    content: `
+      <b>新功能：</b><br/>
+      <ul>
+        <li>可以在作品筛选-分类中选择游戏/Galgame/书籍/三次元。</li>
+      </ul>
+      <b>修复：</b><br/>
+      <ul>
+        <li>设置UI的角色数量显示问题。</li>
+        <li>单人模式会有更详细的报错。</li>
+        <li>修复一部分因作品范围过大导致的失败。</li>
+      </ul>
+    `
+  },
+
+  {
     version: '1.6.4',
     date: '2025-12-13',
     content: `

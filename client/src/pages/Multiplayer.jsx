@@ -131,7 +131,7 @@ const Multiplayer = () => {
       bugType: type,
       description: roomId ? `[房间 ${roomId}] ${description}` : description,
     };
-    await axios.post('/api/bug-feedback', payload);
+    await axios.post(`${SOCKET_URL}/api/bug-feedback`, payload);
   };
 
   useEffect(() => {
