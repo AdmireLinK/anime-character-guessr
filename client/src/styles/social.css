@@ -63,6 +63,80 @@
   color: #646cff;
 }
 
+.floating-back-button,
+.floating-feedback-button {
+  position: fixed;
+  left: 16px;
+  width: 46px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background: #fff;
+  color: #3b4256;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 0.14s ease, filter 0.14s ease;
+  z-index: 10;
+  isolation: isolate;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 700;
+  transform: translateY(0);
+}
+
+.floating-back-button {
+  top: 16px;
+  background: #fff;
+  color: #3b4256;
+}
+
+.floating-feedback-button {
+  top: 78px;
+  background: #fff;
+  color: #b42318;
+  letter-spacing: -0.2px;
+}
+
+.floating-back-button::before,
+.floating-feedback-button::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  z-index: -1;
+}
+
+.floating-back-button:hover,
+.floating-feedback-button:hover {
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+.floating-feedback-button:hover {
+  color: #ff5c39;
+}
+
+@media (max-width: 640px) {
+  .floating-back-button,
+  .floating-feedback-button {
+    left: 12px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .floating-back-button {
+    top: 12px;
+  }
+
+  .floating-feedback-button {
+    top: 76px;
+  }
+}
+
 .help-button,
 .settings-button {
   color: #1e293b;
