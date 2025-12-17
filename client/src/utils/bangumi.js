@@ -104,7 +104,6 @@ async function getCharacterAppearances(characterId, gameSettings) {
         );
       }
     }
-    console.log("filteredAppearances: ", filteredAppearances);
     if (filteredAppearances.length === 0) {
       return {
         appearances: [],
@@ -223,7 +222,6 @@ async function getCharacterAppearances(characterId, gameSettings) {
         }
       })
     );
-    console.log("appearances: ", appearances);
     let sortedRawTags;
     let sortedSourceTags;
     let sortedTags;
@@ -584,7 +582,6 @@ async function designateCharacter(characterId, gameSettings) {
 
     // Get character appearances
     const appearances = await getCharacterAppearances(characterId, gameSettings);
-    console.log(characterDetails);
 
     return {
       id: characterId,
