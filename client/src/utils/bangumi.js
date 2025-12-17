@@ -130,7 +130,7 @@ async function getCharacterAppearances(characterId, gameSettings) {
       ['游戏改编', '游戏改'],
       ['小说改编', '小说改']
     ]);
-    const specialTags = new Set(['Galgame', '书籍', '三次元', "游戏"]);
+    const specialTags = new Set(['Galgame', '书籍', '三次元', "游戏", "全部"]);
     const sourceTagSet = new Set(['原创', '游戏改', '小说改', '漫画改']);
     const regionTagSet = new Set(['日本', '欧美', '美国', '中国', '法国', '韩国', '英国', '俄罗斯', '中国香港', '苏联', '捷克', '中国台湾', '马来西亚']);
     const sourceTagCounts = new Map();
@@ -371,6 +371,7 @@ async function getCharactersBySubjectId(subjectId) {
     const response = await axios.get(`${API_BASE_URL}/v0/subjects/${subjectId}/characters`);
 
     if (!response.data || !response.data.length) {
+      console.error('作品没有角色：'+subjectId);
       throw new Error('选到了作品，但数据库中没有角色，调整范围或重试');
     }
 
@@ -379,12 +380,12 @@ async function getCharactersBySubjectId(subjectId) {
     );
 
     if (filteredCharacters.length === 0) {
+      console.error('作品没有主角/配角？'+subjectId);
       throw new Error('选到了作品，但数据库中没有角色，调整范围或重试');
     }
   
     return filteredCharacters;
   } catch (error) {
-    console.error(error);
     throw error;
   }
 }
@@ -402,7 +403,7 @@ async function getRandomCharacter(gameSettings) {
       let type = [2];
       const baseMetaTags = (gameSettings.metaTags || [])
         .filter(tag => tag !== "")
-        .filter(tag => !['游戏', '书籍', '三次元'].includes(tag));
+        .filter(tag => !['游戏', '书籍', '三次元', '全部'].includes(tag));
       const metaTags = primaryTag === 'Galgame' ? ['Galgame'] : baseMetaTags;
 
       if (primaryTag === '书籍') {
@@ -413,6 +414,8 @@ async function getRandomCharacter(gameSettings) {
         type = [4];
       } else if (primaryTag === '三次元') {
         type = [6];
+      } else if (primaryTag === '全部') {
+        type = [1, 2, 4, 6];
       }
       return {
         "type": type,
