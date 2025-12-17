@@ -34,7 +34,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
   const [localSettings, setLocalSettings] = useState(() => JSON.parse(JSON.stringify(gameSettings)));
   const [isGuessSettingsOpen, setIsGuessSettingsOpen] = useState(false);
   const [isAnswerSettingsOpen, setIsAnswerSettingsOpen] = useState(false);
-  const exclusiveMetaCategories = ['游戏', '书籍', '三次元', 'Galgame'];
+  const exclusiveMetaCategories = ['全部', '游戏', '书籍', '三次元', 'Galgame'];
   const isExclusiveMetaCategory = exclusiveMetaCategories.includes(gameSettings.metaTags[0]);
 
   // Handle click outside to close dropdown
@@ -589,10 +589,11 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                             onSettingsChange('metaTags', newMetaTags);
                           }}
                         >
-                          <option value="">全部分类</option>
+                          <option value="全部">全部分类</option>
                           <option value="游戏">游戏</option>
                           <option value="书籍">书籍</option>
                           <option value="三次元">三次元</option>
+                          <option value="">全部动画</option>
                           <option value="TV">TV</option>
                           <option value="Galgame">Galgame</option>
                           <option value="WEB">WEB</option>
@@ -696,7 +697,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                             />
                         </div>
                         <span>-</span>
-                        <div className="compact-input-container" style={{ width: '78px' }} title="数值范围1800-2038">
+                        <div className="compact-input-container" style={{ width: '78px' }} title="数值范围1900-2038">
                             <input 
                               className="compact-input"
                               type="number" 
@@ -711,7 +712,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                                 onSettingsChange('endYear', newEnd);
                                 if (newStart !== currentStart) onSettingsChange('startYear', newStart);
                               }}
-                              min="1800"
+                              min="1900"
                               max="2038"
                               disabled={gameSettings.useIndex}
                             />
