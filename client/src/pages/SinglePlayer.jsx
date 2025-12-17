@@ -26,6 +26,7 @@ function SinglePlayer() {
   const [settingsPopup, setSettingsPopup] = useState(false);
   const [helpPopup, setHelpPopup] = useState(false);
   const [finishInit, setFinishInit] = useState(false);
+  const [initFailed, setInitFailed] = useState(false);
   const [shouldResetTimer, setShouldResetTimer] = useState(false);
   const [hints, setHints] = useState([]);
   const [imgHint, setImgHint] = useState(null);
@@ -60,6 +61,7 @@ function SinglePlayer() {
     let isMounted = true;
 
     const initializeGame = async () => {
+      setInitFailed(false);
       try {
         if (gameSettings.addedSubjects.length > 0) {
           await axios.post(import.meta.env.VITE_SERVER_URL + '/api/subject-added', {
@@ -94,11 +96,14 @@ function SinglePlayer() {
           setImgHint(gameSettings.useImageHint > 0 ? character.image : null);
           console.log('初始化游戏', gameSettings);
           setFinishInit(true);
+          setInitFailed(false);
         }
       } catch (error) {
         console.error('Failed to initialize game:', error);
         if (isMounted) {
-          alert('游戏初始化失败，请刷新页面重试，或在设置里清理缓存');
+          const message = error?.response?.data?.message || error?.message || '游戏初始化失败，请刷新页面重试，或在设置里清理缓存';
+          alert(message);
+          setInitFailed(true);
         }
       }
     };
@@ -251,6 +256,7 @@ function SinglePlayer() {
     setSettingsPopup(false);
     setShouldResetTimer(true);
     setFinishInit(false);
+    setInitFailed(false);
     setHints([]);
 
     try {
@@ -284,10 +290,13 @@ function SinglePlayer() {
       setImgHint(gameSettings.useImageHint > 0 ? character.image : null);
       console.log('初始化游戏', gameSettings);
       setFinishInit(true);
-    } catch (error) {
-      console.error('Failed to initialize new game:', error);
-      alert('游戏初始化失败，请刷新页面重试，或在设置里清理缓存');
-    }
+      setInitFailed(false);
+  } catch (error) {
+    console.error('Failed to initialize new game:', error);
+    const message = error?.response?.data?.message || error?.message || '游戏初始化失败，请刷新页面重试，或在设置里清理缓存';
+    alert(message);
+    setInitFailed(true);
+  }
   };
 
   const timeUpRef = useRef(false);
@@ -330,7 +339,8 @@ function SinglePlayer() {
       bugType: type,
       description,
     };
-    await axios.post('/api/bug-feedback', payload);
+    const serverUrl = import.meta.env.VITE_SERVER_URL || '';
+    await axios.post(`${serverUrl}/api/bug-feedback`, payload);
   };
 
   return (
@@ -381,6 +391,7 @@ function SinglePlayer() {
         onRestart={handleRestartWithSettings}
         answerCharacter={answerCharacter}
         finishInit={finishInit}
+        initFailed={initFailed}
         hints={hints}
         useImageHint={useImageHint}
         imgHint = {imgHint}

@@ -34,6 +34,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
   const [localSettings, setLocalSettings] = useState(() => JSON.parse(JSON.stringify(gameSettings)));
   const [isGuessSettingsOpen, setIsGuessSettingsOpen] = useState(false);
   const [isAnswerSettingsOpen, setIsAnswerSettingsOpen] = useState(false);
+  const exclusiveMetaCategories = ['游戏', '书籍', '三次元', 'Galgame'];
+  const isExclusiveMetaCategory = exclusiveMetaCategories.includes(gameSettings.metaTags[0]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -578,12 +580,21 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                           value={gameSettings.metaTags[0] || ''}
                           onChange={(e) => {
                             const newMetaTags = [...gameSettings.metaTags];
-                            newMetaTags[0] = e.target.value;
+                            const value = e.target.value;
+                            newMetaTags[0] = value;
+                            if (exclusiveMetaCategories.includes(value)) {
+                              newMetaTags[1] = '';
+                              newMetaTags[2] = '';
+                            }
                             onSettingsChange('metaTags', newMetaTags);
                           }}
                         >
                           <option value="">全部分类</option>
+                          <option value="游戏">游戏</option>
+                          <option value="书籍">书籍</option>
+                          <option value="三次元">三次元</option>
                           <option value="TV">TV</option>
+                          <option value="Galgame">Galgame</option>
                           <option value="WEB">WEB</option>
                           <option value="OVA">OVA</option>
                           <option value="剧场版">剧场版</option>
@@ -594,6 +605,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                         <select 
                           className="settings-select"
                           value={gameSettings.metaTags[1] || ''}
+                          disabled={isExclusiveMetaCategory}
                           onChange={(e) => {
                             const newMetaTags = [...gameSettings.metaTags];
                             newMetaTags[1] = e.target.value;
@@ -610,6 +622,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                         <select 
                           className="settings-select"
                           value={gameSettings.metaTags[2] || ''}
+                          disabled={isExclusiveMetaCategory}
                           onChange={(e) => {
                             const newMetaTags = [...gameSettings.metaTags];
                             newMetaTags[2] = e.target.value;
@@ -706,7 +719,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                     </div>
                 </div>
 
-                <div className="setting-item-compact" style={{ gap: '16px' }}>
+                <div className="setting-item-compact" style={{ marginLeft: '30.4px', gap: '16px' }}>
                     <label className="settings-label" title="使用年榜时会先抽取某一年份，再从中抽取作品。&#10;削弱了新番热度的影响。&#10;利好老二次元！&#10;开启目录时不可用">热度范围</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div className="toggle-text-switch">
@@ -746,29 +759,35 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
 
               {/* Row 3: Character Count, Tag Count */}
               <div className="settings-row compact-row">
-                <div className="setting-item-compact" style={{ gap: '16px' }}>
+                <div className="setting-item-compact" style={{ gap: '12px', alignItems: 'center' }}>
                     <label className="settings-label"  title="作品中至少有多少名角色，设为0或留空时仅包含主角">角色数量</label>
-                    <div className="compact-input-container" title="数值范围 >=0">
+                    <div className="compact-input-container" title="数值范围 >=0" style={{ minWidth: '90px' }}>
                         <input 
                             className="compact-input"
                             type="number"
-                            value={gameSettings.mainCharacterOnly ? '' : (gameSettings.characterNum || '')}
-                            placeholder="仅主角"
+                            value={gameSettings.characterNum ?? ''}
+                            placeholder="角色数量"
                             onChange={(e) => {
                                 const val = e.target.value;
                                 if (val === '' || val === '0') {
-                                    onSettingsChange('mainCharacterOnly', true);
                                     onSettingsChange('characterNum', 1);
                                 } else {
-                                    onSettingsChange('mainCharacterOnly', false);
-                                    onSettingsChange('characterNum', Math.max(1, Math.min(10, parseInt(val))));
+                                    onSettingsChange('characterNum', Math.max(1, Math.min(99, parseInt(val))));
                                 }
                             }}
                         />
                     </div>
+                    <span style={{ fontSize: '13px', color: '#4b5563' }}>仅主角</span>
+                    <ToggleSwitch 
+                        checked={gameSettings.mainCharacterOnly}
+                        onChange={(val) => {
+                            onSettingsChange('mainCharacterOnly', val);
+                        }}
+                    />
                 </div>
-
-                <div className="setting-item-compact" style={{ marginLeft: '90.4px', gap: '16px' }}>
+              {/* </div>
+              <div className="settings-row compact-row"> */}
+                <div className="setting-item-compact" style={{ marginLeft: '5.4px', gap: '16px' }}>
                     <label className="settings-label" title="猜测时显示的来自作品和角色的标签数量">标签数量</label>
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -815,7 +834,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                     </div>
                 </div>
 
-                <div className="setting-item-compact" style={{ flex: 1, marginLeft: '30.8px', gap: '16px' }}>
+                <div className="setting-item-compact" style={{ flex: 1, marginLeft: '60.8px', gap: '16px' }}>
                     <label className="settings-label" style={{ whiteSpace: 'nowrap' }}>额外作品</label>
                     <div className="search-container-compact" ref={searchContainerRef} >
                             <input 
