@@ -186,6 +186,40 @@ function appendMarkToTeam(room, teamId, mark) {
         });
 }
 
+function applySetterObservers(room, roomId, setterId, io) {
+    if (!room) return;
+    const setter = room.players.find(p => p.id === setterId);
+    if (!setter || !setter.team || setter.team === '0') return;
+
+    room.players.forEach(p => {
+        if (p.team === setter.team && p.id !== setterId && !p.isAnswerSetter && !p.disconnected) {
+            if (p._prevTeam === undefined) p._prevTeam = p.team;
+            p.team = '0';
+            p.ready = false;
+            p._tempObserver = true;
+        }
+    });
+
+    io.to(roomId).emit('updatePlayers', { players: room.players });
+}
+
+function revertSetterObservers(room, roomId, io) {
+    if (!room) return;
+    let changed = false;
+    room.players.forEach(p => {
+        if (p._tempObserver) {
+            p.team = (p._prevTeam !== undefined) ? p._prevTeam : null;
+            delete p._prevTeam;
+            delete p._tempObserver;
+            p.ready = false; // require explicit ready
+            changed = true;
+        }
+    });
+    if (changed && io) {
+        io.to(roomId).emit('updatePlayers', { players: room.players });
+    }
+}
+
 function markTeamVictory(room, roomId, player, io) {
     if (!room || !room.currentGame || !player) return;
     // ensure teamGuesses is updated so later re-joiners can see the team victory
@@ -678,6 +712,9 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
             scoreDetails
         });
     }
+
+    // Revert any teammates that were temporarily set as observers when a setter was chosen
+    revertSetterObservers(room, roomId, io);
 
     room.players.forEach(p => {
         p.isAnswerSetter = false;
@@ -1730,6 +1767,8 @@ function setupSocket(io, rooms) {
                 }
 
                 // 重置状态
+                // Revert teammates that were temporarily set as observers
+                revertSetterObservers(room, roomId, io);
                 room.players.forEach(p => {
                     p.isAnswerSetter = false;
                 });
@@ -1958,6 +1997,8 @@ function setupSocket(io, rooms) {
                         });
                     }
 
+                    // Revert teammates that were temporarily set as observers
+                    revertSetterObservers(room, roomId, io);
                     room.players.forEach(p => {
                         p.isAnswerSetter = false;
                     });
@@ -2103,6 +2144,8 @@ function setupSocket(io, rooms) {
                         if (room.answerSetterId && room.answerSetterId === disconnectedPlayer.id) {
                             room.answerSetterId = null;
                             room.waitingForAnswer = false;
+                            // revert any teammates that were set to observers due to setter selection
+                            revertSetterObservers(room, roomId, io);
                             io.to(roomId).emit('waitForAnswerCanceled', { message: `指定的出题人 ${disconnectedPlayer.username} 已离开，等待被取消` });
                             console.log(`[INFO] 指定出题人 ${disconnectedPlayer.username} 在房间 ${roomId} 离开，已取消等待状态`);
                         }
@@ -2338,10 +2381,9 @@ function setupSocket(io, rooms) {
             room.answerSetterId = setterId;
             room.waitingForAnswer = true;
     
-            // Notify all players in the room about the update
-            io.to(roomId).emit('updatePlayers', {
-                players: room.players,
-                isPublic: room.isPublic,
+            // Make the setter's teammates observers from the setter's vantage
+            applySetterObservers(room, roomId, setterId, io);
+
                 answerSetterId: setterId
             });
     
@@ -2397,6 +2439,8 @@ function setupSocket(io, rooms) {
             if (room.answerSetterId && room.answerSetterId === playerToKick.id) {
                 room.answerSetterId = null;
                 room.waitingForAnswer = false;
+                // revert teammates temporarily set to observers
+                revertSetterObservers(room, roomId, io);
                 io.to(roomId).emit('waitForAnswerCanceled', { message: `指定的出题人 ${kickedPlayerUsername} 已被踢出，等待已取消` });
                 console.log(`[INFO] 被踢的指定出题人 ${kickedPlayerUsername} 在房间 ${roomId}，已取消等待状态`);
             }
@@ -2487,6 +2531,9 @@ function setupSocket(io, rooms) {
                 tagBanState: [],
                 tagBanStatePending: []
             };
+
+            // Make teammates observers from the setter's vantage before reset
+            applySetterObservers(room, roomId, room.answerSetterId, io);
 
             // Reset all players' game state and mark the answer setter
             room.players.forEach(p => {
