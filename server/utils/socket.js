@@ -1462,6 +1462,31 @@ function setupSocket(io, rooms) {
                     .forEach(teammate => {
                         teammate.guesses = room.currentGame.teamGuesses[player.team];
                     });
+
+                // 在同步模式下，若团队的有效猜测次数已达最大轮数，立即将整队标记为已结束并禁止继续猜测
+                if (room.currentGame.settings?.syncMode) {
+                    const maxAttempts = room.currentGame.settings?.maxAttempts || 10;
+                    // 统计团队有效尝试次数（去除特殊结尾标记）
+                    const cleanedTeam = String(room.currentGame.teamGuesses[player.team] || '').replace(/[✌👑💀🏳️🏆]/g, '');
+                    const teamAttemptCount = Array.from(cleanedTeam).length;
+                    if (teamAttemptCount >= maxAttempts) {
+                        // 标记队伍中所有活跃成员为完成（追加失败标记，若尚未标记）
+                        room.players
+                            .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
+                            .forEach(teammate => {
+                                const hasEnded = teammate.guesses.includes('✌') || teammate.guesses.includes('👑') || teammate.guesses.includes('🏆') || teammate.guesses.includes('💀') || teammate.guesses.includes('🏳️');
+                                if (!hasEnded) {
+                                    teammate.guesses += '💀';
+                                }
+                                if (room.currentGame.syncPlayersCompleted) {
+                                    room.currentGame.syncPlayersCompleted.add(teammate.id);
+                                }
+                            });
+
+                        // 更新同步进度（会触发轮次推进或结算）
+                        updateSyncProgress(room, roomId, io);
+                    }
+                }
             } else {
                 player.guesses += mark;
             }
