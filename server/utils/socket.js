@@ -173,6 +173,34 @@ function computePartialAwardeesFromGuessHistory(room) {
     return awardees;
 }
 
+// Team utilities: append marks to teammates and notify team win
+function appendMarkToTeam(room, teamId, mark) {
+    if (!room || !room.currentGame) return;
+    room.players
+        .filter(p => p.team === teamId && p.team !== '0' && !p.isAnswerSetter && !p.disconnected)
+        .forEach(teammate => {
+            teammate.guesses += mark;
+        });
+}
+
+function markTeamVictory(room, roomId, player, io) {
+    if (!room || !room.currentGame || !player) return;
+    room.players
+        .filter(p => p.team === player.team && p.id !== player.id && !p.isAnswerSetter && !p.disconnected)
+        .filter(p => !p.guesses.includes('🏆'))
+        .forEach(teammate => {
+            teammate.guesses += '🏆';
+            if (room.currentGame.syncPlayersCompleted) {
+                room.currentGame.syncPlayersCompleted.delete(teammate.id);
+            }
+            io.to(teammate.id).emit('teamWin', {
+                winnerName: player.username,
+                message: `队友 ${player.username} 已猜对！`
+            });
+            console.log(`[TEAM WIN] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利`);
+        });
+}
+
 // 同步模式：统一处理进度更新与轮次推进，支持血战模式
 function updateSyncProgress(room, roomId, io) {
     if (!io) return;
@@ -1114,6 +1142,7 @@ function setupSocket(io, rooms) {
                 character, // 存储加密的角色信息（供后加入的玩家使用）
                 settings,
                 guesses: [], // 初始化猜测记录数组
+                teamGuesses: {}, // 团队共享的猜测记录字符串（按 teamId 存储）
                 hints: null, // 提示信息（如果使用）
                 // 同步模式状态
                 syncRound: 1, // 当前同步轮次，从第一轮开始
@@ -1137,6 +1166,13 @@ function setupSocket(io, rooms) {
                 // Only keep guess history for non-answer-setter and non-observer players
                 if (!p.isAnswerSetter && p.team !== '0') {
                     room.currentGame.guesses.push({username: p.username, guesses: []});
+                }
+            });
+            // Initialize team shared guess strings
+            room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+            room.players.forEach(p => {
+                if (p.team && p.team !== '0' && !(p.team in room.currentGame.teamGuesses)) {
+                    room.currentGame.teamGuesses[p.team] = '';
                 }
             });
     
@@ -1183,18 +1219,32 @@ function setupSocket(io, rooms) {
             if (room.currentGame) {
                 const playerGuesses = room.currentGame.guesses.find(g => g.username === player.username);
                 if (playerGuesses) {
-                    playerGuesses.guesses.push({
+                    const guessEntry = {
                         playerId: socket.id,
                         playerName: player.username,
                         ...guessResult
-                    });
-    
-                    // Send real-time guess history update to the original answer setter and team 0 members
-                    // room.players.filter(p => (p.isAnswerSetter || p.team === '0') && p.id !== socket.id)
-                    room.players.forEach(teammate => {
-                        io.to(teammate.id).emit('guessHistoryUpdate', {
-                            guesses: room.currentGame.guesses
+                    };
+                    playerGuesses.guesses.push(guessEntry);
+
+                    // If player is on a team, also append the same guess entry to teammates' guess arrays
+                    if (player.team && player.team !== '0') {
+                        room.currentGame.guesses.forEach(pg => {
+                            if (pg.username !== player.username) {
+                                const teammatePlayer = room.players.find(p => p.username === pg.username && p.team === player.team);
+                                if (teammatePlayer) {
+                                    pg.guesses.push({ ...guessEntry });
+                                }
+                            }
                         });
+                    }
+
+                    // Send real-time guess history update to answer setter, observers and teammates
+                    room.players.forEach(teammate => {
+                        if (teammate.id !== socket.id && (teammate.isAnswerSetter || teammate.team === '0' || teammate.team === player.team)) {
+                            io.to(teammate.id).emit('guessHistoryUpdate', {
+                                guesses: room.currentGame.guesses
+                            });
+                        }
                     });
                 }
             }
@@ -1224,18 +1274,41 @@ function setupSocket(io, rooms) {
                 });
             }
     
-            // Update player's guesses string
+            // Update player's guesses string (team members share the same guess string)
             // 作品分(💡)仅记录，计分在结算阶段统一处理，避免漏记/重复/同步状态扰动
+            let mark;
             if (!guessResult.isCorrect && guessResult.isPartialCorrect) {
-                player.guesses += '💡';
+                mark = '💡';
             } else {
-                player.guesses += guessResult.isCorrect ? '✔' : '❌';
+                mark = guessResult.isCorrect ? '✔' : '❌';
+            }
+
+            if (player.team && player.team !== '0') {
+                // ensure teamGuesses exists and append mark
+                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + mark;
+                // set team members' guesses to the shared team string (including current player)
+                room.players
+                    .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
+                    .forEach(teammate => {
+                        teammate.guesses = room.currentGame.teamGuesses[player.team];
+                    });
+            } else {
+                player.guesses += mark;
             }
 
             // 同步模式：标记完成并统一更新进度
             if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
                 if (!guessResult.isCorrect) {
                     room.currentGame.syncPlayersCompleted.add(socket.id);
+                    // if team, also mark teammates as completed for this round if appropriate (votes/attempts are shared)
+                    if (player.team && player.team !== '0') {
+                        room.players
+                            .filter(p => p.team === player.team && p.id !== socket.id && !p.isAnswerSetter && !p.disconnected)
+                            .forEach(teammate => {
+                                room.currentGame.syncPlayersCompleted.add(teammate.id);
+                            });
+                    }
                 }
                 updateSyncProgress(room, roomId, io);
             }
@@ -1364,24 +1437,9 @@ function setupSocket(io, rooms) {
                 room.currentGame.syncPlayersCompleted.delete(socket.id);
             }
 
-            // 血战模式：标记同队其他玩家为已完成（自动队伍胜利）
+            // Mark teammates as team winners (automatic team victory)
             if (player.team && player.team !== '0') {
-                room.players
-                    .filter(p => p.team === player.team && p.id !== socket.id && !p.isAnswerSetter && !p.disconnected)
-                    .filter(p => !p.guesses.includes('✌') && !p.guesses.includes('💀') && !p.guesses.includes('🏳️') && !p.guesses.includes('👑') && !p.guesses.includes('🏆'))
-                    .forEach(teammate => {
-                        teammate.guesses += '🏆'; // 队友猜对，标记为队伍胜利
-                        // 从同步等待中移除（如果是同步模式）
-                        if (room.currentGame.syncPlayersCompleted) {
-                            room.currentGame.syncPlayersCompleted.delete(teammate.id);
-                        }
-                        // 通知队友游戏结束
-                        io.to(teammate.id).emit('teamWin', {
-                            winnerName: player.username,
-                            message: `队友 ${player.username} 已猜对！`
-                        });
-                        console.log(`[血战模式] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利`);
-                    });
+                markTeamVictory(room, roomId, player, io);
             }
 
             // 同步+血战：胜者所在队伍本轮视为已完成，不再参与后续轮次
@@ -1597,22 +1655,7 @@ function setupSocket(io, rooms) {
                     }
                     // 非血战模式下，一人猜对后同队队友也标记为队伍胜利
                     if (!room.currentGame?.settings?.nonstopMode && player.team && player.team !== '0') {
-                        room.players
-                            .filter(p => p.team === player.team && p.id !== player.id && !p.isAnswerSetter && !p.disconnected)
-                            .filter(p => !p.guesses.includes('✌') && !p.guesses.includes('💀') && !p.guesses.includes('🏳️') && !p.guesses.includes('👑') && !p.guesses.includes('🏆'))
-                            .forEach(teammate => {
-                                teammate.guesses += '🏆';
-                                // 从同步等待中移除
-                                if (room.currentGame?.syncPlayersCompleted) {
-                                    room.currentGame.syncPlayersCompleted.delete(teammate.id);
-                                }
-                                // 通知队友游戏结束
-                                io.to(teammate.id).emit('teamWin', {
-                                    winnerName: player.username,
-                                    message: `队友 ${player.username} 已猜对！`
-                                });
-                                console.log(`[普通/同步模式] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利`);
-                            });
+                        markTeamVictory(room, roomId, player, io);
                     }
                     break;
                 case 'bigwin':
@@ -1632,31 +1675,18 @@ function setupSocket(io, rooms) {
                     }
                     // 非血战模式下，一人猜对后同队队友也标记为队伍胜利
                     if (!room.currentGame?.settings?.nonstopMode && player.team && player.team !== '0') {
-                        room.players
-                            .filter(p => p.team === player.team && p.id !== player.id && !p.isAnswerSetter && !p.disconnected)
-                            .filter(p => !p.guesses.includes('✌') && !p.guesses.includes('💀') && !p.guesses.includes('🏳️') && !p.guesses.includes('👑') && !p.guesses.includes('🏆'))
-                            .forEach(teammate => {
-                                teammate.guesses += '🏆';
-                                // 从同步等待中移除
-                                if (room.currentGame?.syncPlayersCompleted) {
-                                    room.currentGame.syncPlayersCompleted.delete(teammate.id);
-                                }
-                                // 通知队友游戏结束
-                                io.to(teammate.id).emit('teamWin', {
-                                    winnerName: player.username,
-                                    message: `队友 ${player.username} 已猜对！`
-                                });
-                                console.log(`[普通/同步模式] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利`);
-                            });
+                        markTeamVictory(room, roomId, player, io);
                     }
                     break;
                 default:
                     player.guesses += '💀';
                     if (player.team !== null && player.team !== '0') {
+                        room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                        room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '💀';
                         room.players
-                            .filter(p => p.team === player.team && p.id !== player.id && !p.isAnswerSetter)
+                            .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
                             .forEach(teammate => {
-                                teammate.guesses += '💀';
+                                teammate.guesses = room.currentGame.teamGuesses[player.team];
                             });
                     }
             }
@@ -2281,6 +2311,7 @@ function setupSocket(io, rooms) {
                 character, // store encrypted character for late joiners
                 settings: room.settings,
                 guesses: [], // Initialize guesses as an array of objects
+                teamGuesses: {}, // Team shared guess strings by teamId
                 hints: hints || null,
                 // 同步模式状态
                 syncRound: 1, // 当前同步轮次，从第一轮开始
@@ -2305,6 +2336,13 @@ function setupSocket(io, rooms) {
                 // Only keep guess history for non-answer-setter and non-observer players
                 if (!p.isAnswerSetter && p.team !== '0') {
                     room.currentGame.guesses.push({username: p.username, guesses: []});
+                }
+            });
+            // Initialize team shared guess strings
+            room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+            room.players.forEach(p => {
+                if (p.team && p.team !== '0' && !(p.team in room.currentGame.teamGuesses)) {
+                    room.currentGame.teamGuesses[p.team] = '';
                 }
             });
     
