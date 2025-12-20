@@ -1314,9 +1314,9 @@ const Multiplayer = () => {
                         );
                       })()}
                       <div className="sync-status">
-                        {getFilteredSyncStatus().map((player) => (
+                        {getFilteredSyncStatus().map((player, idx) => (
                           <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
-                            {player.username}: {player.completed ? '✓' : '...'}
+                            {showNames ? player.username : `玩家${idx + 1}`}: {player.completed ? '✓' : '...'}
                           </span>
                         ))}
                       </div>
@@ -1330,7 +1330,7 @@ const Multiplayer = () => {
                         <div className="nonstop-winners">
                           {nonstopProgress.winners.map((winner, idx) => (
                             <span key={winner.username} className="nonstop-winner">
-                              #{winner.rank} {showNames ? winner.username : `玩家${idx + 1}`} (+{winner.score})
+                              #{winner.rank} {showNames ? winner.username : `玩家${idx + 1}`} (+{winner.score}分)
                             </span>
                           ))}
                         </div>
