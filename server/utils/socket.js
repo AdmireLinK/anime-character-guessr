@@ -2409,8 +2409,6 @@ function setupSocket(io, rooms) {
             // Make the setter's teammates observers from the setter's vantage
             applySetterObservers(room, roomId, setterId, io);
 
-                answerSetterId: setterId
-            });
     
             // Emit waitForAnswer event
             io.to(roomId).emit('waitForAnswer', {
