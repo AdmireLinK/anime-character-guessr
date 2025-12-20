@@ -371,3 +371,42 @@
     background-position: 0% 50%, 0% 50%;
   }
 }
+
+/* Mobile overrides to match other container spacing (e.g., leaderboard) */
+@media (max-width: 640px) {
+  .roulette-container {
+    margin: 15px 5px;
+  }
+
+  .roulette-header {
+    padding: 12px 10px;
+  }
+
+  .roulette-content {
+    padding: 12px 5px 5px;
+  }
+
+  .roulette-textfield {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+
+  .roulette-card-grid {
+    gap: 12px;
+  }
+
+  .roulette-cancel-btn {
+    margin: 16px auto 0 auto;
+    padding: 8px 20px;
+  }
+
+  .roulette-exchange-section {
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .roulette-exchange-input,
+  .roulette-exchange-btn {
+    font-size: 14px;
+  }
+}
