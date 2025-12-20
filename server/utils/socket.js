@@ -197,20 +197,34 @@ function markTeamVictory(room, roomId, player, io) {
         }
     }
 
-    room.players
-        .filter(p => p.team === player.team && p.id !== player.id && !p.isAnswerSetter && !p.disconnected)
-        .filter(p => !p.guesses.includes('🏆'))
-        .forEach(teammate => {
+    // mark teammates as spectators and winners
+    const teamMembers = room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected);
+    teamMembers.forEach(teammate => {
+        // append 🏆 if not present
+        if (!teammate.guesses.includes('🏆')) {
             teammate.guesses += '🏆';
-            if (room.currentGame.syncPlayersCompleted) {
-                room.currentGame.syncPlayersCompleted.delete(teammate.id);
-            }
-            io.to(teammate.id).emit('teamWin', {
-                winnerName: player.username,
-                message: `队友 ${player.username} 已猜对！`
-            });
-            console.log(`[TEAM WIN] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利`);
+        }
+        // set teammate to observer to prevent further guessing
+        teammate.team = '0';
+        teammate.ready = false;
+        if (room.currentGame.syncPlayersCompleted) {
+            room.currentGame.syncPlayersCompleted.delete(teammate.id);
+        }
+        io.to(teammate.id).emit('teamWin', {
+            winnerName: player.username,
+            message: `队友 ${player.username} 已猜对！`
         });
+        console.log(`[TEAM WIN] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利并设为观战`);
+    });
+
+    // Also set the winner to observer (consistent behavior)
+    if (player && (!player.team || player.team !== '0')) {
+        player.team = '0';
+        player.ready = false;
+    }
+
+    // Broadcast updated player list
+    io.to(roomId).emit('updatePlayers', { players: room.players });
 }
 
 // 同步模式：统一处理进度更新与轮次推进，支持血战模式
