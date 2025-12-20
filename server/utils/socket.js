@@ -2031,6 +2031,16 @@ function setupSocket(io, rooms) {
                         //     disconnectedPlayer.disconnected = true;
                         // }
                         disconnectedPlayer.disconnected = true;
+
+                        // If the disconnected player was the designated answer setter waiting to set the answer,
+                        // clear the waiting state so the room won't be blocked.
+                        if (room.answerSetterId && room.answerSetterId === disconnectedPlayer.id) {
+                            room.answerSetterId = null;
+                            room.waitingForAnswer = false;
+                            io.to(roomId).emit('waitForAnswerCanceled', { message: `指定的出题人 ${disconnectedPlayer.username} 已离开，等待被取消` });
+                            console.log(`[INFO] 指定出题人 ${disconnectedPlayer.username} 在房间 ${roomId} 离开，已取消等待状态`);
+                        }
+
                         // Update player list for remaining players
                         io.to(roomId).emit('updatePlayers', {
                             players: room.players
@@ -2316,6 +2326,14 @@ function setupSocket(io, rooms) {
     
             // 保存玩家信息用于通知
             const kickedPlayerUsername = playerToKick.username;
+
+            // If the kicked player was the designated answer setter waiting to set the answer, clear waiting state
+            if (room.answerSetterId && room.answerSetterId === playerToKick.id) {
+                room.answerSetterId = null;
+                room.waitingForAnswer = false;
+                io.to(roomId).emit('waitForAnswerCanceled', { message: `指定的出题人 ${kickedPlayerUsername} 已被踢出，等待已取消` });
+                console.log(`[INFO] 被踢的指定出题人 ${kickedPlayerUsername} 在房间 ${roomId}，已取消等待状态`);
+            }
             
             // 从房间中移除玩家前先通知被踢玩家
             io.to(playerId).emit('playerKicked', {
