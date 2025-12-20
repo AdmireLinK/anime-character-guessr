@@ -32,8 +32,11 @@ function calculateWinnerScore({ guesses, baseScore = 0, totalRounds = 10 }) {
     if (!isBigWin) {
         if (guessCount >= 2 && guessCount <= 3) {
             bonuses.quickGuess = 2;
-        } else if (guessCount > 3 && guessCount < totalRounds / 2) {
-            bonuses.quickGuess = 1;
+        } else {
+            const halfRounds = Math.ceil(totalRounds / 2);
+            if (guessCount >= 4 && guessCount <= halfRounds) {
+                bonuses.quickGuess = 1;
+            }
         }
     }
     totalScore += bonuses.quickGuess;
