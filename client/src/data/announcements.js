@@ -25,6 +25,25 @@ const announcements = [
   },
 
   {
+    version: '1.6.6',
+    date: '2025-12-21',
+    content: `
+      <b>新功能：</b><br/>
+      <ul>
+        <li>对移动端用户界面进行大优化</li>
+      </ul>
+      <b>调整：</b><br/>
+      <ul>
+        <li>重新设计了多人模式组队的部分特性</li>
+      </ul>
+      <b>修复：</b><br/>
+      <ul>
+        <li>多人模式组队时的部分Bug</li>
+      </ul>
+    `
+  },
+
+  {
     version: '1.6.5',
     date: '2025-12-16',
     content: `
