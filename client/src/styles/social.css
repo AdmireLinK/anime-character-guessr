@@ -100,6 +100,13 @@
   letter-spacing: -0.2px;
 }
 
+/* Desktop single-player: place feedback button at top-left (align with back button) */
+.single-player-container .floating-feedback-button {
+  top: 16px;
+  left: 16px;
+  z-index: 11;
+}
+
 .floating-back-button::before,
 .floating-feedback-button::before {
   content: '';
@@ -134,6 +141,17 @@
 
   .floating-feedback-button {
     top: 76px;
+  }
+
+  /* On small screens ensure social-links in single-player does not overlap the search bar */
+  .single-player-container .social-links {
+    position: relative;
+    z-index: 2;
+  }
+
+  .single-player-container .search-section {
+    position: relative;
+    z-index: 1;
   }
 }
 
@@ -183,4 +201,37 @@
   width: 24px;
   height: 24px;
   filter: invert(1);
+}
+
+/* Inline feedback button (for mobile single-player) - hidden by default */
+.inline-feedback-button {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* show inline feedback button within social-links on small screens */
+  .inline-feedback-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* don't force width/height — let it align with other .social-link items and use container gap */
+    background: none; /* match other social-link buttons */
+    color: #b42318;
+    border-radius: 6px;
+    padding: 0;
+    font-size: 24px; /* same as other social icons */
+    align-self: center;
+    transition: color 0.2s, transform 0.14s ease;
+  }
+
+  /* use same hover behavior as .social-link */
+  .inline-feedback-button:hover {
+    color: #ff5c39;
+    transform: scale(1.08);
+  }
+
+  /* ensure floating feedback button remains hidden in single-player (we keep existing rule) */
+  .single-player-container .floating-feedback-button {
+    display: none !important;
+  }
 } 

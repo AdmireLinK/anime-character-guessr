@@ -357,6 +357,8 @@ function SinglePlayer() {
       <SocialLinks
         onSettingsClick={() => setSettingsPopup(true)}
         onHelpClick={() => setHelpPopup(true)}
+        onFeedbackClick={() => setShowFeedbackPopup(true)}
+        showFeedbackInline={true}
       />
 
       <div className="search-bar">

@@ -222,6 +222,11 @@
     border-radius: 8px;
   }
 
+  /* Hide feedback floating button in single-player on small screens to avoid overlapping the search bar */
+  .single-player-container .floating-feedback-button {
+    display: none;
+  }
+
   /* Hide desktop table and show mobile-friendly list */
   .guesses-table {
     display: none;
