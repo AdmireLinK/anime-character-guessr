@@ -188,6 +188,15 @@ function appendMarkToTeam(room, teamId, mark) {
 
 function markTeamVictory(room, roomId, player, io) {
     if (!room || !room.currentGame || !player) return;
+    // ensure teamGuesses is updated so later re-joiners can see the team victory
+    room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+    const teamId = player.team;
+    if (teamId && teamId !== '0') {
+        if (!String(room.currentGame.teamGuesses[teamId] || '').includes('🏆')) {
+            room.currentGame.teamGuesses[teamId] = (room.currentGame.teamGuesses[teamId] || '') + '🏆';
+        }
+    }
+
     room.players
         .filter(p => p.team === player.team && p.id !== player.id && !p.isAnswerSetter && !p.disconnected)
         .filter(p => !p.guesses.includes('🏆'))
@@ -961,6 +970,38 @@ function setupSocket(io, rooms) {
                         socket.emit('tagBanStateUpdate', {
                             tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
                         });
+
+                        // If their team already won while they were disconnected, backfill their guess string and notify
+                        if (existingPlayer.team && existingPlayer.team !== '0') {
+                            const teamId = existingPlayer.team;
+                            // Determine if team has won: check teamGuesses, room players, or nonstopWinners
+                            const teamGuessesStr = room.currentGame.teamGuesses && room.currentGame.teamGuesses[teamId] ? String(room.currentGame.teamGuesses[teamId]) : '';
+                            const teammateHasWin = room.players.some(p => p.team === teamId && (p.guesses.includes('✌') || p.guesses.includes('👑') || p.guesses.includes('🏆')));
+                            const nonstopTeamWinner = Array.isArray(room.currentGame.nonstopWinners) && room.currentGame.nonstopWinners.some(w => w.team === teamId);
+
+                            if (teamGuessesStr.includes('🏆') || teammateHasWin || nonstopTeamWinner) {
+                                // ensure teamGuesses contains the marker
+                                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                                if (!String(room.currentGame.teamGuesses[teamId] || '').includes('🏆')) {
+                                    room.currentGame.teamGuesses[teamId] = (room.currentGame.teamGuesses[teamId] || '') + '🏆';
+                                }
+
+                                // backfill player's guesses and remove from sync waiting if present
+                                existingPlayer.guesses = room.currentGame.teamGuesses[teamId];
+                                if (room.currentGame.syncPlayersCompleted) {
+                                    room.currentGame.syncPlayersCompleted.delete(existingPlayer.id);
+                                }
+
+                                // notify rejoined player and update everyone
+                                socket.emit('teamWin', {
+                                    winnerName: (room.players.find(p => p.team === teamId && (p.guesses.includes('✌') || p.guesses.includes('👑') || p.guesses.includes('🏆')))?.username) ||
+                                        ((room.currentGame.nonstopWinners && room.currentGame.nonstopWinners.find(w => w.team === teamId))?.username) || '队友',
+                                    message: `队友 已猜对！正在为你标记为队伍胜利`
+                                });
+
+                                io.to(roomId).emit('updatePlayers', { players: room.players });
+                            }
+                        }
                     }
                     
                     console.log(`${username} reconnected to room ${roomId}`);
@@ -1272,6 +1313,17 @@ function setupSocket(io, rooms) {
             if (!player) {
                 console.log(`[ERROR][playerGuess][${socket.id}] 连接中断了`);
                 socket.emit('error', {message: 'playerGuess: 连接中断了'});
+                return;
+            }
+
+            // Prevent ended players (including team winners) and spectators from guessing
+            const hasEnded = player.guesses.includes('✌') || player.guesses.includes('👑') || player.guesses.includes('💀') || player.guesses.includes('🏳️') || player.guesses.includes('🏆');
+            if (player.team === '0') {
+                socket.emit('error', { message: 'playerGuess: 观战中不能猜测' });
+                return;
+            }
+            if (hasEnded) {
+                socket.emit('error', { message: 'playerGuess: 你已结束本轮，无法继续猜测' });
                 return;
             }
     
