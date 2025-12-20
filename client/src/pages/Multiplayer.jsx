@@ -396,6 +396,8 @@ const Multiplayer = () => {
     
       const feedback = generateFeedback(guessData, answerCharacterRef.current, gameSettingsRef.current);
     
+      const isCorrect = guessData.id === answerCharacterRef.current?.id;
+
       const newGuess = {
         id: guessData.id,
         icon: guessData.image,
@@ -403,22 +405,22 @@ const Multiplayer = () => {
         nameCn: guessData.nameCn,
         nameEn: guessData.nameEn,
         gender: guessData.gender,
-        genderFeedback: feedback.gender.feedback,
+        genderFeedback: isCorrect ? 'yes' : feedback.gender.feedback,
         latestAppearance: guessData.latestAppearance,
-        latestAppearanceFeedback: feedback.latestAppearance.feedback,
+        latestAppearanceFeedback: isCorrect ? '=' : feedback.latestAppearance.feedback,
         earliestAppearance: guessData.earliestAppearance,
-        earliestAppearanceFeedback: feedback.earliestAppearance.feedback,
+        earliestAppearanceFeedback: isCorrect ? '=' : feedback.earliestAppearance.feedback,
         highestRating: guessData.highestRating,
-        ratingFeedback: feedback.rating.feedback,
+        ratingFeedback: isCorrect ? '=' : feedback.rating.feedback,
         appearancesCount: guessData.appearances.length,
-        appearancesCountFeedback: feedback.appearancesCount.feedback,
+        appearancesCountFeedback: isCorrect ? '=' : feedback.appearancesCount.feedback,
         popularity: guessData.popularity,
-        popularityFeedback: feedback.popularity.feedback,
+        popularityFeedback: isCorrect ? '=' : feedback.popularity.feedback,
         appearanceIds: guessData.appearanceIds,
         sharedAppearances: feedback.shared_appearances,
         metaTags: feedback.metaTags.guess,
         sharedMetaTags: feedback.metaTags.shared,
-        isAnswer: false,
+        isAnswer: isCorrect,
         playerId,
         playerName,
         guessrName: guessData.guessrName || playerName // prefer guessData.guessrName if present
