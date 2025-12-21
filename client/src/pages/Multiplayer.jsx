@@ -373,6 +373,14 @@ const Multiplayer = () => {
       }
     });
 
+    newSocket.on('serverShutdown', ({ message }) => {
+      alert(message);
+      setError(message);
+      setIsJoined(false);
+      setGameEnd(true);
+      navigate('/multiplayer');
+    });
+
     newSocket.on('updateGameSettings', ({ settings }) => {
       console.log('Received game settings:', settings);
       setGameSettings(settings);
@@ -481,6 +489,7 @@ const Multiplayer = () => {
       newSocket.off('guessHistoryUpdate');
       newSocket.off('roomClosed');
       newSocket.off('error');
+      newSocket.off('serverShutdown');
       newSocket.off('updateGameSettings');
       newSocket.off('gameEnded');
       newSocket.off('resetReadyStatus');
