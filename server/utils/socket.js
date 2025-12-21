@@ -32,8 +32,11 @@ function calculateWinnerScore({ guesses, baseScore = 0, totalRounds = 10 }) {
     if (!isBigWin) {
         if (guessCount >= 2 && guessCount <= 3) {
             bonuses.quickGuess = 2;
-        } else if (guessCount > 3 && guessCount < totalRounds / 2) {
-            bonuses.quickGuess = 1;
+        } else {
+            const halfRounds = Math.ceil(totalRounds / 2);
+            if (guessCount >= 4 && guessCount <= halfRounds) {
+                bonuses.quickGuess = 1;
+            }
         }
     }
     totalScore += bonuses.quickGuess;
@@ -171,6 +174,93 @@ function computePartialAwardeesFromGuessHistory(room) {
 
     bestByGroup.forEach(v => awardees.add(v.playerId));
     return awardees;
+}
+
+// Team utilities: append marks to teammates and notify team win
+function appendMarkToTeam(room, teamId, mark) {
+    if (!room || !room.currentGame) return;
+    room.players
+        .filter(p => p.team === teamId && p.team !== '0' && !p.isAnswerSetter && !p.disconnected)
+        .forEach(teammate => {
+            teammate.guesses += mark;
+        });
+}
+
+function applySetterObservers(room, roomId, setterId, io) {
+    if (!room) return;
+    const setter = room.players.find(p => p.id === setterId);
+    if (!setter || !setter.team || setter.team === '0') return;
+
+    room.players.forEach(p => {
+        if (p.team === setter.team && p.id !== setterId && !p.isAnswerSetter && !p.disconnected) {
+            if (p._prevTeam === undefined) p._prevTeam = p.team;
+            p.team = '0';
+            p.ready = false;
+            p._tempObserver = true;
+        }
+    });
+
+    io.to(roomId).emit('updatePlayers', { players: room.players });
+}
+
+function revertSetterObservers(room, roomId, io) {
+    if (!room) return;
+    let changed = false;
+    room.players.forEach(p => {
+        if (p._tempObserver) {
+            p.team = (p._prevTeam !== undefined) ? p._prevTeam : null;
+            delete p._prevTeam;
+            delete p._tempObserver;
+            p.ready = false; // require explicit ready
+            changed = true;
+        }
+    });
+    if (changed && io) {
+        io.to(roomId).emit('updatePlayers', { players: room.players });
+    }
+}
+
+function markTeamVictory(room, roomId, player, io) {
+    if (!room || !room.currentGame || !player) return;
+    // ensure teamGuesses is updated so later re-joiners can see the team victory
+    if (room.currentGame) {
+        room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+    }
+    const teamId = player.team;
+    if (teamId && teamId !== '0') {
+        if (!String(room.currentGame.teamGuesses[teamId] || '').includes('🏆')) {
+            room.currentGame.teamGuesses[teamId] = (room.currentGame.teamGuesses[teamId] || '') + '🏆';
+        }
+    }
+
+    // mark teammates as spectators and winners
+    const teamMembers = room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected);
+    teamMembers.forEach(teammate => {
+        // append 🏆 if not present
+        if (!teammate.guesses.includes('🏆')) {
+            teammate.guesses += '🏆';
+        }
+        // set teammate to observer to prevent further guessing
+        teammate.team = '0';
+        teammate.ready = false;
+        if (room.currentGame.syncPlayersCompleted) {
+            room.currentGame.syncPlayersCompleted.delete(teammate.id);
+        }
+        io.to(teammate.id).emit('teamWin', {
+            winnerName: player.username,
+            message: `队友 ${player.username} 已猜对！`
+        });
+        console.log(`[TEAM WIN] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利并设为观战`);
+    });
+
+    // Also set the winner to observer (consistent behavior)
+    if (player && (!player.team || player.team !== '0')) {
+        player.team = '0';
+        player.ready = false;
+    }
+
+    // Broadcast updated player list
+    io.to(roomId).emit('updatePlayers', { players: room.players });
 }
 
 // 同步模式：统一处理进度更新与轮次推进，支持血战模式
@@ -625,9 +715,23 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
         });
     }
 
+    // Revert any teammates that were temporarily set as observers when a setter was chosen
+    revertSetterObservers(room, roomId, io);
+
     room.players.forEach(p => {
         p.isAnswerSetter = false;
     });
+
+    // Players who joined during the previous game should no longer be spectators by default
+    // and must explicitly ready up to participate in the next game.
+    room.players.forEach(p => {
+        if (p.joinedDuringGame) {
+            p.team = null;
+            p.joinedDuringGame = false;
+            p.ready = false;
+        }
+    });
+
     io.to(roomId).emit('resetReadyStatus');
     room.currentGame = null;
     io.to(roomId).emit('updatePlayers', {
@@ -919,6 +1023,40 @@ function setupSocket(io, rooms) {
                         socket.emit('tagBanStateUpdate', {
                             tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
                         });
+
+                        // If their team already won while they were disconnected, backfill their guess string and notify
+                        if (existingPlayer.team && existingPlayer.team !== '0') {
+                            const teamId = existingPlayer.team;
+                            // Determine if team has won: check teamGuesses, room players, or nonstopWinners
+                            const teamGuessesStr = room.currentGame.teamGuesses && room.currentGame.teamGuesses[teamId] ? String(room.currentGame.teamGuesses[teamId]) : '';
+                            const teammateHasWin = room.players.some(p => p.team === teamId && (p.guesses.includes('✌') || p.guesses.includes('👑') || p.guesses.includes('🏆')));
+                            const nonstopTeamWinner = Array.isArray(room.currentGame.nonstopWinners) && room.currentGame.nonstopWinners.some(w => w.team === teamId);
+
+                            if (teamGuessesStr.includes('🏆') || teammateHasWin || nonstopTeamWinner) {
+                                // ensure teamGuesses contains the marker
+                                if (room.currentGame) {
+                                    room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                                    if (!String(room.currentGame.teamGuesses[teamId] || '').includes('🏆')) {
+                                        room.currentGame.teamGuesses[teamId] = (room.currentGame.teamGuesses[teamId] || '') + '🏆';
+                                    }
+                                }
+
+                                // backfill player's guesses and remove from sync waiting if present
+                                existingPlayer.guesses = room.currentGame.teamGuesses[teamId];
+                                if (room.currentGame.syncPlayersCompleted) {
+                                    room.currentGame.syncPlayersCompleted.delete(existingPlayer.id);
+                                }
+
+                                // notify rejoined player and update everyone
+                                socket.emit('teamWin', {
+                                    winnerName: (room.players.find(p => p.team === teamId && (p.guesses.includes('✌') || p.guesses.includes('👑') || p.guesses.includes('🏆')))?.username) ||
+                                        ((room.currentGame.nonstopWinners && room.currentGame.nonstopWinners.find(w => w.team === teamId))?.username) || '队友',
+                                    message: `队友 已猜对！正在为你标记为队伍胜利`
+                                });
+
+                                io.to(roomId).emit('updatePlayers', { players: room.players });
+                            }
+                        }
                     }
                     
                     console.log(`${username} reconnected to room ${roomId}`);
@@ -955,7 +1093,8 @@ function setupSocket(io, rooms) {
                 ready: false,
                 guesses: '',
                 message: '',
-                team: room.currentGame? '0' : null,
+                team: room.currentGame ? '0' : null, // joiners during an active game become observers
+                joinedDuringGame: !!room.currentGame, // mark that this player joined during an on-going game
                 disconnected: false,
                 joinedAt: Date.now(),
                 ...(avatarId !== undefined && { avatarId }),
@@ -992,6 +1131,51 @@ function setupSocket(io, rooms) {
                 socket.emit('tagBanStateUpdate', {
                     tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
                 });
+
+                // 同步/血战模式：立即把当前状态同步给中途加入的观战者
+                if (room.currentGame.settings?.syncMode) {
+                    const isEnded = p => (
+                        p.guesses.includes('✌') ||
+                        p.guesses.includes('💀') ||
+                        p.guesses.includes('🏳️') ||
+                        p.guesses.includes('👑') ||
+                        p.guesses.includes('🏆')
+                    );
+                    const syncPlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected && !isEnded(p));
+                    const syncStatus = syncPlayers.map(p => ({
+                        id: p.id,
+                        username: p.username,
+                        completed: room.currentGame.syncPlayersCompleted ? room.currentGame.syncPlayersCompleted.has(p.id) : false
+                    }));
+                    socket.emit('syncWaiting', {
+                        round: room.currentGame.syncRound,
+                        syncStatus,
+                        completedCount: syncStatus.filter(s => s.completed).length,
+                        totalCount: syncStatus.length
+                    });
+                    if (room.currentGame.syncWinnerFound && !room.currentGame.settings?.nonstopMode) {
+                        socket.emit('syncGameEnding', {
+                            winnerUsername: room.currentGame.syncWinner?.username,
+                            message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
+                        });
+                    }
+                }
+
+                if (room.currentGame.settings?.nonstopMode) {
+                    const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
+                    const remainingPlayers = activePlayers.filter(p => 
+                        !p.guesses.includes('✌') &&
+                        !p.guesses.includes('💀') &&
+                        !p.guesses.includes('🏳️') &&
+                        !p.guesses.includes('👑') &&
+                        !p.guesses.includes('🏆')
+                    );
+                    socket.emit('nonstopProgress', {
+                        winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({ username: w.username, rank: idx + 1, score: w.score })),
+                        remainingCount: remainingPlayers.length,
+                        totalCount: activePlayers.length
+                    });
+                }
             }
     
             console.log(`${username} joined room ${roomId}`);
@@ -1114,6 +1298,7 @@ function setupSocket(io, rooms) {
                 character, // 存储加密的角色信息（供后加入的玩家使用）
                 settings,
                 guesses: [], // 初始化猜测记录数组
+                teamGuesses: {}, // 团队共享的猜测记录字符串（按 teamId 存储）
                 hints: null, // 提示信息（如果使用）
                 // 同步模式状态
                 syncRound: 1, // 当前同步轮次，从第一轮开始
@@ -1139,6 +1324,15 @@ function setupSocket(io, rooms) {
                     room.currentGame.guesses.push({username: p.username, guesses: []});
                 }
             });
+            // Initialize team shared guess strings
+            if (room.currentGame) {
+                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                room.players.forEach(p => {
+                    if (p.team && p.team !== '0' && !(p.team in room.currentGame.teamGuesses)) {
+                        room.currentGame.teamGuesses[p.team] = '';
+                    }
+                });
+            }
     
             // Broadcast game start and updated players to all clients in the room in a single event
             io.to(roomId).emit('gameStart', {
@@ -1178,23 +1372,54 @@ function setupSocket(io, rooms) {
                 socket.emit('error', {message: 'playerGuess: 连接中断了'});
                 return;
             }
+
+            // Prevent ended players (including team winners) and spectators from guessing
+            const hasEnded = player.guesses.includes('✌') || player.guesses.includes('👑') || player.guesses.includes('💀') || player.guesses.includes('🏳️') || player.guesses.includes('🏆');
+            if (player.team === '0') {
+                socket.emit('error', { message: 'playerGuess: 观战中不能猜测' });
+                return;
+            }
+            if (hasEnded) {
+                socket.emit('error', { message: 'playerGuess: 你已结束本轮，无法继续猜测' });
+                return;
+            }
     
+            // Reject guesses from spectators
+            if (player.team === '0') {
+                socket.emit('error', { message: 'playerGuess: 观战中不能猜测' });
+                return;
+            }
+
             // Store guess in the player's guesses array using their username
             if (room.currentGame) {
                 const playerGuesses = room.currentGame.guesses.find(g => g.username === player.username);
                 if (playerGuesses) {
-                    playerGuesses.guesses.push({
+                    const guessEntry = {
                         playerId: socket.id,
                         playerName: player.username,
                         ...guessResult
-                    });
-    
-                    // Send real-time guess history update to the original answer setter and team 0 members
-                    // room.players.filter(p => (p.isAnswerSetter || p.team === '0') && p.id !== socket.id)
-                    room.players.forEach(teammate => {
-                        io.to(teammate.id).emit('guessHistoryUpdate', {
-                            guesses: room.currentGame.guesses
+                    };
+                    playerGuesses.guesses.push(guessEntry);
+
+                    // If player is on a team, also append the same guess entry to teammates' guess arrays
+                    if (player.team && player.team !== '0') {
+                        room.currentGame.guesses.forEach(pg => {
+                            if (pg.username !== player.username) {
+                                const teammatePlayer = room.players.find(p => p.username === pg.username && p.team === player.team);
+                                if (teammatePlayer) {
+                                    pg.guesses.push({ ...guessEntry });
+                                }
+                            }
                         });
+                    }
+
+                    // Send real-time guess history update to answer setter, observers and teammates
+                    room.players.forEach(teammate => {
+                        if (teammate.id !== socket.id && (teammate.isAnswerSetter || teammate.team === '0' || teammate.team === player.team)) {
+                            io.to(teammate.id).emit('guessHistoryUpdate', {
+                                guesses: room.currentGame.guesses
+                            });
+                        }
                     });
                 }
             }
@@ -1224,18 +1449,70 @@ function setupSocket(io, rooms) {
                 });
             }
     
-            // Update player's guesses string
+            // Update player's guesses string (team members share the same guess string)
             // 作品分(💡)仅记录，计分在结算阶段统一处理，避免漏记/重复/同步状态扰动
+            let mark;
             if (!guessResult.isCorrect && guessResult.isPartialCorrect) {
-                player.guesses += '💡';
+                mark = '💡';
             } else {
-                player.guesses += guessResult.isCorrect ? '✔' : '❌';
+                mark = guessResult.isCorrect ? '✔' : '❌';
+            }
+
+            if (player.team && player.team !== '0') {
+                // ensure teamGuesses exists and append mark
+                if (room.currentGame) {
+                    room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                    room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + mark;
+                }
+                // set team members' guesses to the shared team string (including current player)
+                room.players
+                    .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
+                    .forEach(teammate => {
+                        if (room.currentGame) {
+                            teammate.guesses = room.currentGame.teamGuesses[player.team];
+                        }
+                    });
+
+                // 在同步模式下，若团队的有效猜测次数已达最大轮数，立即将整队标记为已结束并禁止继续猜测
+                if (room.currentGame.settings?.syncMode) {
+                    const maxAttempts = room.currentGame.settings?.maxAttempts || 10;
+                    // 统计团队有效尝试次数（去除特殊结尾标记）
+                    const cleanedTeam = String(room.currentGame.teamGuesses[player.team] || '').replace(/[✌👑💀🏳️🏆]/g, '');
+                    const teamAttemptCount = Array.from(cleanedTeam).length;
+                    if (teamAttemptCount >= maxAttempts) {
+                        // 标记队伍中所有活跃成员为完成（追加失败标记，若尚未标记）
+                        room.players
+                            .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
+                            .forEach(teammate => {
+                                const hasEnded = teammate.guesses.includes('✌') || teammate.guesses.includes('👑') || teammate.guesses.includes('🏆') || teammate.guesses.includes('💀') || teammate.guesses.includes('🏳️');
+                                if (!hasEnded) {
+                                    teammate.guesses += '💀';
+                                }
+                                if (room.currentGame.syncPlayersCompleted) {
+                                    room.currentGame.syncPlayersCompleted.add(teammate.id);
+                                }
+                            });
+
+                        // 更新同步进度（会触发轮次推进或结算）
+                        updateSyncProgress(room, roomId, io);
+                    }
+                }
+            } else {
+                player.guesses += mark;
             }
 
             // 同步模式：标记完成并统一更新进度
             if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
                 if (!guessResult.isCorrect) {
                     room.currentGame.syncPlayersCompleted.add(socket.id);
+                    // if team, also mark teammates as completed for this round if appropriate (votes/attempts are shared)
+                    if (player.team && player.team !== '0') {
+                        room.players
+                            .filter(p => p.team === player.team && p.id !== socket.id && !p.isAnswerSetter && !p.disconnected)
+                            .forEach(teammate => {
+                                room.currentGame.syncPlayersCompleted.add(teammate.id);
+                            });
+                    }
                 }
                 updateSyncProgress(room, roomId, io);
             }
@@ -1364,24 +1641,9 @@ function setupSocket(io, rooms) {
                 room.currentGame.syncPlayersCompleted.delete(socket.id);
             }
 
-            // 血战模式：标记同队其他玩家为已完成（自动队伍胜利）
+            // Mark teammates as team winners (automatic team victory)
             if (player.team && player.team !== '0') {
-                room.players
-                    .filter(p => p.team === player.team && p.id !== socket.id && !p.isAnswerSetter && !p.disconnected)
-                    .filter(p => !p.guesses.includes('✌') && !p.guesses.includes('💀') && !p.guesses.includes('🏳️') && !p.guesses.includes('👑') && !p.guesses.includes('🏆'))
-                    .forEach(teammate => {
-                        teammate.guesses += '🏆'; // 队友猜对，标记为队伍胜利
-                        // 从同步等待中移除（如果是同步模式）
-                        if (room.currentGame.syncPlayersCompleted) {
-                            room.currentGame.syncPlayersCompleted.delete(teammate.id);
-                        }
-                        // 通知队友游戏结束
-                        io.to(teammate.id).emit('teamWin', {
-                            winnerName: player.username,
-                            message: `队友 ${player.username} 已猜对！`
-                        });
-                        console.log(`[血战模式] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利`);
-                    });
+                markTeamVictory(room, roomId, player, io);
             }
 
             // 同步+血战：胜者所在队伍本轮视为已完成，不再参与后续轮次
@@ -1540,6 +1802,8 @@ function setupSocket(io, rooms) {
                 }
 
                 // 重置状态
+                // Revert teammates that were temporarily set as observers
+                revertSetterObservers(room, roomId, io);
                 room.players.forEach(p => {
                     p.isAnswerSetter = false;
                 });
@@ -1597,22 +1861,7 @@ function setupSocket(io, rooms) {
                     }
                     // 非血战模式下，一人猜对后同队队友也标记为队伍胜利
                     if (!room.currentGame?.settings?.nonstopMode && player.team && player.team !== '0') {
-                        room.players
-                            .filter(p => p.team === player.team && p.id !== player.id && !p.isAnswerSetter && !p.disconnected)
-                            .filter(p => !p.guesses.includes('✌') && !p.guesses.includes('💀') && !p.guesses.includes('🏳️') && !p.guesses.includes('👑') && !p.guesses.includes('🏆'))
-                            .forEach(teammate => {
-                                teammate.guesses += '🏆';
-                                // 从同步等待中移除
-                                if (room.currentGame?.syncPlayersCompleted) {
-                                    room.currentGame.syncPlayersCompleted.delete(teammate.id);
-                                }
-                                // 通知队友游戏结束
-                                io.to(teammate.id).emit('teamWin', {
-                                    winnerName: player.username,
-                                    message: `队友 ${player.username} 已猜对！`
-                                });
-                                console.log(`[普通/同步模式] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利`);
-                            });
+                        markTeamVictory(room, roomId, player, io);
                     }
                     break;
                 case 'bigwin':
@@ -1632,33 +1881,22 @@ function setupSocket(io, rooms) {
                     }
                     // 非血战模式下，一人猜对后同队队友也标记为队伍胜利
                     if (!room.currentGame?.settings?.nonstopMode && player.team && player.team !== '0') {
-                        room.players
-                            .filter(p => p.team === player.team && p.id !== player.id && !p.isAnswerSetter && !p.disconnected)
-                            .filter(p => !p.guesses.includes('✌') && !p.guesses.includes('💀') && !p.guesses.includes('🏳️') && !p.guesses.includes('👑') && !p.guesses.includes('🏆'))
-                            .forEach(teammate => {
-                                teammate.guesses += '🏆';
-                                // 从同步等待中移除
-                                if (room.currentGame?.syncPlayersCompleted) {
-                                    room.currentGame.syncPlayersCompleted.delete(teammate.id);
-                                }
-                                // 通知队友游戏结束
-                                io.to(teammate.id).emit('teamWin', {
-                                    winnerName: player.username,
-                                    message: `队友 ${player.username} 已猜对！`
-                                });
-                                console.log(`[普通/同步模式] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利`);
-                            });
+                        markTeamVictory(room, roomId, player, io);
                     }
                     break;
                 default:
                     player.guesses += '💀';
-                    if (player.team !== null && player.team !== '0') {
-                        room.players
-                            .filter(p => p.team === player.team && p.id !== player.id && !p.isAnswerSetter)
-                            .forEach(teammate => {
-                                teammate.guesses += '💀';
-                            });
-                    }
+                        if (player.team !== null && player.team !== '0') {
+                            if (room.currentGame) {
+                                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                                room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '💀';
+                                room.players
+                                    .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
+                                    .forEach(teammate => {
+                                        teammate.guesses = room.currentGame.teamGuesses[player.team];
+                                    });
+                            }
+                        }
             }
 
             // 仅同步模式（非血战）：有人猜对后，标记游戏即将结束，等待本轮完成
@@ -1796,6 +2034,8 @@ function setupSocket(io, rooms) {
                         });
                     }
 
+                    // Revert teammates that were temporarily set as observers
+                    revertSetterObservers(room, roomId, io);
                     room.players.forEach(p => {
                         p.isAnswerSetter = false;
                     });
@@ -1935,6 +2175,18 @@ function setupSocket(io, rooms) {
                         //     disconnectedPlayer.disconnected = true;
                         // }
                         disconnectedPlayer.disconnected = true;
+
+                        // If the disconnected player was the designated answer setter waiting to set the answer,
+                        // clear the waiting state so the room won't be blocked.
+                        if (room.answerSetterId && room.answerSetterId === disconnectedPlayer.id) {
+                            room.answerSetterId = null;
+                            room.waitingForAnswer = false;
+                            // revert any teammates that were set to observers due to setter selection
+                            revertSetterObservers(room, roomId, io);
+                            io.to(roomId).emit('waitForAnswerCanceled', { message: `指定的出题人 ${disconnectedPlayer.username} 已离开，等待被取消` });
+                            console.log(`[INFO] 指定出题人 ${disconnectedPlayer.username} 在房间 ${roomId} 离开，已取消等待状态`);
+                        }
+
                         // Update player list for remaining players
                         io.to(roomId).emit('updatePlayers', {
                             players: room.players
@@ -1981,6 +2233,15 @@ function setupSocket(io, rooms) {
                                 winnerScoreResults: {},
                                 partialAwardees,
                                 players: room.players
+                            });
+
+                            // 清理中途加入标记：使其在下一局需要显式准备（避免下一局自动开始且该玩家未准备）
+                            room.players.forEach(p => {
+                                if (p.joinedDuringGame) {
+                                    p.joinedDuringGame = false;
+                                    p.team = null;
+                                    p.ready = false;
+                                }
                             });
                             
                             if (answerSetter) {
@@ -2157,12 +2418,9 @@ function setupSocket(io, rooms) {
             room.answerSetterId = setterId;
             room.waitingForAnswer = true;
     
-            // Notify all players in the room about the update
-            io.to(roomId).emit('updatePlayers', {
-                players: room.players,
-                isPublic: room.isPublic,
-                answerSetterId: setterId
-            });
+            // Make the setter's teammates observers from the setter's vantage
+            applySetterObservers(room, roomId, setterId, io);
+
     
             // Emit waitForAnswer event
             io.to(roomId).emit('waitForAnswer', {
@@ -2211,6 +2469,16 @@ function setupSocket(io, rooms) {
     
             // 保存玩家信息用于通知
             const kickedPlayerUsername = playerToKick.username;
+
+            // If the kicked player was the designated answer setter waiting to set the answer, clear waiting state
+            if (room.answerSetterId && room.answerSetterId === playerToKick.id) {
+                room.answerSetterId = null;
+                room.waitingForAnswer = false;
+                // revert teammates temporarily set to observers
+                revertSetterObservers(room, roomId, io);
+                io.to(roomId).emit('waitForAnswerCanceled', { message: `指定的出题人 ${kickedPlayerUsername} 已被踢出，等待已取消` });
+                console.log(`[INFO] 被踢的指定出题人 ${kickedPlayerUsername} 在房间 ${roomId}，已取消等待状态`);
+            }
             
             // 从房间中移除玩家前先通知被踢玩家
             io.to(playerId).emit('playerKicked', {
@@ -2281,6 +2549,7 @@ function setupSocket(io, rooms) {
                 character, // store encrypted character for late joiners
                 settings: room.settings,
                 guesses: [], // Initialize guesses as an array of objects
+                teamGuesses: {}, // Team shared guess strings by teamId
                 hints: hints || null,
                 // 同步模式状态
                 syncRound: 1, // 当前同步轮次，从第一轮开始
@@ -2298,6 +2567,9 @@ function setupSocket(io, rooms) {
                 tagBanStatePending: []
             };
 
+            // Make teammates observers from the setter's vantage before reset
+            applySetterObservers(room, roomId, room.answerSetterId, io);
+
             // Reset all players' game state and mark the answer setter
             room.players.forEach(p => {
                 p.guesses = '';
@@ -2307,6 +2579,15 @@ function setupSocket(io, rooms) {
                     room.currentGame.guesses.push({username: p.username, guesses: []});
                 }
             });
+            // Initialize team shared guess strings
+            if (room.currentGame) {
+                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                room.players.forEach(p => {
+                    if (p.team && p.team !== '0' && !(p.team in room.currentGame.teamGuesses)) {
+                        room.currentGame.teamGuesses[p.team] = '';
+                    }
+                });
+            }
     
             // Reset room state
             room.waitingForAnswer = false;
@@ -2316,8 +2597,26 @@ function setupSocket(io, rooms) {
             socket.emit('guessHistoryUpdate', {
                 guesses: room.currentGame.guesses
             });
-    
-            // Broadcast game start to all clients in the room
+
+            if (room.currentGame.settings?.syncMode) {
+                updateSyncProgress(room, roomId, io);
+            }
+            if (room.currentGame.settings?.nonstopMode) {
+                const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
+                const remainingPlayers = activePlayers.filter(p => 
+                    !p.guesses.includes('✌') &&
+                    !p.guesses.includes('💀') &&
+                    !p.guesses.includes('🏳️') &&
+                    !p.guesses.includes('👑') &&
+                    !p.guesses.includes('🏆')
+                );
+                io.to(roomId).emit('nonstopProgress', {
+                    winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({ username: w.username, rank: idx + 1, score: w.score })),
+                    remainingCount: remainingPlayers.length,
+                    totalCount: activePlayers.length
+                });
+            }
+
             io.to(roomId).emit('gameStart', {
                 character,
                 settings: room.settings,

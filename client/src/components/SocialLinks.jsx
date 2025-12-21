@@ -1,6 +1,6 @@
 import '../styles/social.css';
 
-function SocialLinks({ onSettingsClick, onHelpClick }) {
+function SocialLinks({ onSettingsClick, onHelpClick, onFeedbackClick, showFeedbackInline = false }) {
   return (
     <div className="social-links">
       <div className="difficulty-hint">
@@ -16,6 +16,18 @@ function SocialLinks({ onSettingsClick, onHelpClick }) {
       <button className="social-link help-button" onClick={onHelpClick}>
         <i className="fas fa-question-circle"></i>
       </button>
+
+      {/* Inline feedback button for small screens; shown only when requested */}
+      {showFeedbackInline && (
+        <button
+          className="social-link inline-feedback-button"
+          title="Bug/标签反馈"
+          onClick={onFeedbackClick}
+        >
+          🐞
+        </button>
+      )}
+
       <a href="https://bangumi.tv/user/725027" target="_blank" rel="noopener noreferrer" className="social-link">
         <img src="https://avatars.githubusercontent.com/u/7521082?s=200&v=4" alt="Bangumi" className="bangumi-icon" />
       </a>

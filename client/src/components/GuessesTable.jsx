@@ -111,10 +111,10 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
         <tbody>
           {displayGuesses.map((guess, guessIndex) => (
             <tr key={guessIndex}>
-              <td>
+              <td data-label="头像" className="cell-icon">
                 <Image src={guess.icon} alt="character" className="character-icon" />
               </td>
-              <td>
+              <td data-label="名字" className="cell-name">
                 <div className={`character-name-container ${guess.isAnswer ? 'correct' : ''}`}>
                   {guess.guessrName && (
                     <div className="character-guessr-name" style={{ fontSize: '12px', color: '#888' }}>
@@ -125,13 +125,13 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
                   <div className="character-name-cn">{guess.nameCn}</div>
                 </div>
               </td>
-              <td>
+              <td data-label="性别" className="cell-gender">
                 <span className={`feedback-cell ${guess.genderFeedback === 'yes' ? 'correct' : ''}`}>
                   {getGenderEmoji(guess.gender)}
                 </span>
               </td>
               {externalTagMode ? (
-                <td>
+                <td data-label="外部标签" className="cell-modified">
                   <ModifiedTagDisplay 
                     guessCharacter={guess} 
                     answerCharacter={answerCharacter}
@@ -139,12 +139,12 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
                 </td>
               ) : (
                 <>
-                  <td>
+                  <td data-label="热度" className="cell-popularity">
                     <span className={`feedback-cell ${guess.popularityFeedback === '=' ? 'correct' : (guess.popularityFeedback === '+' || guess.popularityFeedback === '-') ? 'partial' : ''}`}>
                       {guess.popularity}{(guess.popularityFeedback === '+' || guess.popularityFeedback === '++') ? ' ↓' : (guess.popularityFeedback === '-' || guess.popularityFeedback === '--') ? ' ↑' : ''}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="作品/最高分" className="cell-works">
                     <div className="appearance-container">
                       <div className={`feedback-cell appearance-count ${guess.appearancesCountFeedback === '=' ? 'correct' : (guess.appearancesCountFeedback === '+' || guess.appearancesCountFeedback === '-') ? 'partial' : guess.appearancesCountFeedback === '?' ? 'unknown' : ''}`}>
                         {guess.appearancesCount}{(guess.appearancesCountFeedback === '+' || guess.appearancesCountFeedback === '++') ? ' ↓' : (guess.appearancesCountFeedback === '-' || guess.appearancesCountFeedback === '--') ? ' ↑' : ''}
@@ -154,7 +154,7 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
                       </div>
                     </div>
                   </td>
-                  <td>
+                  <td data-label="最晚/最早登场" className="cell-appearance">
                     <div className="appearance-container">
                       <div className={`feedback-cell latestAppearance ${guess.latestAppearanceFeedback === '=' ? 'correct' : (guess.latestAppearanceFeedback === '+' || guess.latestAppearanceFeedback === '-') ? 'partial' : guess.latestAppearanceFeedback === '?' ? 'unknown' : ''}`}>
                         {guess.latestAppearance === -1 ? '无' : guess.latestAppearance}{(guess.latestAppearanceFeedback === '+' || guess.latestAppearanceFeedback === '++') ? ' ↓' : (guess.latestAppearanceFeedback === '-' || guess.latestAppearanceFeedback === '--') ? ' ↑' : ''}
@@ -166,7 +166,7 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
                   </td>
                 </>
               )}
-              <td>
+              <td data-label="标签" className="cell-tags">
                 <div className="meta-tags-container">
                   {guess.metaTags.map((tag, tagIndex) => {
                     const isExpandTag = tag === '展开';
@@ -188,7 +188,7 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
                   })}
                 </div>
               </td>
-              <td>
+              <td data-label="共同出演" className="cell-coappearances">
                 <span className={`shared-appearances ${guess.sharedAppearances.count > 0 ? 'has-shared' : ''}`}>
                   {guess.sharedAppearances.first}
                   {guess.sharedAppearances.count > 1 && ` +${guess.sharedAppearances.count - 1}`}
@@ -198,6 +198,97 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
           ))}
         </tbody>
       </table>
+
+      {/* Mobile-friendly list: shown on small screens */}
+      <div className="guesses-list" aria-hidden="false">
+        {displayGuesses.map((guess, idx) => (
+          <div key={idx} className={`guess-card ${guess.isAnswer ? 'correct' : ''}`}>
+            <div className="guess-card-header">
+              <Image src={guess.icon} alt="character" className="character-icon" />
+              <div className="guess-card-names">
+                {guess.guessrName && (
+                  <div className="character-guessr-name" style={{ fontSize: '12px', color: '#888' }}>
+                    来自：{showNames ? guess.guessrName : '玩家'}
+                  </div>
+                )}
+                <div className="character-name">{guess.name}</div>
+                <div className="character-name-cn">{guess.nameCn}</div>
+              </div>
+              <div className="guess-card-gender">{getGenderEmoji(guess.gender)}</div>
+            </div>
+
+            <div className="guess-card-row">
+              <div className="label">热度</div>
+              <div className="value">
+                <span className={`feedback-cell ${guess.popularityFeedback === '=' ? 'correct' : (guess.popularityFeedback === '+' || guess.popularityFeedback === '-') ? 'partial' : ''}`}>
+                  {guess.popularity}{(guess.popularityFeedback === '+' || guess.popularityFeedback === '++') ? ' ↓' : (guess.popularityFeedback === '-' || guess.popularityFeedback === '--') ? ' ↑' : ''}
+                </span>
+              </div>
+            </div>
+
+            <div className="guess-card-row">
+              <div className="label">作品 / 最高分</div>
+              <div className="value">
+                <div style={{display: 'flex', gap: '8px', justifyContent: 'flex-end'}}>
+                  <div className={`feedback-cell appearance-count ${guess.appearancesCountFeedback === '=' ? 'correct' : (guess.appearancesCountFeedback === '+' || guess.appearancesCountFeedback === '-') ? 'partial' : guess.appearancesCountFeedback === '?' ? 'unknown' : ''}`}>
+                    {guess.appearancesCount}{(guess.appearancesCountFeedback === '+' || guess.appearancesCountFeedback === '++') ? ' ↓' : (guess.appearancesCountFeedback === '-' || guess.appearancesCountFeedback === '--') ? ' ↑' : ''}
+                  </div>
+                  <div className={`feedback-cell appearance-rating ${guess.ratingFeedback === '=' ? 'correct' : (guess.ratingFeedback === '+' || guess.ratingFeedback === '-') ? 'partial' : guess.ratingFeedback === '?' ? 'unknown' : ''}`}>
+                    {guess.highestRating === -1 ? '无' : guess.highestRating}{(guess.ratingFeedback === '+' || guess.ratingFeedback === '++') ? ' ↓' : (guess.ratingFeedback === '-' || guess.ratingFeedback === '--') ? ' ↑' : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="guess-card-row">
+              <div className="label">登场（晚 / 早）</div>
+              <div className="value">
+                <div style={{display: 'flex', gap: '6px', justifyContent: 'flex-end'}}>
+                  <div className={`feedback-cell latestAppearance ${guess.latestAppearanceFeedback === '=' ? 'correct' : (guess.latestAppearanceFeedback === '+' || guess.latestAppearanceFeedback === '-') ? 'partial' : guess.latestAppearanceFeedback === '?' ? 'unknown' : ''}`}>
+                    {guess.latestAppearance === -1 ? '无' : guess.latestAppearance}{(guess.latestAppearanceFeedback === '+' || guess.latestAppearanceFeedback === '++') ? ' ↓' : (guess.latestAppearanceFeedback === '-' || guess.latestAppearanceFeedback === '--') ? ' ↑' : ''}
+                  </div>
+                  <div className={`feedback-cell earliestAppearance ${guess.earliestAppearanceFeedback === '=' ? 'correct' : (guess.earliestAppearanceFeedback === '+' || guess.earliestAppearanceFeedback === '-') ? 'partial' : guess.earliestAppearanceFeedback === '?' ? 'unknown' : ''}`}>
+                    {guess.earliestAppearance === -1 ? '无' : guess.earliestAppearance}{(guess.earliestAppearanceFeedback === '+' || guess.earliestAppearanceFeedback === '++') ? ' ↓' : (guess.earliestAppearanceFeedback === '-' || guess.earliestAppearanceFeedback === '--') ? ' ↑' : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="guess-card-tags">
+              <div className="meta-tags-container" aria-label="标签">
+                {guess.metaTags.map((tag, tagIndex) => {
+                  const isExpandTag = tag === '展开';
+                  const tagKey = `${idx}-${tagIndex}`;
+                  const isClicked = clickedExpandTags.has(tagKey);
+                  const isSharedTag = Array.isArray(guess.sharedMetaTags) && guess.sharedMetaTags.includes(tag);
+                  const isBanned = bannedTagSet.has(tag);
+
+                  return (
+                    <span
+                      key={tagIndex}
+                      className={`meta-tag ${isSharedTag && !isBanned ? 'shared' : ''} ${isBanned ? 'banned-tag' : ''} ${isExpandTag ? 'expand-tag' : ''}`}
+                      onClick={isExpandTag ? () => handleExpandTagClick(idx, tagIndex) : undefined}
+                      style={isExpandTag && !isClicked ? { color: '#0084B4', cursor: 'pointer' } : undefined}
+                    >
+                      {isBanned ? '???' : tag}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="guess-card-row" style={{marginTop: 8}}>
+              <div className="label">共同出演</div>
+              <div className="value" style={{minWidth: 0}}>
+                <span className={`shared-appearances ${guess.sharedAppearances.count > 0 ? 'has-shared' : ''}`}>
+                  {guess.sharedAppearances.first}
+                  {guess.sharedAppearances.count > 1 && ` +${guess.sharedAppearances.count - 1}`}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

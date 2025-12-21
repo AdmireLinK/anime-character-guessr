@@ -720,7 +720,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                     </div>
                 </div>
 
-                <div className="setting-item-compact" style={{ marginLeft: '30.4px', gap: '16px' }}>
+                <div className="setting-item-compact offset-md" style={{ gap: '16px' }}>
                     <label className="settings-label" title="使用年榜时会先抽取某一年份，再从中抽取作品。&#10;削弱了新番热度的影响。&#10;利好老二次元！&#10;开启目录时不可用">热度范围</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div className="toggle-text-switch">
@@ -760,7 +760,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
 
               {/* Row 3: Character Count, Tag Count */}
               <div className="settings-row compact-row">
-                <div className="setting-item-compact" style={{ gap: '12px', alignItems: 'center' }}>
+                <div className="setting-item-compact" style={{ gap: '10px', alignItems: 'center' }}>
                     <label className="settings-label"  title="作品中至少有多少名角色，设为0或留空时仅包含主角">角色数量</label>
                     <div className="compact-input-container" title="数值范围 >=0" style={{ minWidth: '90px' }}>
                         <input 
@@ -788,7 +788,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                 </div>
               {/* </div>
               <div className="settings-row compact-row"> */}
-                <div className="setting-item-compact" style={{ marginLeft: '5.4px', gap: '16px' }}>
+                <div className="setting-item-compact offset-sm" style={{ gap: '16px' }}>
                     <label className="settings-label" title="猜测时显示的来自作品和角色的标签数量">标签数量</label>
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -835,7 +835,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                     </div>
                 </div>
 
-                <div className="setting-item-compact" style={{ flex: 1, marginLeft: '60.8px', gap: '16px' }}>
+                <div className="setting-item-compact offset-lg" style={{ flex: 1, gap: '16px' }}>
                     <label className="settings-label" style={{ whiteSpace: 'nowrap' }}>额外作品</label>
                     <div className="search-container-compact" ref={searchContainerRef} >
                             <input 

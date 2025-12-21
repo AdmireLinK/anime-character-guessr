@@ -347,14 +347,6 @@ function SinglePlayer() {
     <div className="single-player-container">
       <button
         type="button"
-        className="social-link floating-back-button"
-        title="Back"
-        onClick={() => navigate('/')}
-      >
-        &larr;
-      </button>
-      <button
-        type="button"
         className="social-link floating-feedback-button"
         title="Bug/标签反馈"
         onClick={() => setShowFeedbackPopup(true)}
@@ -365,6 +357,8 @@ function SinglePlayer() {
       <SocialLinks
         onSettingsClick={() => setSettingsPopup(true)}
         onHelpClick={() => setHelpPopup(true)}
+        onFeedbackClick={() => setShowFeedbackPopup(true)}
+        showFeedbackInline={true}
       />
 
       <div className="search-bar">

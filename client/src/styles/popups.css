@@ -95,7 +95,10 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  /* allow inner scrolling when content is tall (mobile friendliness) */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 8px; /* give room for scrollbar without overlapping content */
 }
 
 /* Settings Popup Styles */
@@ -788,9 +791,32 @@
 
   .tags-container {
     justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap; /* allow tags to wrap to multiple lines */
+  }
+
+  /* Ensure tags section can fully expand on small screens instead of being clipped */
+  .answer-tags {
+    max-height: none;
+    overflow: visible;
+    padding-bottom: 6px;
+  }
+
+  /* popup body scrollbar styling */
+  .popup-body::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .popup-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+  }
+
+  .popup-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 6px;
   }
 }
-
 @media (prefers-color-scheme: dark) {
   .settings-row input[type="number"],
   .settings-row input[type="text"],

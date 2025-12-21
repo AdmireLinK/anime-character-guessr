@@ -527,6 +527,44 @@
     gap: 8px;
 }
 
+/* Responsive adjustments: stack compact rows on small screens and remove fixed offsets */
+@media (max-width: 899px) {
+    .settings-row.compact-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .settings-row.compact-row .setting-item-compact {
+        width: 100%;
+        margin-left: 0 !important;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .settings-row.compact-row .setting-item-compact .settings-label {
+        min-width: 0;
+        width: 100%;
+        margin-bottom: 6px;
+    }
+
+    .settings-row.compact-row .setting-item-compact .compact-input-container,
+    .settings-row.compact-row .setting-item-compact .large-input,
+    .settings-row.compact-row .setting-item-compact select,
+    .settings-row.compact-row .setting-item-compact input[type="number"],
+    .settings-row.compact-row .setting-item-compact .search-container-compact {
+        width: 100% !important;
+        max-width: none;
+    }
+}
+
+@media (min-width: 900px) {
+    .settings-row.compact-row .setting-item-compact.offset-md { margin-left: 30.4px; }
+    .settings-row.compact-row .setting-item-compact.offset-sm { margin-left: 11.8px; }
+    .settings-row.compact-row .setting-item-compact.offset-lg { margin-left: 60.8px; }
+}
+
 /* Combined Display Area for Catalog & Extra Subjects */
 .combined-display-area {
     box-sizing: border-box;
