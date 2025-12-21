@@ -323,6 +323,24 @@ const Multiplayer = () => {
 
     newSocket.on('guessHistoryUpdate', ({ guesses }) => {
       setGuessesHistory(guesses);
+
+      // Sync guessesLeft from server history to prevent double deduction
+      const currentPlayer = latestPlayersRef.current.find(p => p.id === newSocket.id);
+      if (currentPlayer && !currentPlayer.isAnswerSetter && currentPlayer.team !== '0') {
+        const myHistory = guesses.find(g => g.username === currentPlayer.username);
+        if (myHistory) {
+          const used = myHistory.guesses.length;
+          const max = gameSettingsRef.current?.maxAttempts || 10;
+          const left = Math.max(0, max - used);
+          setGuessesLeft(left);
+          
+          if (left <= 0) {
+            setTimeout(() => {
+              handleGameEnd(false);
+            }, 100);
+          }
+        }
+      }
     });
 
     newSocket.on('roomClosed', ({ message }) => {
@@ -444,15 +462,7 @@ const Multiplayer = () => {
         const isAnswerSetterPlayer = currentPlayer?.isAnswerSetter;
         
         if (!isObserver && !isAnswerSetterPlayer) {
-          setGuessesLeft(prev => {
-            const newGuessesLeft = prev - 1;
-            if (newGuessesLeft <= 0) {
-              setTimeout(() => {
-                handleGameEnd(false);
-              }, 100);
-            }
-            return newGuessesLeft;
-          });
+          // guessesLeft is synced via guessHistoryUpdate
           setShouldResetTimer(true);
           setTimeout(() => setShouldResetTimer(false), 100);
         }
