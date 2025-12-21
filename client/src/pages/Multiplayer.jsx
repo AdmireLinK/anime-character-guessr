@@ -154,6 +154,11 @@ const Multiplayer = () => {
       if (answerSetterId !== undefined) {
         setAnswerSetterId(answerSetterId);
       }
+      // Sync isHost state from player list to ensure correctness
+      const me = players.find(p => p.id === newSocket.id);
+      if (me) {
+        setIsHost(me.isHost);
+      }
     });
 
     newSocket.on('roomNameUpdated', ({ roomName: updatedRoomName }) => {
@@ -163,6 +168,9 @@ const Multiplayer = () => {
     newSocket.on('waitForAnswer', ({ answerSetterId }) => {
       setWaitingForAnswer(true);
       setIsManualMode(false);
+      if (answerSetterId) {
+        setAnswerSetterId(answerSetterId);
+      }
       // Show popup if current user is the answer setter
       if (answerSetterId === newSocket.id) {
         setShowSetAnswerPopup(true);
@@ -478,6 +486,13 @@ const Multiplayer = () => {
       setBannedSharedTags([]);
     };
   }, [navigate]);
+
+  useEffect(() => {
+    // If user is no longer host, ensure manual mode is disabled
+    if (!isHost && isManualMode) {
+      setIsManualMode(false);
+    }
+  }, [isHost, isManualMode]);
 
   useEffect(() => {
     if (!roomId) {

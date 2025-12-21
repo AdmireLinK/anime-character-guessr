@@ -200,7 +200,8 @@ function applySetterObservers(room, roomId, setterId, io) {
         }
     });
 
-    io.to(roomId).emit('updatePlayers', { players: room.players });
+    io.to(roomId).emit('updatePlayers', { players: room.players,
+                    answerSetterId: room.answerSetterId });
 }
 
 function revertSetterObservers(room, roomId, io) {
@@ -240,8 +241,10 @@ function markTeamVictory(room, roomId, player, io) {
         if (!teammate.guesses.includes('🏆')) {
             teammate.guesses += '🏆';
         }
-        // set teammate to observer to prevent further guessing
+        // set teammate to observer to prevent further guessing, but mark as temp so it can be reverted
+        if (teammate._prevTeam === undefined) teammate._prevTeam = teammate.team;
         teammate.team = '0';
+        teammate._tempObserver = true;
         teammate.ready = false;
         if (room.currentGame.syncPlayersCompleted) {
             room.currentGame.syncPlayersCompleted.delete(teammate.id);
@@ -253,9 +256,11 @@ function markTeamVictory(room, roomId, player, io) {
         console.log(`[TEAM WIN] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利并设为观战`);
     });
 
-    // Also set the winner to observer (consistent behavior)
+    // Also set the winner to observer (consistent behavior), mark as temp
     if (player && (!player.team || player.team !== '0')) {
+        if (player._prevTeam === undefined) player._prevTeam = player.team;
         player.team = '0';
+        player._tempObserver = true;
         player.ready = false;
     }
 
@@ -997,9 +1002,10 @@ function setupSocket(io, rooms) {
                     
                     // Send updated player list to all clients in room
                     io.to(roomId).emit('updatePlayers', {
-                        players: room.players,
-                        isPublic: room.isPublic
-                    });
+                    players: room.players,
+                    isPublic: room.isPublic,
+                    answerSetterId: room.answerSetterId
+                });
                     socket.emit('roomNameUpdated', {
                         roomName: room.roomName || ''
                     });
@@ -1106,9 +1112,10 @@ function setupSocket(io, rooms) {
     
             // Send updated player list to all clients in room
             io.to(roomId).emit('updatePlayers', {
-                players: room.players,
-                isPublic: room.isPublic
-            });
+                    players: room.players,
+                    isPublic: room.isPublic,
+                    answerSetterId: room.answerSetterId
+                });
             socket.emit('roomNameUpdated', {
                 roomName: room.roomName || ''
             });
@@ -1212,7 +1219,8 @@ function setupSocket(io, rooms) {
     
             // Notify all players in the room about the update
             io.to(roomId).emit('updatePlayers', {
-                players: room.players
+                players: room.players,
+                answerSetterId: room.answerSetterId
             });
     
             console.log(`Player ${player.username} ${player.ready ? 'is now ready' : 'is no longer ready'} in room ${roomId}`);
@@ -2317,7 +2325,8 @@ function setupSocket(io, rooms) {
             // Notify all players in the room about the update
             io.to(roomId).emit('updatePlayers', {
                 players: room.players,
-                isPublic: room.isPublic
+                isPublic: room.isPublic,
+                answerSetterId: room.answerSetterId
             });
     
             console.log(`Room ${roomId} visibility changed to ${room.isPublic ? 'public' : 'private'}`);
@@ -2414,6 +2423,9 @@ function setupSocket(io, rooms) {
                 return;
             }
     
+            // Revert any previous setter observers (e.g. if changing setter)
+            revertSetterObservers(room, roomId, io);
+
             // Update room state
             room.answerSetterId = setterId;
             room.waitingForAnswer = true;
@@ -2423,12 +2435,19 @@ function setupSocket(io, rooms) {
 
     
             // Emit waitForAnswer event
-            io.to(roomId).emit('waitForAnswer', {
-                answerSetterId: setterId,
-                setterUsername: setter.username
-            });
-    
-            console.log(`Answer setter set to ${setter.username} in room ${roomId}`);
+        io.to(roomId).emit('waitForAnswer', {
+            answerSetterId: setterId,
+            setterUsername: setter.username
+        });
+
+        // Explicitly emit updatePlayers to ensure all clients see the change immediately
+        io.to(roomId).emit('updatePlayers', {
+            players: room.players,
+            isPublic: room.isPublic,
+            answerSetterId: setterId
+        });
+
+        console.log(`Answer setter set to ${setter.username} in room ${roomId}`);
         });
     
         // Handle kicking players from room
@@ -2502,7 +2521,8 @@ function setupSocket(io, rooms) {
                 // 更新玩家列表
                 io.to(roomId).emit('updatePlayers', {
                     players: room.players,
-                    isPublic: room.isPublic
+                    isPublic: room.isPublic,
+                    answerSetterId: room.answerSetterId
                 });
 
                 // 同步模式：从等待队列移除被踢玩家
@@ -2700,7 +2720,8 @@ function setupSocket(io, rooms) {
             // 更新玩家列表
             io.to(roomId).emit('updatePlayers', {
                 players: room.players,
-                isPublic: room.isPublic
+                isPublic: room.isPublic,
+                answerSetterId: room.answerSetterId
             });
     
             console.log(`Host transferred from ${currentHost.username} to ${newHost.username} in room ${roomId}.`);

@@ -56,7 +56,9 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
       return renderStyledSpan('已断开','red');
     }
 
-    if (waitingForAnswer) {
+    // Use answerSetterId prop as the primary source of truth for "waiting for answer" state
+    // This ensures late joiners or refreshed clients see the correct status
+    if ((waitingForAnswer || answerSetterId) && !isGameStarted) {
       if (player.id === answerSetterId) {
         return renderStyledSpan('出题中','orange');
       }
@@ -66,7 +68,7 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
       return renderStyledSpan('已准备','green');
     }
 
-    if (isManualMode && !isGameStarted) {
+    if (isManualMode && !isGameStarted && isHost) {
       if (player.id === answerSetterId) {
         return <button className="ready-button ready">出题中</button>;
       }
