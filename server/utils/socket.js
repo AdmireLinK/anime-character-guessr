@@ -223,7 +223,9 @@ function revertSetterObservers(room, roomId, io) {
 function markTeamVictory(room, roomId, player, io) {
     if (!room || !room.currentGame || !player) return;
     // ensure teamGuesses is updated so later re-joiners can see the team victory
-    room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+    if (room.currentGame) {
+        room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+    }
     const teamId = player.team;
     if (teamId && teamId !== '0') {
         if (!String(room.currentGame.teamGuesses[teamId] || '').includes('🏆')) {
@@ -1032,9 +1034,11 @@ function setupSocket(io, rooms) {
 
                             if (teamGuessesStr.includes('🏆') || teammateHasWin || nonstopTeamWinner) {
                                 // ensure teamGuesses contains the marker
-                                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
-                                if (!String(room.currentGame.teamGuesses[teamId] || '').includes('🏆')) {
-                                    room.currentGame.teamGuesses[teamId] = (room.currentGame.teamGuesses[teamId] || '') + '🏆';
+                                if (room.currentGame) {
+                                    room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                                    if (!String(room.currentGame.teamGuesses[teamId] || '').includes('🏆')) {
+                                        room.currentGame.teamGuesses[teamId] = (room.currentGame.teamGuesses[teamId] || '') + '🏆';
+                                    }
                                 }
 
                                 // backfill player's guesses and remove from sync waiting if present
@@ -1321,12 +1325,14 @@ function setupSocket(io, rooms) {
                 }
             });
             // Initialize team shared guess strings
-            room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
-            room.players.forEach(p => {
-                if (p.team && p.team !== '0' && !(p.team in room.currentGame.teamGuesses)) {
-                    room.currentGame.teamGuesses[p.team] = '';
-                }
-            });
+            if (room.currentGame) {
+                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                room.players.forEach(p => {
+                    if (p.team && p.team !== '0' && !(p.team in room.currentGame.teamGuesses)) {
+                        room.currentGame.teamGuesses[p.team] = '';
+                    }
+                });
+            }
     
             // Broadcast game start and updated players to all clients in the room in a single event
             io.to(roomId).emit('gameStart', {
@@ -1454,13 +1460,17 @@ function setupSocket(io, rooms) {
 
             if (player.team && player.team !== '0') {
                 // ensure teamGuesses exists and append mark
-                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
-                room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + mark;
+                if (room.currentGame) {
+                    room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                    room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + mark;
+                }
                 // set team members' guesses to the shared team string (including current player)
                 room.players
                     .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
                     .forEach(teammate => {
-                        teammate.guesses = room.currentGame.teamGuesses[player.team];
+                        if (room.currentGame) {
+                            teammate.guesses = room.currentGame.teamGuesses[player.team];
+                        }
                     });
 
                 // 在同步模式下，若团队的有效猜测次数已达最大轮数，立即将整队标记为已结束并禁止继续猜测
@@ -1876,15 +1886,17 @@ function setupSocket(io, rooms) {
                     break;
                 default:
                     player.guesses += '💀';
-                    if (player.team !== null && player.team !== '0') {
-                        room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
-                        room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '💀';
-                        room.players
-                            .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
-                            .forEach(teammate => {
-                                teammate.guesses = room.currentGame.teamGuesses[player.team];
-                            });
-                    }
+                        if (player.team !== null && player.team !== '0') {
+                            if (room.currentGame) {
+                                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                                room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '💀';
+                                room.players
+                                    .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
+                                    .forEach(teammate => {
+                                        teammate.guesses = room.currentGame.teamGuesses[player.team];
+                                    });
+                            }
+                        }
             }
 
             // 仅同步模式（非血战）：有人猜对后，标记游戏即将结束，等待本轮完成
@@ -2568,12 +2580,14 @@ function setupSocket(io, rooms) {
                 }
             });
             // Initialize team shared guess strings
-            room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
-            room.players.forEach(p => {
-                if (p.team && p.team !== '0' && !(p.team in room.currentGame.teamGuesses)) {
-                    room.currentGame.teamGuesses[p.team] = '';
-                }
-            });
+            if (room.currentGame) {
+                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                room.players.forEach(p => {
+                    if (p.team && p.team !== '0' && !(p.team in room.currentGame.teamGuesses)) {
+                        room.currentGame.teamGuesses[p.team] = '';
+                    }
+                });
+            }
     
             // Reset room state
             room.waitingForAnswer = false;
