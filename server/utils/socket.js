@@ -200,7 +200,8 @@ function applySetterObservers(room, roomId, setterId, io) {
         }
     });
 
-    io.to(roomId).emit('updatePlayers', { players: room.players });
+    io.to(roomId).emit('updatePlayers', { players: room.players,
+                    answerSetterId: room.answerSetterId });
 }
 
 function revertSetterObservers(room, roomId, io) {
@@ -211,7 +212,7 @@ function revertSetterObservers(room, roomId, io) {
             p.team = (p._prevTeam !== undefined) ? p._prevTeam : null;
             delete p._prevTeam;
             delete p._tempObserver;
-            p.ready = false; // require explicit ready
+            // p.ready = false; // Keep ready status
             changed = true;
         }
     });
@@ -234,15 +235,17 @@ function markTeamVictory(room, roomId, player, io) {
     }
 
     // mark teammates as spectators and winners
-    const teamMembers = room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected);
+    const teamMembers = room.players.filter(p => p.team === player.team && p.id !== player.id && !p.isAnswerSetter && !p.disconnected);
     teamMembers.forEach(teammate => {
         // append 🏆 if not present
         if (!teammate.guesses.includes('🏆')) {
             teammate.guesses += '🏆';
         }
-        // set teammate to observer to prevent further guessing
-        teammate.team = '0';
-        teammate.ready = false;
+        // set teammate to observer to prevent further guessing, but mark as temp so it can be reverted
+        if (teammate._prevTeam === undefined) teammate._prevTeam = teammate.team;
+        // teammate.team = '0'; // Keep original team for scoring
+        teammate._tempObserver = true;
+        // teammate.ready = false; // Keep ready status
         if (room.currentGame.syncPlayersCompleted) {
             room.currentGame.syncPlayersCompleted.delete(teammate.id);
         }
@@ -253,10 +256,15 @@ function markTeamVictory(room, roomId, player, io) {
         console.log(`[TEAM WIN] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利并设为观战`);
     });
 
-    // Also set the winner to observer (consistent behavior)
-    if (player && (!player.team || player.team !== '0')) {
-        player.team = '0';
-        player.ready = false;
+    // Also set the winner to observer (consistent behavior), mark as temp
+    // 只有在非血战模式且开启了同步模式下，才将胜者转为旁观，防止其继续猜测
+    if (!room.currentGame?.settings?.nonstopMode && room.currentGame?.settings?.syncMode) {
+        if (player && (!player.team || player.team !== '0')) {
+            if (player._prevTeam === undefined) player._prevTeam = player.team;
+            // player.team = '0'; // Keep original team for scoring
+            player._tempObserver = true;
+            // player.ready = false; // Keep ready status
+        }
     }
 
     // Broadcast updated player list
@@ -558,7 +566,7 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
         }
     }
 
-    const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0');
+    const activePlayers = room.players.filter(p => !p.isAnswerSetter && (p.team !== '0' || p._tempObserver));
     const allEnded = activePlayers.every(p =>
         p.guesses.includes('✌') ||
         p.guesses.includes('💀') ||
@@ -732,7 +740,7 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
         }
     });
 
-    io.to(roomId).emit('resetReadyStatus');
+    // io.to(roomId).emit('resetReadyStatus'); // Keep ready status
     room.currentGame = null;
     io.to(roomId).emit('updatePlayers', {
         players: room.players,
@@ -756,7 +764,7 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
  */
 function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreResult, winnerScoreResults, nonstopWinners, partialAwardees, isNonstopMode }) {
     const scoreChanges = {};
-    const activePlayers = players.filter(p => !p.isAnswerSetter && p.team !== '0');
+    const activePlayers = players.filter(p => !p.isAnswerSetter && (p.team !== '0' || p._tempObserver));
     
     if (isNonstopMode) {
         // 血战模式：根据 nonstopWinners 列表生成得分
@@ -997,9 +1005,10 @@ function setupSocket(io, rooms) {
                     
                     // Send updated player list to all clients in room
                     io.to(roomId).emit('updatePlayers', {
-                        players: room.players,
-                        isPublic: room.isPublic
-                    });
+                    players: room.players,
+                    isPublic: room.isPublic,
+                    answerSetterId: room.answerSetterId
+                });
                     socket.emit('roomNameUpdated', {
                         roomName: room.roomName || ''
                     });
@@ -1106,9 +1115,10 @@ function setupSocket(io, rooms) {
     
             // Send updated player list to all clients in room
             io.to(roomId).emit('updatePlayers', {
-                players: room.players,
-                isPublic: room.isPublic
-            });
+                    players: room.players,
+                    isPublic: room.isPublic,
+                    answerSetterId: room.answerSetterId
+                });
             socket.emit('roomNameUpdated', {
                 roomName: room.roomName || ''
             });
@@ -1212,7 +1222,8 @@ function setupSocket(io, rooms) {
     
             // Notify all players in the room about the update
             io.to(roomId).emit('updatePlayers', {
-                players: room.players
+                players: room.players,
+                answerSetterId: room.answerSetterId
             });
     
             console.log(`Player ${player.username} ${player.ready ? 'is now ready' : 'is no longer ready'} in room ${roomId}`);
@@ -1859,10 +1870,26 @@ function setupSocket(io, rooms) {
                         };
                         console.log(`[普通模式] 第一个胜者: ${player.username}`);
                     }
-                    // 非血战模式下，一人猜对后同队队友也标记为队伍胜利
-                    if (!room.currentGame?.settings?.nonstopMode && player.team && player.team !== '0') {
-                        markTeamVictory(room, roomId, player, io);
-                    }
+                        // 非血战模式下，一人猜对后同队队友也标记为队伍胜利
+                        if (!room.currentGame?.settings?.nonstopMode) {
+                            // 检查是否所有活跃玩家（非出题人、非旁观）都已经结束
+                            const activePlayers = room.players.filter(p => !p.disconnected && !p.isAnswerSetter && p.team !== '0');
+                            const allEnded = activePlayers.every(p =>
+                                p.guesses.includes('✌') ||
+                                p.guesses.includes('💀') ||
+                                p.guesses.includes('🏳️') ||
+                                p.guesses.includes('👑') ||
+                                p.guesses.includes('🏆')
+                            );
+
+                            if (allEnded) {
+                                // 所有人结束，触发游戏结束
+                                // 这里不显式调用 markTeamVictory，因为 gameEnd 事件会处理
+                            } else if (player.team && player.team !== '0') {
+                                // 队友胜利
+                                markTeamVictory(room, roomId, player, io);
+                            }
+                        }
                     break;
                 case 'bigwin':
                     player.guesses += '👑';
@@ -1879,10 +1906,26 @@ function setupSocket(io, rooms) {
                             console.log(`[普通模式] 本命大赢家: ${player.username}`);
                         }
                     }
-                    // 非血战模式下，一人猜对后同队队友也标记为队伍胜利
-                    if (!room.currentGame?.settings?.nonstopMode && player.team && player.team !== '0') {
-                        markTeamVictory(room, roomId, player, io);
-                    }
+                        // 非血战模式下，一人猜对后同队队友也标记为队伍胜利
+                        if (!room.currentGame?.settings?.nonstopMode) {
+                            // 检查是否所有活跃玩家（非出题人、非旁观）都已经结束
+                            const activePlayers = room.players.filter(p => !p.disconnected && !p.isAnswerSetter && p.team !== '0');
+                            const allEnded = activePlayers.every(p =>
+                                p.guesses.includes('✌') ||
+                                p.guesses.includes('💀') ||
+                                p.guesses.includes('🏳️') ||
+                                p.guesses.includes('👑') ||
+                                p.guesses.includes('🏆')
+                            );
+
+                            if (allEnded) {
+                                // 所有人结束，触发游戏结束
+                                // 这里不显式调用 markTeamVictory，因为 gameEnd 事件会处理
+                            } else if (player.team && player.team !== '0') {
+                                // 队友胜利
+                                markTeamVictory(room, roomId, player, io);
+                            }
+                        }
                     break;
                 default:
                     player.guesses += '💀';
@@ -2317,7 +2360,8 @@ function setupSocket(io, rooms) {
             // Notify all players in the room about the update
             io.to(roomId).emit('updatePlayers', {
                 players: room.players,
-                isPublic: room.isPublic
+                isPublic: room.isPublic,
+                answerSetterId: room.answerSetterId
             });
     
             console.log(`Room ${roomId} visibility changed to ${room.isPublic ? 'public' : 'private'}`);
@@ -2414,6 +2458,9 @@ function setupSocket(io, rooms) {
                 return;
             }
     
+            // Revert any previous setter observers (e.g. if changing setter)
+            revertSetterObservers(room, roomId, io);
+
             // Update room state
             room.answerSetterId = setterId;
             room.waitingForAnswer = true;
@@ -2423,12 +2470,19 @@ function setupSocket(io, rooms) {
 
     
             // Emit waitForAnswer event
-            io.to(roomId).emit('waitForAnswer', {
-                answerSetterId: setterId,
-                setterUsername: setter.username
-            });
-    
-            console.log(`Answer setter set to ${setter.username} in room ${roomId}`);
+        io.to(roomId).emit('waitForAnswer', {
+            answerSetterId: setterId,
+            setterUsername: setter.username
+        });
+
+        // Explicitly emit updatePlayers to ensure all clients see the change immediately
+        io.to(roomId).emit('updatePlayers', {
+            players: room.players,
+            isPublic: room.isPublic,
+            answerSetterId: setterId
+        });
+
+        console.log(`Answer setter set to ${setter.username} in room ${roomId}`);
         });
     
         // Handle kicking players from room
@@ -2502,7 +2556,8 @@ function setupSocket(io, rooms) {
                 // 更新玩家列表
                 io.to(roomId).emit('updatePlayers', {
                     players: room.players,
-                    isPublic: room.isPublic
+                    isPublic: room.isPublic,
+                    answerSetterId: room.answerSetterId
                 });
 
                 // 同步模式：从等待队列移除被踢玩家
@@ -2700,7 +2755,8 @@ function setupSocket(io, rooms) {
             // 更新玩家列表
             io.to(roomId).emit('updatePlayers', {
                 players: room.players,
-                isPublic: room.isPublic
+                isPublic: room.isPublic,
+                answerSetterId: room.answerSetterId
             });
     
             console.log(`Host transferred from ${currentHost.username} to ${newHost.username} in room ${roomId}.`);

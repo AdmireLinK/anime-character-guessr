@@ -154,6 +154,11 @@ const Multiplayer = () => {
       if (answerSetterId !== undefined) {
         setAnswerSetterId(answerSetterId);
       }
+      // Sync isHost state from player list to ensure correctness
+      const me = players.find(p => p.id === newSocket.id);
+      if (me) {
+        setIsHost(me.isHost);
+      }
     });
 
     newSocket.on('roomNameUpdated', ({ roomName: updatedRoomName }) => {
@@ -163,6 +168,9 @@ const Multiplayer = () => {
     newSocket.on('waitForAnswer', ({ answerSetterId }) => {
       setWaitingForAnswer(true);
       setIsManualMode(false);
+      if (answerSetterId) {
+        setAnswerSetterId(answerSetterId);
+      }
       // Show popup if current user is the answer setter
       if (answerSetterId === newSocket.id) {
         setShowSetAnswerPopup(true);
@@ -315,6 +323,24 @@ const Multiplayer = () => {
 
     newSocket.on('guessHistoryUpdate', ({ guesses }) => {
       setGuessesHistory(guesses);
+
+      // Sync guessesLeft from server history to prevent double deduction
+      const currentPlayer = latestPlayersRef.current.find(p => p.id === newSocket.id);
+      if (currentPlayer && !currentPlayer.isAnswerSetter && currentPlayer.team !== '0') {
+        const myHistory = guesses.find(g => g.username === currentPlayer.username);
+        if (myHistory) {
+          const used = myHistory.guesses.length;
+          const max = gameSettingsRef.current?.maxAttempts || 10;
+          const left = Math.max(0, max - used);
+          setGuessesLeft(left);
+          
+          if (left <= 0) {
+            setTimeout(() => {
+              handleGameEnd(false);
+            }, 100);
+          }
+        }
+      }
     });
 
     newSocket.on('roomClosed', ({ message }) => {
@@ -345,6 +371,14 @@ const Multiplayer = () => {
         sessionStorage.removeItem('avatarId');
         sessionStorage.removeItem('avatarImage');
       }
+    });
+
+    newSocket.on('serverShutdown', ({ message }) => {
+      alert(message);
+      setError(message);
+      setIsJoined(false);
+      setGameEnd(true);
+      navigate('/multiplayer');
     });
 
     newSocket.on('updateGameSettings', ({ settings }) => {
@@ -436,15 +470,7 @@ const Multiplayer = () => {
         const isAnswerSetterPlayer = currentPlayer?.isAnswerSetter;
         
         if (!isObserver && !isAnswerSetterPlayer) {
-          setGuessesLeft(prev => {
-            const newGuessesLeft = prev - 1;
-            if (newGuessesLeft <= 0) {
-              setTimeout(() => {
-                handleGameEnd(false);
-              }, 100);
-            }
-            return newGuessesLeft;
-          });
+          // guessesLeft is synced via guessHistoryUpdate
           setShouldResetTimer(true);
           setTimeout(() => setShouldResetTimer(false), 100);
         }
@@ -463,6 +489,7 @@ const Multiplayer = () => {
       newSocket.off('guessHistoryUpdate');
       newSocket.off('roomClosed');
       newSocket.off('error');
+      newSocket.off('serverShutdown');
       newSocket.off('updateGameSettings');
       newSocket.off('gameEnded');
       newSocket.off('resetReadyStatus');
@@ -478,6 +505,13 @@ const Multiplayer = () => {
       setBannedSharedTags([]);
     };
   }, [navigate]);
+
+  useEffect(() => {
+    // If user is no longer host, ensure manual mode is disabled
+    if (!isHost && isManualMode) {
+      setIsManualMode(false);
+    }
+  }, [isHost, isManualMode]);
 
   useEffect(() => {
     if (!roomId) {

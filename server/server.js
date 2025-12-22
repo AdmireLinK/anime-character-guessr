@@ -660,6 +660,38 @@ app.post('/api/subject-added', async (req, res) => {
 
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    startAutoClean(rooms);
+});
+
+// Graceful shutdown handling
+const gracefulShutdown = (signal) => {
+    console.log(`Received ${signal}. Server shutting down...`);
+    io.emit('serverShutdown', { message: '服务器已关闭，这可能是因为服务器正在重启或出现了Bug' });
+    
+    // Give sockets time to send the message
+    setTimeout(() => {
+        console.log('Exiting process.');
+        process.exit(0);
+    }, 1000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    io.emit('serverShutdown', { message: '服务器已关闭，这可能是因为服务器正在重启或出现了Bug' });
+    setTimeout(() => {
+        process.exit(1);
+    }, 1000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    io.emit('serverShutdown', { message: '服务器已关闭，这可能是因为服务器正在重启或出现了Bug' });
+    setTimeout(() => {
+        process.exit(1);
+    }, 1000);
 });
 
 app.get('/api/leaderboard/characters', async (req, res) => {
