@@ -2,7 +2,7 @@ import axios from './cached-axios.js';
 import { idToTags } from '../data/id_tags.js';
 import { subjectsWithExtraTags } from '../data/extra_tag_subjects.js';
 
-const API_BASE_URL = 'https://api.bgm.tv';
+const API_BASE_URL = 'https://bgmapi.baka.website';
 
 async function getSubjectDetails(subjectId) {
   try {
