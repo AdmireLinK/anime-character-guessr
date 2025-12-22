@@ -214,7 +214,7 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
                 <div className="character-name">{guess.name}</div>
                 <div className="character-name-cn">{guess.nameCn}</div>
               </div>
-              <div className="guess-card-gender">{getGenderEmoji(guess.gender)}</div>
+              <div className={`guess-card-gender ${guess.genderFeedback === 'yes' ? 'feedback-cell correct' : ''}`}>{getGenderEmoji(guess.gender)}</div>
             </div>
 
             <div className="guess-card-row">
