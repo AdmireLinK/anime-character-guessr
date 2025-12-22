@@ -166,15 +166,18 @@ const Home = () => {
                   displayName = '本地部署';
                 }
               } catch {}
+            
+            // 仅对第三线路或动态添加的线路显示为“抢先体验”（如果匹配 ccbeta.baka.website）
+            if (idx === 2 || (!line.name && availableLines.length > 2 && idx === availableLines.length - 1)) {
+              try {
+                const lineHost = new URL(line.url, window.location.origin).hostname;
+                const originHost = currentOrigin ? new URL(currentOrigin).hostname : '';
+                if (lineHost === 'ccbeta.baka.website' || originHost === 'ccbeta.baka.website') {
+                  displayName = '抢先体验';
+                }
+              } catch {}
             }
-            // 若访问本站为 ccbeta.baka.website，则将该线路显示为抢先体验（使用 hostname 比较以提高鲁棒性）
-            try {
-              const lineHost = new URL(line.url, window.location.origin).hostname;
-              const originHost = currentOrigin ? new URL(currentOrigin).hostname : '';
-              if (lineHost === 'ccbeta.baka.website' || originHost === 'ccbeta.baka.website') {
-                displayName = '抢先体验';
-              }
-            } catch {}
+
             return (
               <a
                 key={`${line.url}-${idx}`}
