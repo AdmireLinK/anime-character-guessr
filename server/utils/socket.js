@@ -274,7 +274,7 @@ function markTeamVictory(room, roomId, player, io) {
 // 同步模式：统一处理进度更新与轮次推进，支持血战模式
 function updateSyncProgress(room, roomId, io) {
     if (!io) return;
-    if (!room?.currentGame || !room.currentGame.settings?.syncMode || !room.currentGame.syncPlayersCompleted) return;
+    if (!room?.currentGame || !room.currentGame?.settings?.syncMode || !room.currentGame.syncPlayersCompleted) return;
 
     // 只保留本轮需要同步的活跃玩家（未结束）
     const isEnded = p => (
@@ -312,7 +312,7 @@ function updateSyncProgress(room, roomId, io) {
     let pendingBanBroadcast = null;
 
     if (allCompleted) {
-        if (room.currentGame.settings?.syncMode && Array.isArray(room.currentGame.tagBanStatePending) && room.currentGame.tagBanStatePending.length) {
+        if (room.currentGame?.settings?.syncMode && Array.isArray(room.currentGame.tagBanStatePending) && room.currentGame.tagBanStatePending.length) {
             const currentState = Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : [];
             const existingTags = new Set(
                 currentState
@@ -354,7 +354,7 @@ function updateSyncProgress(room, roomId, io) {
         }
 
         // 非血战同步模式：有人猜对则在本轮结束后结束游戏，不再开启新一轮
-        if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
+        if (!room.currentGame?.settings?.nonstopMode && room.currentGame?.syncWinnerFound) {
             if (pendingBanBroadcast) {
                 io.to(roomId).emit('tagBanStateUpdate', { tagBanState: pendingBanBroadcast });
                 pendingBanBroadcast = null;
@@ -386,7 +386,7 @@ function updateSyncProgress(room, roomId, io) {
         });
 
         // 同步+血战：记录本轮开始的排名基线，确保同轮玩家基础分一致
-        if (room.currentGame.settings.nonstopMode) {
+        if (room.currentGame?.settings?.nonstopMode) {
             room.currentGame.syncRoundStartRank = room.currentGame.nonstopWinners.length + 1;
         }
 
@@ -425,7 +425,7 @@ function updateSyncProgress(room, roomId, io) {
         });
 
         // 非血战同步模式：有人已猜对，提示等待本轮结束
-        if (!room.currentGame.settings.nonstopMode && room.currentGame.syncWinnerFound) {
+        if (!room.currentGame?.settings?.nonstopMode && room.currentGame?.syncWinnerFound) {
             io.to(roomId).emit('syncGameEnding', {
                 winnerUsername: room.currentGame.syncWinner?.username,
                 message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
@@ -524,11 +524,11 @@ function generateScoreDetails({ players, scoreChanges, setterInfo, isNonstopMode
  * @returns {boolean} 是否已经结算完成
  */
 function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
-    if (!room?.currentGame || room.currentGame.settings?.nonstopMode) {
+    if (!room?.currentGame || room.currentGame?.settings?.nonstopMode) {
         return false;
     }
 
-    if (room.currentGame.settings?.syncMode) {
+    if (room.currentGame?.settings?.syncMode) {
         const pendingList = Array.isArray(room.currentGame.tagBanStatePending)
             ? room.currentGame.tagBanStatePending
             : [];
@@ -577,7 +577,7 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
     );
 
     const firstWinner = room.currentGame.firstWinner;
-    const syncMode = room.currentGame?.settings?.syncMode && !room.currentGame.settings.nonstopMode;
+    const syncMode = room.currentGame?.settings?.syncMode && !room.currentGame?.settings?.nonstopMode;
 
     // 同步模式：允许同轮多名胜者；普通模式保持单胜者
     let actualWinners = [];
@@ -1143,7 +1143,7 @@ function setupSocket(io, rooms) {
                 });
 
                 // 同步/血战模式：立即把当前状态同步给中途加入的观战者
-                if (room.currentGame.settings?.syncMode) {
+                if (room.currentGame?.settings?.syncMode) {
                     const isEnded = p => (
                         p.guesses.includes('✌') ||
                         p.guesses.includes('💀') ||
@@ -1163,7 +1163,7 @@ function setupSocket(io, rooms) {
                         completedCount: syncStatus.filter(s => s.completed).length,
                         totalCount: syncStatus.length
                     });
-                    if (room.currentGame.syncWinnerFound && !room.currentGame.settings?.nonstopMode) {
+                    if (room.currentGame.syncWinnerFound && !room.currentGame?.settings?.nonstopMode) {
                         socket.emit('syncGameEnding', {
                             winnerUsername: room.currentGame.syncWinner?.username,
                             message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
@@ -1471,22 +1471,18 @@ function setupSocket(io, rooms) {
 
             if (player.team && player.team !== '0') {
                 // ensure teamGuesses exists and append mark
-                if (room.currentGame) {
-                    room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
-                    room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + mark;
-                }
+                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + mark;
                 // set team members' guesses to the shared team string (including current player)
                 room.players
                     .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
                     .forEach(teammate => {
-                        if (room.currentGame) {
-                            teammate.guesses = room.currentGame.teamGuesses[player.team];
-                        }
+                        teammate.guesses = room.currentGame.teamGuesses[player.team];
                     });
 
                 // 在同步模式下，若团队的有效猜测次数已达最大轮数，立即将整队标记为已结束并禁止继续猜测
-                if (room.currentGame.settings?.syncMode) {
-                    const maxAttempts = room.currentGame.settings?.maxAttempts || 10;
+                if (room.currentGame?.settings?.syncMode) {
+                    const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
                     // 统计团队有效尝试次数（去除特殊结尾标记）
                     const cleanedTeam = String(room.currentGame.teamGuesses[player.team] || '').replace(/[✌👑💀🏳️🏆]/g, '');
                     const teamAttemptCount = Array.from(cleanedTeam).length;
@@ -1563,7 +1559,7 @@ function setupSocket(io, rooms) {
                 room.currentGame.tagBanStatePending = [];
             }
 
-            const targetList = room.currentGame.settings.syncMode
+            const targetList = room.currentGame?.settings?.syncMode
                 ? room.currentGame.tagBanStatePending
                 : room.currentGame.tagBanState;
 
@@ -1582,12 +1578,12 @@ function setupSocket(io, rooms) {
                 if (!existingRevealers.length) {
                     entry.revealer = [player.id];
                     changed = true;
-                } else if (room.currentGame.settings.syncMode && !existingRevealers.includes(player.id)) {
+                } else if (room.currentGame?.settings?.syncMode && !existingRevealers.includes(player.id)) {
                     entry.revealer = [...existingRevealers, player.id];
                 }
             });
 
-            if (!changed || room.currentGame.settings?.syncMode) {
+            if (!changed || room.currentGame?.settings?.syncMode) {
                 return;
             }
 
@@ -1658,7 +1654,7 @@ function setupSocket(io, rooms) {
             }
 
             // 同步+血战：胜者所在队伍本轮视为已完成，不再参与后续轮次
-            if (room.currentGame.settings.syncMode && room.currentGame.syncPlayersCompleted) {
+            if (room.currentGame?.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
                 room.currentGame.syncPlayersCompleted.add(socket.id);
                 if (player.team && player.team !== '0') {
                     room.players
@@ -1687,7 +1683,7 @@ function setupSocket(io, rooms) {
             // 非同步血战模式：使用实时排名
             const totalPlayers = activePlayers.length;
             let winnerRank, rankScore;
-            if (room.currentGame.settings.syncMode) {
+            if (room.currentGame?.settings?.syncMode) {
                 // 同步+血战：本轮所有猜中玩家基础分一致
                 winnerRank = room.currentGame.syncRoundStartRank;
                 rankScore = Math.max(1, totalPlayers - winnerRank + 1);
@@ -1698,7 +1694,7 @@ function setupSocket(io, rooms) {
             }
             
             // 获取总轮数上限
-            const totalRounds = room.currentGame.settings?.maxAttempts || 10;
+            const totalRounds = room.currentGame?.settings?.maxAttempts || 10;
             
             // 使用统一的得分计算函数
             const scoreResult = calculateWinnerScore({
@@ -1943,7 +1939,7 @@ function setupSocket(io, rooms) {
             }
 
             // 仅同步模式（非血战）：有人猜对后，标记游戏即将结束，等待本轮完成
-            if (room.currentGame && room.currentGame.settings.syncMode && !room.currentGame.settings.nonstopMode) {
+            if (room.currentGame?.settings?.syncMode && !room.currentGame?.settings?.nonstopMode) {
                 if (finalResult === 'win' || finalResult === 'bigwin') {
                     // 标记有人猜对，游戏将在本轮结束后结束
                     room.currentGame.syncWinnerFound = true;
@@ -1956,9 +1952,9 @@ function setupSocket(io, rooms) {
             }
 
             // 同步模式：已结束玩家/队伍标记完成并更新进度
-            if (room.currentGame && room.currentGame.settings.syncMode && room.currentGame.syncPlayersCompleted) {
+            if (room.currentGame?.settings?.syncMode && room.currentGame?.syncPlayersCompleted) {
                 // 纯同步：赢家也视为完成；失败/投降同样完成
-                if (!room.currentGame.settings.nonstopMode) {
+                if (!room.currentGame?.settings?.nonstopMode) {
                     room.currentGame.syncPlayersCompleted.add(socket.id);
                 } else {
                     // 同步+血战：本轮胜者及其队伍本轮完成，不再进入下一轮
@@ -1981,7 +1977,7 @@ function setupSocket(io, rooms) {
             }
 
             // 血战模式：检查是否所有人都结束
-            if (room.currentGame && room.currentGame.settings.nonstopMode) {
+            if (room.currentGame?.settings?.nonstopMode) {
                 const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
                 const remainingPlayers = activePlayers.filter(p => 
                     !p.guesses.includes('✌') && 
@@ -2656,7 +2652,7 @@ function setupSocket(io, rooms) {
             if (room.currentGame.settings?.syncMode) {
                 updateSyncProgress(room, roomId, io);
             }
-            if (room.currentGame.settings?.nonstopMode) {
+            if (room.currentGame?.settings?.nonstopMode) {
                 const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
                 const remainingPlayers = activePlayers.filter(p => 
                     !p.guesses.includes('✌') &&
