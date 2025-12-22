@@ -166,7 +166,8 @@ const Home = () => {
                   displayName = '本地部署';
                 }
               } catch {}
-            
+            }
+
             // 仅对第三线路或动态添加的线路显示为“抢先体验”（如果匹配 ccbeta.baka.website）
             if (idx === 2 || (!line.name && availableLines.length > 2 && idx === availableLines.length - 1)) {
               try {
