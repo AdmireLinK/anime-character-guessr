@@ -167,6 +167,14 @@ const Home = () => {
                 }
               } catch {}
             }
+            // 若访问本站为 ccbeta.baka.website，则将该线路显示为抢先体验（使用 hostname 比较以提高鲁棒性）
+            try {
+              const lineHost = new URL(line.url, window.location.origin).hostname;
+              const originHost = currentOrigin ? new URL(currentOrigin).hostname : '';
+              if (lineHost === 'ccbeta.baka.website' || originHost === 'ccbeta.baka.website') {
+                displayName = '抢先体验';
+              }
+            } catch {}
             return (
               <a
                 key={`${line.url}-${idx}`}
