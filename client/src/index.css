@@ -115,8 +115,8 @@ select,
 optgroup,
 option {
   background-color: #ffffff !important;
+  placeholder-color: #9ca3af !important;
   color: #000000 !important;
-  -webkit-text-fill-color: #000000 !important; /* Safari 输入颜色 */
 }
 
 /* 禁用状态的输入框使用浅灰背景以示区别 */
