@@ -235,6 +235,12 @@
   .guesses-list {
     display: block;
     padding: 8px;
+    /* Limit mobile list to fill viewport and allow internal scrolling */
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
   }
 
   /* Make mobile cards visually consistent with desktop table cells */

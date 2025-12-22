@@ -1,5 +1,5 @@
 import '../styles/GuessesTable.css';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import ModifiedTagDisplay from './ModifiedTagDisplay';
 import Image from './Image';
 import { subjectsWithExtraTags } from '../data/extra_tag_subjects';
@@ -54,6 +54,46 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
   const handleToggleMode = () => {
     setExternalTagMode((prev) => !prev);
   };
+
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !listRef.current) return;
+
+    const updateMaxHeight = () => {
+      const el = listRef.current;
+      if (!el) return;
+      // Only apply mobile behavior on narrow viewports
+      if (window.innerWidth <= 768) {
+        const rect = el.getBoundingClientRect();
+        const bottomSpace = 16; // margin to bottom
+        const maxH = Math.max(120, window.innerHeight - rect.top - bottomSpace);
+        el.style.maxHeight = `${maxH}px`;
+        el.style.overflowY = 'auto';
+        el.style.overscrollBehavior = 'contain';
+        el.style.WebkitOverflowScrolling = 'touch';
+      } else {
+        // reset styles on larger screens
+        el.style.maxHeight = '';
+        el.style.overflowY = '';
+        el.style.overscrollBehavior = '';
+        el.style.WebkitOverflowScrolling = '';
+      }
+    };
+
+    updateMaxHeight();
+    window.addEventListener('resize', updateMaxHeight);
+    window.addEventListener('orientationchange', updateMaxHeight);
+    // In case the layout shifts after images load or fonts load
+    const ro = new ResizeObserver(updateMaxHeight);
+    ro.observe(listRef.current);
+
+    return () => {
+      window.removeEventListener('resize', updateMaxHeight);
+      window.removeEventListener('orientationchange', updateMaxHeight);
+      ro.disconnect();
+    };
+  }, [listRef]);
 
   return (
     <div className="table-container">
@@ -200,7 +240,7 @@ function GuessesTable({ guesses, gameSettings, answerCharacter, collapsedCount =
       </table>
 
       {/* Mobile-friendly list: shown on small screens */}
-      <div className="guesses-list" aria-hidden="false">
+      <div className="guesses-list" aria-hidden="false" ref={listRef}>
         {displayGuesses.map((guess, idx) => (
           <div key={idx} className={`guess-card ${guess.isAnswer ? 'correct' : ''}`}>
             <div className="guess-card-header">
