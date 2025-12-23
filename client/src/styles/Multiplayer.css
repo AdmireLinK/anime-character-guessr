@@ -1266,3 +1266,9 @@
   min-width: 50px;
   text-align: center;
 }
+
+@media (max-width: 768px) {
+  .multiplayer-container .guesses-list {
+    max-height: calc(100vh - 280px) !important;
+  }
+}
