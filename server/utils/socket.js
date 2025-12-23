@@ -2146,12 +2146,50 @@ function setupSocket(io, rooms) {
                 socket.emit('error', {message: 'timeOut: 连接中断了'});
                 return;
             }
+
+            if (!room.currentGame) {
+                console.log(`[ERROR][timeOut][${socket.id}] 游戏未开始或已结束`);
+                socket.emit('error', {message: 'timeOut: 游戏未开始或已结束'});
+                return;
+            }
     
             // Append ⏱️ to player's guesses
             player.guesses += '⏱️';
 
+            // 团队模式：更新团队猜测记录并检查是否达到最大尝试次数
+            if (player.team && player.team !== '0') {
+                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '⏱️';
+                room.players
+                    .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
+                    .forEach(teammate => {
+                        teammate.guesses = room.currentGame.teamGuesses[player.team];
+                    });
+
+                // 在同步模式下，若团队的有效猜测次数已达最大轮数，立即将整队标记为已结束并禁止继续猜测
+                if (room.currentGame?.settings?.syncMode) {
+                    const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
+                    const cleanedTeam = String(room.currentGame.teamGuesses[player.team] || '').replace(/[✌👑💀🏳️🏆]/g, '');
+                    const teamAttemptCount = Array.from(cleanedTeam).length;
+                    if (teamAttemptCount >= maxAttempts) {
+                        room.players
+                            .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
+                            .forEach(teammate => {
+                                const hasEnded = teammate.guesses.includes('✌') || teammate.guesses.includes('👑') || teammate.guesses.includes('🏆') || teammate.guesses.includes('💀') || teammate.guesses.includes('🏳️');
+                                if (!hasEnded) {
+                                    teammate.guesses += '💀';
+                                }
+                                if (room.currentGame.syncPlayersCompleted) {
+                                    room.currentGame.syncPlayersCompleted.add(teammate.id);
+                                }
+                            });
+                        updateSyncProgress(room, roomId, io);
+                    }
+                }
+            }
+
             // 同步模式：超时也视为完成本轮
-            if (room.currentGame && room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
+            if (room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
                 const hasEnded = player.guesses.includes('✌') || player.guesses.includes('💀') || player.guesses.includes('🏳️') || player.guesses.includes('👑') || player.guesses.includes('🏆');
                 if (!hasEnded) {
                     room.currentGame.syncPlayersCompleted.add(socket.id);
