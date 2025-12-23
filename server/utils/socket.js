@@ -576,6 +576,11 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
         p.disconnected
     );
 
+    if (!room.currentGame) {
+        console.log(`[ERROR][finalizeStandardGame][${roomId}] 游戏未开始或已结束`);
+        return false;
+    }
+
     const firstWinner = room.currentGame.firstWinner;
     const syncMode = room.currentGame?.settings?.syncMode && !room.currentGame?.settings?.nonstopMode;
 
@@ -1467,6 +1472,12 @@ function setupSocket(io, rooms) {
                 mark = '💡';
             } else {
                 mark = guessResult.isCorrect ? '✔' : '❌';
+            }
+
+            if (!room.currentGame) {
+                console.log(`[ERROR][playerGuess][${socket.id}] 游戏未开始或已结束`);
+                socket.emit('error', { message: 'playerGuess: 游戏未开始或已结束' });
+                return;
             }
 
             if (player.team && player.team !== '0') {
