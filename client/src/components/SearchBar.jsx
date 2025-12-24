@@ -4,6 +4,8 @@ import { searchSubjects, getCharactersBySubjectId, getCharacterDetails } from '.
 import '../styles/search.css';
 import { submitGuessCharacterCount } from '../utils/db';
 
+const API_BASE_URL = import.meta.env.VITE_BGM_API_URL || 'https://api.bgm.tv';
+
 function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, finishInit = true }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -186,7 +188,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
     loadingState(true);
     try {
       const response = await axios.post(
-        `https://api.bgm.tv/v0/search/characters?limit=${currentLimit}&offset=${currentOffset}`,
+        `${API_BASE_URL}/v0/search/characters?limit=${currentLimit}&offset=${currentOffset}`,
         {
           keyword: searchQuery.trim()
         }
