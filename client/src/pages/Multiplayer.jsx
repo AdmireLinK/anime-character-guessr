@@ -1454,7 +1454,7 @@ const Multiplayer = () => {
                       <div className="sync-status">
                         {getFilteredSyncStatus().map((player, idx) => (
                           <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
-                            {showNames ? player.username : `玩家${idx + 1}`}: {player.completed ? '' : '...'}
+                            {showNames ? player.username : `玩家${idx + 1}`}: {player.completed ? '✓' : '...'}
                           </span>
                         ))}
                       </div>
