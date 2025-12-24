@@ -1416,7 +1416,7 @@ function setupSocket(io, rooms) {
                 return;
             }
             if (hasEnded) {
-                socket.emit('error', { message: 'playerGuess: 你已结束本轮，无法继续猜测' });
+                console.log(`[INFO][playerGuess][${socket.id}] 玩家已结束本轮，忽略猜测`);
                 return;
             }
     
@@ -1508,8 +1508,7 @@ function setupSocket(io, rooms) {
             }
 
             if (!room.currentGame) {
-                console.log(`[ERROR][playerGuess][${socket.id}] 游戏未开始或已结束`);
-                socket.emit('error', { message: 'playerGuess: 游戏未开始或已结束' });
+                console.log(`[INFO][playerGuess][${socket.id}] 游戏未开始或已结束，忽略猜测`);
                 return;
             }
 
