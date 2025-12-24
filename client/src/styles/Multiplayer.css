@@ -1113,6 +1113,61 @@
   }
 }
 
+/* 连接状态指示器样式 */
+.connection-status {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1001;
+  border-radius: 8px;
+  padding: 12px 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: notification-slide-in 0.3s ease-out;
+  max-width: 90%;
+  min-width: 300px;
+}
+
+.connection-status.reconnecting {
+  background-color: rgba(243, 156, 18, 0.95);
+  color: white;
+}
+
+.connection-status.failed {
+  background-color: rgba(220, 53, 69, 0.95);
+  color: white;
+}
+
+.connection-status.disconnected {
+  background-color: rgba(108, 117, 125, 0.95);
+  color: white;
+}
+
+.connection-status-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.connection-status i {
+  font-size: 18px;
+}
+
+.connection-status .fa-spin {
+  animation: fa-spin 1s infinite linear;
+}
+
+@keyframes fa-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .player-avatar {
   height: 100%;
   width: auto;

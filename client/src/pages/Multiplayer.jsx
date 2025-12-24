@@ -110,9 +110,14 @@ const Multiplayer = () => {
   const [waitingForSync, setWaitingForSync] = useState(false); // 同步模式：等待其他玩家
   const [syncStatus, setSyncStatus] = useState({}); // 同步模式：各玩家状态
   const [nonstopProgress, setNonstopProgress] = useState(null); // 血战模式：进度信息
-  const [isObserver, setIsObserver] = useState(false); // 当前玩家是否为旁观者
+  const [isObserver, setIsObserver] = useState(false);
   const [bannedSharedTags, setBannedSharedTags] = useState([]);
   const latestPlayersRef = useRef([]);
+  const [connectionStatus, setConnectionStatus] = useState('connected');
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 5;
+  const reconnectTimerRef = useRef(null);
+  const isManualDisconnectRef = useRef(false);
 
   // 同步模式队列展示过滤：已完成且（断线/投降/猜对/队伍胜利）的不显示
   const getFilteredSyncStatus = () => {
@@ -234,6 +239,66 @@ const Multiplayer = () => {
         }
       });
       setBannedSharedTags(Array.from(banned));
+    });
+
+    newSocket.on('connect', () => {
+      console.log('[WebSocket] 连接成功');
+      setConnectionStatus('connected');
+      reconnectAttemptsRef.current = 0;
+      
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      
+      if (isJoined && roomId && username) {
+        const avatarId = sessionStorage.getItem('avatarId');
+        const avatarImage = sessionStorage.getItem('avatarImage');
+        const avatarPayload = avatarId !== null ? { avatarId, avatarImage } : {};
+        
+        newSocket.emit('joinRoom', { roomId, username, ...avatarPayload });
+        newSocket.emit('requestGameSettings', { roomId });
+      }
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('[WebSocket] 连接断开:', reason);
+      
+      if (isManualDisconnectRef.current) {
+        setConnectionStatus('disconnected');
+        return;
+      }
+      
+      setConnectionStatus('reconnecting');
+      
+      if (reason === 'io server disconnect') {
+        newSocket.connect();
+      }
+      
+      if (!newSocket.connected && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        reconnectAttemptsRef.current += 1;
+        const attempt = reconnectAttemptsRef.current;
+        
+        console.log(`[WebSocket] 尝试重连 (${attempt}/${maxReconnectAttempts})...`);
+        
+        reconnectTimerRef.current = setTimeout(() => {
+          if (!newSocket.connected && reconnectAttemptsRef.current <= maxReconnectAttempts) {
+            newSocket.connect();
+          }
+        }, 3000);
+      } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        setConnectionStatus('failed');
+        alert('连接已断开，多次重试失败，请刷新页面或稍后再试');
+        setError('连接失败，请刷新页面重试');
+      }
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('[WebSocket] 连接错误:', error);
+      
+      if (!isManualDisconnectRef.current && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        setConnectionStatus('reconnecting');
+      }
     });
 
     // 血战模式+同步模式：队友猜对通知
@@ -502,7 +567,13 @@ const Multiplayer = () => {
     });
 
     return () => {
-      // 清理事件监听和连接
+      isManualDisconnectRef.current = true;
+      
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      
       newSocket.off('playerKicked');
       newSocket.off('hostTransferred');
       newSocket.off('updatePlayers');
@@ -522,6 +593,9 @@ const Multiplayer = () => {
       newSocket.off('teamWin');
       newSocket.off('roomNameUpdated');
       newSocket.off('tagBanStateUpdate');
+      newSocket.off('connect');
+      newSocket.off('disconnect');
+      newSocket.off('connect_error');
       newSocket.disconnect();
       latestPlayersRef.current = [];
       setBannedSharedTags([]);
@@ -1105,6 +1179,31 @@ const Multiplayer = () => {
 
   return (
     <div className="multiplayer-container">
+      {/* 连接状态指示器 */}
+      {isJoined && connectionStatus !== 'connected' && (
+        <div className={`connection-status ${connectionStatus}`}>
+          <div className="connection-status-content">
+            {connectionStatus === 'reconnecting' && (
+              <>
+                <i className="fas fa-sync fa-spin"></i>
+                <span>连接断开，正在重连... ({reconnectAttemptsRef.current}/{maxReconnectAttempts})</span>
+              </>
+            )}
+            {connectionStatus === 'failed' && (
+              <>
+                <i className="fas fa-exclamation-triangle"></i>
+                <span>连接失败，请刷新页面重试</span>
+              </>
+            )}
+            {connectionStatus === 'disconnected' && (
+              <>
+                <i className="fas fa-times-circle"></i>
+                <span>连接已断开</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {/* 添加踢出通知 */}
       {kickNotification && (
         <div className={`kick-notification ${kickNotification.type === 'host' ? 'host-notification' : kickNotification.type === 'reconnect' ? 'reconnect-notification' : ''}`}>
