@@ -1,4 +1,65 @@
 /**
+ * 获取同步模式和血战模式状态
+ * @param {Object} room - 房间对象
+ * @param {Function} emitCallback - 发送状态的回调函数，接收 (eventName, data) 参数
+ */
+function getSyncAndNonstopState(room, emitCallback) {
+    if (!room?.currentGame) return;
+
+    const isEnded = p => (
+        p.guesses.includes('✌') ||
+        p.guesses.includes('💀') ||
+        p.guesses.includes('🏳️') ||
+        p.guesses.includes('👑') ||
+        p.guesses.includes('🏆')
+    );
+
+    if (room.currentGame?.settings?.syncMode) {
+        const syncPlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected && !isEnded(p));
+        const syncStatus = syncPlayers.map(p => ({
+            id: p.id,
+            username: p.username,
+            completed: room.currentGame.syncPlayersCompleted ? room.currentGame.syncPlayersCompleted.has(p.id) : false
+        }));
+        
+        if (emitCallback) {
+            emitCallback('syncWaiting', {
+                round: room.currentGame.syncRound,
+                syncStatus,
+                completedCount: syncStatus.filter(s => s.completed).length,
+                totalCount: syncStatus.length
+            });
+
+            if (room.currentGame.syncWinnerFound && !room.currentGame?.settings?.nonstopMode) {
+                emitCallback('syncGameEnding', {
+                    winnerUsername: room.currentGame.syncWinner?.username,
+                    message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
+                });
+            }
+        }
+    }
+
+    if (room.currentGame.settings?.nonstopMode) {
+        const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
+        const remainingPlayers = activePlayers.filter(p => 
+            !p.guesses.includes('✌') &&
+            !p.guesses.includes('💀') &&
+            !p.guesses.includes('🏳️') &&
+            !p.guesses.includes('👑') &&
+            !p.guesses.includes('🏆')
+        );
+        
+        if (emitCallback) {
+            emitCallback('nonstopProgress', {
+                winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({ username: w.username, rank: idx + 1, score: w.score })),
+                remainingCount: remainingPlayers.length,
+                totalCount: activePlayers.length
+            });
+        }
+    }
+}
+
+/**
  * 计算玩家胜利得分
  * @param {Object} options - 计算选项
  * @param {string} options.guesses - 玩家的猜测记录字符串
@@ -877,7 +938,6 @@ function setupSocket(io, rooms) {
                     message: '',
                     team: null,
                     disconnected: false,
-                    joinedAt: Date.now(),
                     ...(avatarId !== undefined && { avatarId }),
                     ...(avatarImage !== undefined && { avatarImage })
                 }],
@@ -925,7 +985,6 @@ function setupSocket(io, rooms) {
                         message: '',
                         team: null,
                         disconnected: false,
-                        joinedAt: Date.now(),
                         ...(avatarId !== undefined && { avatarId }),
                         ...(avatarImage !== undefined && { avatarImage })
                     }],
@@ -953,6 +1012,11 @@ function setupSocket(io, rooms) {
                 console.log(`Room ${roomId} created by ${username}`);
                 return;
             }
+
+            // Check if game is in progress - if so, only allow joining as observer
+            if (room.currentGame) {
+                console.log(`[INFO][joinRoom][${socket.id}] 房间 ${roomId} 游戏进行中，新玩家只能观战`);
+            }
     
             // Check for existing player with same username (case-insensitive)
             const existingPlayerIndex = room.players.findIndex(
@@ -970,7 +1034,6 @@ function setupSocket(io, rooms) {
                     const previousSocketId = room.players[existingPlayerIndex].id;
                     room.players[existingPlayerIndex].id = socket.id;
                     room.players[existingPlayerIndex].disconnected = false;
-                    room.players[existingPlayerIndex].joinedAt = Date.now();
                     
                     // Update avatar if provided
                     if (avatarId !== undefined) {
@@ -1031,11 +1094,16 @@ function setupSocket(io, rooms) {
                         });
 
                         socket.emit('guessHistoryUpdate', {
-                            guesses: room.currentGame.guesses
+                            guesses: room.currentGame.guesses,
+                            teamGuesses: room.currentGame.teamGuesses
                         });
 
                         socket.emit('tagBanStateUpdate', {
                             tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
+                        });
+
+                        getSyncAndNonstopState(room, (eventName, data) => {
+                            socket.emit(eventName, data);
                         });
 
                         // If their team already won while they were disconnected, backfill their guess string and notify
@@ -1110,7 +1178,6 @@ function setupSocket(io, rooms) {
                 team: room.currentGame ? '0' : null, // joiners during an active game become observers
                 joinedDuringGame: !!room.currentGame, // mark that this player joined during an on-going game
                 disconnected: false,
-                joinedAt: Date.now(),
                 ...(avatarId !== undefined && { avatarId }),
                 ...(avatarImage !== undefined && { avatarImage })
             });
@@ -1140,57 +1207,17 @@ function setupSocket(io, rooms) {
                 });
 
                 socket.emit('guessHistoryUpdate', {
-                    guesses: room.currentGame.guesses
+                    guesses: room.currentGame.guesses,
+                    teamGuesses: room.currentGame.teamGuesses
                 });
 
                 socket.emit('tagBanStateUpdate', {
                     tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
                 });
 
-                // 同步/血战模式：立即把当前状态同步给中途加入的观战者
-                if (room.currentGame?.settings?.syncMode) {
-                    const isEnded = p => (
-                        p.guesses.includes('✌') ||
-                        p.guesses.includes('💀') ||
-                        p.guesses.includes('🏳️') ||
-                        p.guesses.includes('👑') ||
-                        p.guesses.includes('🏆')
-                    );
-                    const syncPlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected && !isEnded(p));
-                    const syncStatus = syncPlayers.map(p => ({
-                        id: p.id,
-                        username: p.username,
-                        completed: room.currentGame.syncPlayersCompleted ? room.currentGame.syncPlayersCompleted.has(p.id) : false
-                    }));
-                    socket.emit('syncWaiting', {
-                        round: room.currentGame.syncRound,
-                        syncStatus,
-                        completedCount: syncStatus.filter(s => s.completed).length,
-                        totalCount: syncStatus.length
-                    });
-                    if (room.currentGame.syncWinnerFound && !room.currentGame?.settings?.nonstopMode) {
-                        socket.emit('syncGameEnding', {
-                            winnerUsername: room.currentGame.syncWinner?.username,
-                            message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
-                        });
-                    }
-                }
-
-                if (room.currentGame.settings?.nonstopMode) {
-                    const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
-                    const remainingPlayers = activePlayers.filter(p => 
-                        !p.guesses.includes('✌') &&
-                        !p.guesses.includes('💀') &&
-                        !p.guesses.includes('🏳️') &&
-                        !p.guesses.includes('👑') &&
-                        !p.guesses.includes('🏆')
-                    );
-                    socket.emit('nonstopProgress', {
-                        winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({ username: w.username, rank: idx + 1, score: w.score })),
-                        remainingCount: remainingPlayers.length,
-                        totalCount: activePlayers.length
-                    });
-                }
+                getSyncAndNonstopState(room, (eventName, data) => {
+                    socket.emit(eventName, data);
+                });
             }
     
             console.log(`${username} joined room ${roomId}`);
@@ -1219,6 +1246,13 @@ function setupSocket(io, rooms) {
             if (player.isHost) {
                 console.log(`[ERROR][toggleReady][${socket.id}] 房主不需要准备`);
                 socket.emit('error', {message: 'toggleReady: 房主不需要准备'});
+                return;
+            }
+
+            // Don't allow toggling ready status if game is in progress
+            if (room.currentGame) {
+                console.log(`[ERROR][toggleReady][${socket.id}] 游戏进行中不能更改准备状态`);
+                socket.emit('error', {message: 'toggleReady: 游戏进行中不能更改准备状态'});
                 return;
             }
     
@@ -1283,23 +1317,9 @@ function setupSocket(io, rooms) {
                 socket.emit('error', {message: 'gameStart: 只有房主可以开始游戏'});
                 return;
             }
-
-            // 极端竞态：房主点击开始同时有人加入。
-            // 若此时新玩家尚未准备，会导致 allReady 失败，前端弹窗(alert)阻塞进而出现“房主断线”的错觉（心跳超时）。
-            // 处理方式：把“刚加入且未准备”的玩家自动转为旁观者(team=0)，并在 ready 校验中放行旁观者。
-            const now = Date.now();
-            room.players.forEach(p => {
-                if (!p || p.isHost || p.disconnected) return;
-                if (p.ready) return;
-                if (p.team === '0') return;
-                const joinedAt = typeof p.joinedAt === 'number' ? p.joinedAt : 0;
-                if (joinedAt && (now - joinedAt) <= 1500) {
-                    p.team = '0';
-                }
-            });
-
-            // Check if all non-disconnected players are ready（旁观者不需要准备）
-            const allReady = room.players.every(p => p.isHost || p.disconnected || p.team === '0' || p.ready);
+    
+            // Check if all non-disconnected players are ready
+            const allReady = room.players.every(p => p.isHost || p.ready || p.disconnected);
             if (!allReady) {
                 console.log(`[ERROR][gameStart][${socket.id}] 所有玩家必须准备好才能开始游戏`);
                 socket.emit('error', {message: 'gameStart: 所有玩家必须准备好才能开始游戏'});
@@ -1396,7 +1416,7 @@ function setupSocket(io, rooms) {
                 return;
             }
             if (hasEnded) {
-                socket.emit('error', { message: 'playerGuess: 你已结束本轮，无法继续猜测' });
+                console.log(`[INFO][playerGuess][${socket.id}] 玩家已结束本轮，忽略猜测`);
                 return;
             }
     
@@ -1404,6 +1424,30 @@ function setupSocket(io, rooms) {
             if (player.team === '0') {
                 socket.emit('error', { message: 'playerGuess: 观战中不能猜测' });
                 return;
+            }
+
+            // Check globalPick mode: reject if character already guessed by others
+            const settings = room.currentGame?.settings || {};
+            if (settings.globalPick && !settings.syncMode && guessResult.guessData) {
+                const characterId = guessResult.guessData.id;
+                const isCorrectAnswer = guessResult.isCorrect;
+                const isPartialCorrect = guessResult.isPartialCorrect;
+
+                // Check if any other player has already guessed this character
+                const alreadyGuessed = room.currentGame.guesses.some(playerGuesses => {
+                    if (playerGuesses.username === player.username) return false;
+                    return Array.isArray(playerGuesses.guesses) && playerGuesses.guesses.some(guessEntry =>
+                        guessEntry?.guessData?.id === characterId
+                    );
+                });
+
+                if (alreadyGuessed) {
+                    // Allow only if it's the correct answer in nonstop mode
+                    if (!settings.nonstopMode || !isCorrectAnswer) {
+                        socket.emit('error', { message: '【全局BP】该角色已经被其他玩家猜过了' });
+                        return;
+                    }
+                }
             }
 
             // Store guess in the player's guesses array using their username
@@ -1417,23 +1461,12 @@ function setupSocket(io, rooms) {
                     };
                     playerGuesses.guesses.push(guessEntry);
 
-                    // If player is on a team, also append the same guess entry to teammates' guess arrays
-                    if (player.team && player.team !== '0') {
-                        room.currentGame.guesses.forEach(pg => {
-                            if (pg.username !== player.username) {
-                                const teammatePlayer = room.players.find(p => p.username === pg.username && p.team === player.team);
-                                if (teammatePlayer) {
-                                    pg.guesses.push({ ...guessEntry });
-                                }
-                            }
-                        });
-                    }
-
-                    // Send real-time guess history update to answer setter, observers and teammates
-                    room.players.forEach(teammate => {
-                        if (teammate.id !== socket.id && (teammate.isAnswerSetter || teammate.team === '0' || teammate.team === player.team)) {
-                            io.to(teammate.id).emit('guessHistoryUpdate', {
-                                guesses: room.currentGame.guesses
+                    // Send real-time guess history update to all relevant players (self, teammates, answer setter, observers, temp observers)
+                    room.players.forEach(targetPlayer => {
+                        if (targetPlayer.id === socket.id || targetPlayer.isAnswerSetter || targetPlayer.team === '0' || targetPlayer.team === player.team || targetPlayer._tempObserver) {
+                            io.to(targetPlayer.id).emit('guessHistoryUpdate', {
+                                guesses: room.currentGame.guesses,
+                                teamGuesses: room.currentGame.teamGuesses
                             });
                         }
                     });
@@ -1475,8 +1508,7 @@ function setupSocket(io, rooms) {
             }
 
             if (!room.currentGame) {
-                console.log(`[ERROR][playerGuess][${socket.id}] 游戏未开始或已结束`);
-                socket.emit('error', { message: 'playerGuess: 游戏未开始或已结束' });
+                console.log(`[INFO][playerGuess][${socket.id}] 游戏未开始或已结束，忽略猜测`);
                 return;
             }
 
@@ -1730,15 +1762,8 @@ function setupSocket(io, rooms) {
                 bonuses: scoreResult.bonuses
             });
 
-            // 广播血战模式进度（每个 winner 已经包含了正确的得分）
-            io.to(roomId).emit('nonstopProgress', {
-                winners: room.currentGame.nonstopWinners.map((w, idx) => ({
-                    username: w.username,
-                    rank: idx + 1,
-                    score: w.score
-                })),
-                remainingCount: remainingPlayers.length,
-                totalCount: totalPlayers
+            getSyncAndNonstopState(room, (eventName, data) => {
+                io.to(roomId).emit(eventName, data);
             });
 
             // 更新玩家列表（包含最新的分数）
@@ -1989,6 +2014,15 @@ function setupSocket(io, rooms) {
 
             // 血战模式：检查是否所有人都结束
             if (room.currentGame?.settings?.nonstopMode) {
+                getSyncAndNonstopState(room, (eventName, data) => {
+                    io.to(roomId).emit(eventName, data);
+                });
+
+                // 更新玩家列表
+                io.to(roomId).emit('updatePlayers', {
+                    players: room.players
+                });
+
                 const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
                 const remainingPlayers = activePlayers.filter(p => 
                     !p.guesses.includes('✌') && 
@@ -1997,22 +2031,6 @@ function setupSocket(io, rooms) {
                     !p.guesses.includes('👑') &&
                     !p.guesses.includes('🏆')
                 );
-
-                // 广播血战模式进度（使用记录的实际得分）
-                io.to(roomId).emit('nonstopProgress', {
-                    winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({
-                        username: w.username,
-                        rank: idx + 1,
-                        score: w.score || Math.max(1, activePlayers.length - idx) // 优先使用记录的得分
-                    })),
-                    remainingCount: remainingPlayers.length,
-                    totalCount: activePlayers.length
-                });
-
-                // 更新玩家列表
-                io.to(roomId).emit('updatePlayers', {
-                    players: room.players
-                });
 
                 // 检查是否所有人都已结束
                 if (remainingPlayers.length === 0) {
@@ -2695,27 +2713,13 @@ function setupSocket(io, rooms) {
     
             // Send initial empty guess history to answer setter
             socket.emit('guessHistoryUpdate', {
-                guesses: room.currentGame.guesses
+                guesses: room.currentGame.guesses,
+                teamGuesses: room.currentGame.teamGuesses
             });
 
-            if (room.currentGame.settings?.syncMode) {
-                updateSyncProgress(room, roomId, io);
-            }
-            if (room.currentGame?.settings?.nonstopMode) {
-                const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
-                const remainingPlayers = activePlayers.filter(p => 
-                    !p.guesses.includes('✌') &&
-                    !p.guesses.includes('💀') &&
-                    !p.guesses.includes('🏳️') &&
-                    !p.guesses.includes('👑') &&
-                    !p.guesses.includes('🏆')
-                );
-                io.to(roomId).emit('nonstopProgress', {
-                    winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({ username: w.username, rank: idx + 1, score: w.score })),
-                    remainingCount: remainingPlayers.length,
-                    totalCount: activePlayers.length
-                });
-            }
+            getSyncAndNonstopState(room, (eventName, data) => {
+                io.to(roomId).emit(eventName, data);
+            });
 
             io.to(roomId).emit('gameStart', {
                 character,

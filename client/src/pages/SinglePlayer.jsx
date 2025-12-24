@@ -133,9 +133,10 @@ function SinglePlayer() {
       };
 
       const isCorrect = guessData.id === answerCharacter.id;
-      setGuessesLeft(prev => prev - 1);
+      const newGuessesLeft = guessesLeft - 1;
 
       if (isCorrect) {
+        setGuessesLeft(newGuessesLeft);
         setGuesses(prevGuesses => [...prevGuesses, {
           id: guessData.id,
           icon: guessData.image,
@@ -170,8 +171,9 @@ function SinglePlayer() {
           result: 'win',
           answer: answerCharacter
         });
-      } else if (guessesLeft <= 1) {
+      } else if (newGuessesLeft <= 0) {
         const feedback = generateFeedback(guessData, answerCharacter, currentGameSettings);
+        setGuessesLeft(newGuessesLeft);
         setGuesses(prevGuesses => [...prevGuesses, {
           id: guessData.id,
           icon: guessData.image,
@@ -205,6 +207,7 @@ function SinglePlayer() {
         });
       } else {
         const feedback = generateFeedback(guessData, answerCharacter, currentGameSettings);
+        setGuessesLeft(newGuessesLeft);
         setGuesses(prevGuesses => [...prevGuesses, {
           id: guessData.id,
           icon: guessData.image,
@@ -367,6 +370,7 @@ function SinglePlayer() {
           isGuessing={isGuessing}
           gameEnd={gameEnd}
           subjectSearch={currentGameSettings.subjectSearch}
+          finishInit={finishInit}
         />
       </div>
 

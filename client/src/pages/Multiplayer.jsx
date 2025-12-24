@@ -110,9 +110,14 @@ const Multiplayer = () => {
   const [waitingForSync, setWaitingForSync] = useState(false); // 同步模式：等待其他玩家
   const [syncStatus, setSyncStatus] = useState({}); // 同步模式：各玩家状态
   const [nonstopProgress, setNonstopProgress] = useState(null); // 血战模式：进度信息
-  const [isObserver, setIsObserver] = useState(false); // 当前玩家是否为旁观者
+  const [isObserver, setIsObserver] = useState(false);
   const [bannedSharedTags, setBannedSharedTags] = useState([]);
   const latestPlayersRef = useRef([]);
+  const [connectionStatus, setConnectionStatus] = useState('connected');
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 5;
+  const reconnectTimerRef = useRef(null);
+  const isManualDisconnectRef = useRef(false);
 
   // 同步模式队列展示过滤：已完成且（断线/投降/猜对/队伍胜利）的不显示
   const getFilteredSyncStatus = () => {
@@ -236,6 +241,66 @@ const Multiplayer = () => {
       setBannedSharedTags(Array.from(banned));
     });
 
+    newSocket.on('connect', () => {
+      console.log('[WebSocket] 连接成功');
+      setConnectionStatus('connected');
+      reconnectAttemptsRef.current = 0;
+      
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      
+      if (isJoined && roomId && username) {
+        const avatarId = sessionStorage.getItem('avatarId');
+        const avatarImage = sessionStorage.getItem('avatarImage');
+        const avatarPayload = avatarId !== null ? { avatarId, avatarImage } : {};
+        
+        newSocket.emit('joinRoom', { roomId, username, ...avatarPayload });
+        newSocket.emit('requestGameSettings', { roomId });
+      }
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('[WebSocket] 连接断开:', reason);
+      
+      if (isManualDisconnectRef.current) {
+        setConnectionStatus('disconnected');
+        return;
+      }
+      
+      setConnectionStatus('reconnecting');
+      
+      if (reason === 'io server disconnect') {
+        newSocket.connect();
+      }
+      
+      if (!newSocket.connected && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        reconnectAttemptsRef.current += 1;
+        const attempt = reconnectAttemptsRef.current;
+        
+        console.log(`[WebSocket] 尝试重连 (${attempt}/${maxReconnectAttempts})...`);
+        
+        reconnectTimerRef.current = setTimeout(() => {
+          if (!newSocket.connected && reconnectAttemptsRef.current <= maxReconnectAttempts) {
+            newSocket.connect();
+          }
+        }, 3000);
+      } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        setConnectionStatus('failed');
+        alert('连接已断开，多次重试失败，请刷新页面或稍后再试');
+        setError('连接失败，请刷新页面重试');
+      }
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('[WebSocket] 连接错误:', error);
+      
+      if (!isManualDisconnectRef.current && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        setConnectionStatus('reconnecting');
+      }
+    });
+
     // 血战模式+同步模式：队友猜对通知
     newSocket.on('teamWin', ({ winnerName, message }) => {
       console.log(`[血战模式+同步模式] 队友猜对: ${winnerName}`);
@@ -321,12 +386,32 @@ const Multiplayer = () => {
       setNonstopProgress(null);
     });
 
-    newSocket.on('guessHistoryUpdate', ({ guesses }) => {
+    newSocket.on('guessHistoryUpdate', ({ guesses, teamGuesses }) => {
       setGuessesHistory(guesses);
 
       // Sync guessesLeft from server history to prevent double deduction
       const currentPlayer = latestPlayersRef.current.find(p => p.id === newSocket.id);
       if (currentPlayer && !currentPlayer.isAnswerSetter && currentPlayer.team !== '0') {
+        let used = 0;
+        if (teamGuesses && teamGuesses[currentPlayer.team]) {
+          const cleanedTeam = String(teamGuesses[currentPlayer.team]).replace(/[✌👑💀🏳️🏆]/g, '');
+          used = cleanedTeam.length;
+        } else {
+          const myHistory = guesses.find(g => g.username === currentPlayer.username);
+          if (myHistory) {
+            used = myHistory.guesses.length;
+          }
+        }
+        const max = gameSettingsRef.current?.maxAttempts || 10;
+        const left = Math.max(0, max - used);
+        setGuessesLeft(left);
+        
+        if (left <= 0) {
+          setTimeout(() => {
+            handleGameEnd(false);
+          }, 100);
+        }
+      } else if (currentPlayer && !currentPlayer.isAnswerSetter && currentPlayer.team === null) {
         const myHistory = guesses.find(g => g.username === currentPlayer.username);
         if (myHistory) {
           const used = myHistory.guesses.length;
@@ -366,10 +451,12 @@ const Multiplayer = () => {
     newSocket.on('error', ({ message }) => {
       alert(`错误: ${message}`);
       setError(message);
-      setIsJoined(false);
+      // 只在特定情况下将玩家踢出房间，游戏开始相关错误不应该踢出房主
       if (message && message.includes('头像被用了😭😭😭')) {
         sessionStorage.removeItem('avatarId');
         sessionStorage.removeItem('avatarImage');
+        setIsJoined(false);
+        navigate('/multiplayer');
       }
     });
 
@@ -480,7 +567,13 @@ const Multiplayer = () => {
     });
 
     return () => {
-      // 清理事件监听和连接
+      isManualDisconnectRef.current = true;
+      
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      
       newSocket.off('playerKicked');
       newSocket.off('hostTransferred');
       newSocket.off('updatePlayers');
@@ -500,6 +593,9 @@ const Multiplayer = () => {
       newSocket.off('teamWin');
       newSocket.off('roomNameUpdated');
       newSocket.off('tagBanStateUpdate');
+      newSocket.off('connect');
+      newSocket.off('disconnect');
+      newSocket.off('connect_error');
       newSocket.disconnect();
       latestPlayersRef.current = [];
       setBannedSharedTags([]);
@@ -723,8 +819,7 @@ const Multiplayer = () => {
           tags: feedback.metaTags.shared
         });
       }
-      // Send guess result to server
-      setGuessesLeft(prev => prev - 1);
+      // Send guess result to server (guessesLeft will be synced via guessHistoryUpdate)
       socketRef.current?.emit('playerGuess', {
         roomId,
         guessResult: {
@@ -763,32 +858,6 @@ const Multiplayer = () => {
           isAnswer: true
         }]);
         handleGameEnd(true);
-      } else if (guessesLeft <= 1) {
-        setGuesses(prevGuesses => [...prevGuesses, {
-          id: guessData.id,
-          icon: guessData.image,
-          name: guessData.name,
-          nameCn: guessData.nameCn,
-          nameEn: guessData.nameEn,
-          gender: guessData.gender,
-          genderFeedback: feedback.gender.feedback,
-          latestAppearance: guessData.latestAppearance,
-          latestAppearanceFeedback: feedback.latestAppearance.feedback,
-          earliestAppearance: guessData.earliestAppearance,
-          earliestAppearanceFeedback: feedback.earliestAppearance.feedback,
-          highestRating: guessData.highestRating,
-          ratingFeedback: feedback.rating.feedback,
-          appearancesCount: guessData.appearances.length,
-          appearancesCountFeedback: feedback.appearancesCount.feedback,
-          popularity: guessData.popularity,
-          popularityFeedback: feedback.popularity.feedback,
-          appearanceIds: guessData.appearanceIds,
-          sharedAppearances: feedback.shared_appearances,
-          metaTags: feedback.metaTags.guess,
-          sharedMetaTags: feedback.metaTags.shared,
-          isAnswer: false
-        }]);
-        handleGameEnd(false);
       } else {
         setGuesses(prevGuesses => [...prevGuesses, {
           id: guessData.id,
@@ -1110,6 +1179,31 @@ const Multiplayer = () => {
 
   return (
     <div className="multiplayer-container">
+      {/* 连接状态指示器 */}
+      {isJoined && connectionStatus !== 'connected' && (
+        <div className={`connection-status ${connectionStatus}`}>
+          <div className="connection-status-content">
+            {connectionStatus === 'reconnecting' && (
+              <>
+                <i className="fas fa-sync fa-spin"></i>
+                <span>连接断开，正在重连... ({reconnectAttemptsRef.current}/{maxReconnectAttempts})</span>
+              </>
+            )}
+            {connectionStatus === 'failed' && (
+              <>
+                <i className="fas fa-exclamation-triangle"></i>
+                <span>连接失败，请刷新页面重试</span>
+              </>
+            )}
+            {connectionStatus === 'disconnected' && (
+              <>
+                <i className="fas fa-times-circle"></i>
+                <span>连接已断开</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {/* 添加踢出通知 */}
       {kickNotification && (
         <div className={`kick-notification ${kickNotification.type === 'host' ? 'host-notification' : kickNotification.type === 'reconnect' ? 'reconnect-notification' : ''}`}>
@@ -1299,14 +1393,14 @@ const Multiplayer = () => {
                       <button
                         onClick={handleStartGame}
                         className="start-game-button"
-                        disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
+                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
                       >
                         开始
                       </button>
                       <button
                         onClick={handleManualMode}
                         className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                        disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
+                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
                       >
                         有人想出题？
                       </button>
@@ -1337,6 +1431,7 @@ const Multiplayer = () => {
                     isGuessing={isGuessing || waitingForSync}
                     gameEnd={gameEnd}
                     subjectSearch={gameSettings.subjectSearch}
+                    finishInit={isGameStarted}
                   />
                   {/* 同步模式等待提示 */}
                   {gameSettings.syncMode && (
@@ -1452,7 +1547,7 @@ const Multiplayer = () => {
                       <div className="sync-status">
                         {getFilteredSyncStatus().map((player, idx) => (
                           <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
-                            {showNames ? player.username : `玩家${idx + 1}`}: {player.completed ? '' : '...'}
+                            {showNames ? player.username : `玩家${idx + 1}`}: {player.completed ? '✓' : '...'}
                           </span>
                         ))}
                       </div>
@@ -1474,15 +1569,39 @@ const Multiplayer = () => {
                     >
                       {(isObserver && !isTeamObserver && !isAnswerSetter) ? '我的' : '详细'}
                     </button>
-                    <div className="settings-row" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
-                      <label style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => setIsGuessTableCollapsed(!isGuessTableCollapsed)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px' }}>
+                      <div 
+                        className={`toggle-switch ${isGuessTableCollapsed ? 'active' : ''}`}
+                        style={{
+                          position: 'relative',
+                          width: '44px',
+                          height: '24px',
+                          borderRadius: '12px',
+                          backgroundColor: isGuessTableCollapsed ? '#3b82f6' : '#e5e7eb',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onClick={() => setIsGuessTableCollapsed(!isGuessTableCollapsed)}
+                      >
+                        <div 
+                          className="toggle-thumb"
+                          style={{
+                            position: 'absolute',
+                            top: '2px',
+                            left: '2px',
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            backgroundColor: 'white',
+                            transition: 'transform 0.2s',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            transform: isGuessTableCollapsed ? 'translateX(20px)' : 'translateX(0)'
+                          }}
+                        />
+                      </div>
+                      <span style={{ fontSize: '14px', color: '#475569' }}>
                         只显示最新3条
-                      </label>
-                      <input
-                        type="checkbox"
-                        checked={isGuessTableCollapsed}
-                        onChange={(e) => setIsGuessTableCollapsed(e.target.checked)}
-                      />
+                      </span>
                     </div>
                   </div>
                   {answerViewMode === 'simple' ? (
@@ -1591,14 +1710,14 @@ const Multiplayer = () => {
                         <button
                           onClick={handleStartGame}
                           className="start-game-button"
-                          disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected)}
+                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
                         >
                           开始
                         </button>
                         <button
                           onClick={handleManualMode}
                           className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                          disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected)}
+                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
                         >
                           有人想出题？
                         </button>
