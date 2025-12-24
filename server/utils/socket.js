@@ -951,6 +951,11 @@ function setupSocket(io, rooms) {
                 console.log(`Room ${roomId} created by ${username}`);
                 return;
             }
+
+            // Check if game is in progress - if so, only allow joining as observer
+            if (room.currentGame) {
+                console.log(`[INFO][joinRoom][${socket.id}] 房间 ${roomId} 游戏进行中，新玩家只能观战`);
+            }
     
             // Check for existing player with same username (case-insensitive)
             const existingPlayerIndex = room.players.findIndex(
@@ -1215,6 +1220,13 @@ function setupSocket(io, rooms) {
             if (player.isHost) {
                 console.log(`[ERROR][toggleReady][${socket.id}] 房主不需要准备`);
                 socket.emit('error', {message: 'toggleReady: 房主不需要准备'});
+                return;
+            }
+
+            // Don't allow toggling ready status if game is in progress
+            if (room.currentGame) {
+                console.log(`[ERROR][toggleReady][${socket.id}] 游戏进行中不能更改准备状态`);
+                socket.emit('error', {message: 'toggleReady: 游戏进行中不能更改准备状态'});
                 return;
             }
     

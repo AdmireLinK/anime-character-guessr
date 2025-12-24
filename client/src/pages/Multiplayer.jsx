@@ -366,10 +366,12 @@ const Multiplayer = () => {
     newSocket.on('error', ({ message }) => {
       alert(`错误: ${message}`);
       setError(message);
-      setIsJoined(false);
+      // 只在特定情况下将玩家踢出房间，游戏开始相关错误不应该踢出房主
       if (message && message.includes('头像被用了😭😭😭')) {
         sessionStorage.removeItem('avatarId');
         sessionStorage.removeItem('avatarImage');
+        setIsJoined(false);
+        navigate('/multiplayer');
       }
     });
 
