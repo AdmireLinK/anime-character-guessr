@@ -1426,6 +1426,30 @@ function setupSocket(io, rooms) {
                 return;
             }
 
+            // Check globalPick mode: reject if character already guessed by others
+            const settings = room.currentGame?.settings || {};
+            if (settings.globalPick && !settings.syncMode && guessResult.guessData) {
+                const characterId = guessResult.guessData.id;
+                const isCorrectAnswer = guessResult.isCorrect;
+                const isPartialCorrect = guessResult.isPartialCorrect;
+
+                // Check if any other player has already guessed this character
+                const alreadyGuessed = room.currentGame.guesses.some(playerGuesses => {
+                    if (playerGuesses.username === player.username) return false;
+                    return Array.isArray(playerGuesses.guesses) && playerGuesses.guesses.some(guessEntry =>
+                        guessEntry?.guessData?.id === characterId
+                    );
+                });
+
+                if (alreadyGuessed) {
+                    // Allow only if it's the correct answer in nonstop mode
+                    if (!settings.nonstopMode || !isCorrectAnswer) {
+                        socket.emit('error', { message: '【全局BP】该角色已经被其他玩家猜过了' });
+                        return;
+                    }
+                }
+            }
+
             // Store guess in the player's guesses array using their username
             if (room.currentGame) {
                 const playerGuesses = room.currentGame.guesses.find(g => g.username === player.username);
