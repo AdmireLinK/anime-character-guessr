@@ -1332,6 +1332,7 @@ const Multiplayer = () => {
                     isGuessing={isGuessing || waitingForSync}
                     gameEnd={gameEnd}
                     subjectSearch={gameSettings.subjectSearch}
+                    finishInit={isGameStarted}
                   />
                   {/* 同步模式等待提示 */}
                   {gameSettings.syncMode && (

@@ -4,7 +4,7 @@ import { searchSubjects, getCharactersBySubjectId, getCharacterDetails } from '.
 import '../styles/search.css';
 import { submitGuessCharacterCount } from '../utils/db';
 
-function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch }) {
+function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, finishInit = true }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -47,7 +47,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch }) {
     function handleKeyDown(e) {
       // 当用户按下空格键且不在输入框中时，聚焦到搜索输入框
       if (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && 
-          document.activeElement.tagName !== 'TEXTAREA' && !isGuessing && !gameEnd) {
+          document.activeElement.tagName !== 'TEXTAREA' && !isGuessing && !gameEnd && finishInit) {
         e.preventDefault();
         searchInputRef.current.focus();
       }
@@ -57,7 +57,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch }) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isGuessing, gameEnd]);
+  }, [isGuessing, gameEnd, finishInit]);
 
   // 自动滚动，确保选中项在视图中可见
   useEffect(() => {
@@ -176,7 +176,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch }) {
   }, [searchQuery, searchMode]);
 
   const handleSearch = async (reset = false) => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim() || !finishInit) return;
     
     // Always use initial search parameters when reset is true
     const currentLimit = reset ? INITIAL_LIMIT : MORE_LIMIT;
@@ -236,7 +236,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch }) {
   };
 
   const handleSubjectSearch = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim() || !finishInit) return;
     setIsSearching(true);
     try {
       const results = await searchSubjects(searchQuery);
@@ -282,6 +282,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch }) {
   };
 
   const handleCharacterSelect = (character) => {
+    if (!finishInit) return;
     submitGuessCharacterCount(character.id, character.nameCn || character.name);
     onCharacterSelect(character);
     setSearchQuery('');
@@ -399,7 +400,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch }) {
             className="search-input"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            disabled={isGuessing || gameEnd}
+            disabled={isGuessing || gameEnd || !finishInit}
             placeholder={searchMode === 'character' ? "搜索想猜的角色..." : "搜索想猜的作品..."}
             ref={searchInputRef}
           />
@@ -411,7 +412,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch }) {
             setSearchMode('character');
             if (searchQuery.trim()) handleSearch(true);
           }}
-          disabled={!searchQuery.trim() || isSearching || isGuessing || gameEnd}
+          disabled={!searchQuery.trim() || isSearching || isGuessing || gameEnd || !finishInit}
         >
           {isSearching && searchMode === 'character' ? '在搜了...' : isGuessing ? '在猜了...' : '搜角色'}
         </button>
@@ -422,7 +423,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch }) {
               setSearchMode('subject');
               if (searchQuery.trim()) handleSubjectSearch();
             }}
-            disabled={!searchQuery.trim() || isSearching || isGuessing || gameEnd}
+            disabled={!searchQuery.trim() || isSearching || isGuessing || gameEnd || !finishInit}
           >
             {isSearching && searchMode === 'subject' ? '在搜了...' : '搜作品'}
           </button>

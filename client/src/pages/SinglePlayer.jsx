@@ -370,6 +370,7 @@ function SinglePlayer() {
           isGuessing={isGuessing}
           gameEnd={gameEnd}
           subjectSearch={currentGameSettings.subjectSearch}
+          finishInit={finishInit}
         />
       </div>
 
