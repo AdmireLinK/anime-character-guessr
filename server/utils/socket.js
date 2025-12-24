@@ -1,4 +1,65 @@
 /**
+ * 获取同步模式和血战模式状态
+ * @param {Object} room - 房间对象
+ * @param {Function} emitCallback - 发送状态的回调函数，接收 (eventName, data) 参数
+ */
+function getSyncAndNonstopState(room, emitCallback) {
+    if (!room?.currentGame) return;
+
+    const isEnded = p => (
+        p.guesses.includes('✌') ||
+        p.guesses.includes('💀') ||
+        p.guesses.includes('🏳️') ||
+        p.guesses.includes('👑') ||
+        p.guesses.includes('🏆')
+    );
+
+    if (room.currentGame?.settings?.syncMode) {
+        const syncPlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected && !isEnded(p));
+        const syncStatus = syncPlayers.map(p => ({
+            id: p.id,
+            username: p.username,
+            completed: room.currentGame.syncPlayersCompleted ? room.currentGame.syncPlayersCompleted.has(p.id) : false
+        }));
+        
+        if (emitCallback) {
+            emitCallback('syncWaiting', {
+                round: room.currentGame.syncRound,
+                syncStatus,
+                completedCount: syncStatus.filter(s => s.completed).length,
+                totalCount: syncStatus.length
+            });
+
+            if (room.currentGame.syncWinnerFound && !room.currentGame?.settings?.nonstopMode) {
+                emitCallback('syncGameEnding', {
+                    winnerUsername: room.currentGame.syncWinner?.username,
+                    message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
+                });
+            }
+        }
+    }
+
+    if (room.currentGame.settings?.nonstopMode) {
+        const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
+        const remainingPlayers = activePlayers.filter(p => 
+            !p.guesses.includes('✌') &&
+            !p.guesses.includes('💀') &&
+            !p.guesses.includes('🏳️') &&
+            !p.guesses.includes('👑') &&
+            !p.guesses.includes('🏆')
+        );
+        
+        if (emitCallback) {
+            emitCallback('nonstopProgress', {
+                winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({ username: w.username, rank: idx + 1, score: w.score })),
+                remainingCount: remainingPlayers.length,
+                totalCount: activePlayers.length
+            });
+        }
+    }
+}
+
+/**
  * 计算玩家胜利得分
  * @param {Object} options - 计算选项
  * @param {string} options.guesses - 玩家的猜测记录字符串
@@ -1040,50 +1101,9 @@ function setupSocket(io, rooms) {
                             tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
                         });
 
-                        // 同步/血战模式：同步当前状态给重连玩家
-                        if (room.currentGame?.settings?.syncMode) {
-                            const isEnded = p => (
-                                p.guesses.includes('✌') ||
-                                p.guesses.includes('💀') ||
-                                p.guesses.includes('🏳️') ||
-                                p.guesses.includes('👑') ||
-                                p.guesses.includes('🏆')
-                            );
-                            const syncPlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected && !isEnded(p));
-                            const syncStatus = syncPlayers.map(p => ({
-                                id: p.id,
-                                username: p.username,
-                                completed: room.currentGame.syncPlayersCompleted ? room.currentGame.syncPlayersCompleted.has(p.id) : false
-                            }));
-                            socket.emit('syncWaiting', {
-                                round: room.currentGame.syncRound,
-                                syncStatus,
-                                completedCount: syncStatus.filter(s => s.completed).length,
-                                totalCount: syncStatus.length
-                            });
-                            if (room.currentGame.syncWinnerFound && !room.currentGame?.settings?.nonstopMode) {
-                                socket.emit('syncGameEnding', {
-                                    winnerUsername: room.currentGame.syncWinner?.username,
-                                    message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
-                                });
-                            }
-                        }
-
-                        if (room.currentGame.settings?.nonstopMode) {
-                            const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
-                            const remainingPlayers = activePlayers.filter(p => 
-                                !p.guesses.includes('✌') &&
-                                !p.guesses.includes('💀') &&
-                                !p.guesses.includes('🏳️') &&
-                                !p.guesses.includes('👑') &&
-                                !p.guesses.includes('🏆')
-                            );
-                            socket.emit('nonstopProgress', {
-                                winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({ username: w.username, rank: idx + 1, score: w.score })),
-                                remainingCount: remainingPlayers.length,
-                                totalCount: activePlayers.length
-                            });
-                        }
+                        getSyncAndNonstopState(room, (eventName, data) => {
+                            socket.emit(eventName, data);
+                        });
 
                         // If their team already won while they were disconnected, backfill their guess string and notify
                         if (existingPlayer.team && existingPlayer.team !== '0') {
@@ -1193,50 +1213,9 @@ function setupSocket(io, rooms) {
                     tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
                 });
 
-                // 同步/血战模式：立即把当前状态同步给中途加入的观战者
-                if (room.currentGame?.settings?.syncMode) {
-                    const isEnded = p => (
-                        p.guesses.includes('✌') ||
-                        p.guesses.includes('💀') ||
-                        p.guesses.includes('🏳️') ||
-                        p.guesses.includes('👑') ||
-                        p.guesses.includes('🏆')
-                    );
-                    const syncPlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected && !isEnded(p));
-                    const syncStatus = syncPlayers.map(p => ({
-                        id: p.id,
-                        username: p.username,
-                        completed: room.currentGame.syncPlayersCompleted ? room.currentGame.syncPlayersCompleted.has(p.id) : false
-                    }));
-                    socket.emit('syncWaiting', {
-                        round: room.currentGame.syncRound,
-                        syncStatus,
-                        completedCount: syncStatus.filter(s => s.completed).length,
-                        totalCount: syncStatus.length
-                    });
-                    if (room.currentGame.syncWinnerFound && !room.currentGame?.settings?.nonstopMode) {
-                        socket.emit('syncGameEnding', {
-                            winnerUsername: room.currentGame.syncWinner?.username,
-                            message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
-                        });
-                    }
-                }
-
-                if (room.currentGame.settings?.nonstopMode) {
-                    const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
-                    const remainingPlayers = activePlayers.filter(p => 
-                        !p.guesses.includes('✌') &&
-                        !p.guesses.includes('💀') &&
-                        !p.guesses.includes('🏳️') &&
-                        !p.guesses.includes('👑') &&
-                        !p.guesses.includes('🏆')
-                    );
-                    socket.emit('nonstopProgress', {
-                        winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({ username: w.username, rank: idx + 1, score: w.score })),
-                        remainingCount: remainingPlayers.length,
-                        totalCount: activePlayers.length
-                    });
-                }
+                getSyncAndNonstopState(room, (eventName, data) => {
+                    socket.emit(eventName, data);
+                });
             }
     
             console.log(`${username} joined room ${roomId}`);
@@ -1769,15 +1748,8 @@ function setupSocket(io, rooms) {
                 bonuses: scoreResult.bonuses
             });
 
-            // 广播血战模式进度（每个 winner 已经包含了正确的得分）
-            io.to(roomId).emit('nonstopProgress', {
-                winners: room.currentGame.nonstopWinners.map((w, idx) => ({
-                    username: w.username,
-                    rank: idx + 1,
-                    score: w.score
-                })),
-                remainingCount: remainingPlayers.length,
-                totalCount: totalPlayers
+            getSyncAndNonstopState(room, (eventName, data) => {
+                io.to(roomId).emit(eventName, data);
             });
 
             // 更新玩家列表（包含最新的分数）
@@ -2028,6 +2000,15 @@ function setupSocket(io, rooms) {
 
             // 血战模式：检查是否所有人都结束
             if (room.currentGame?.settings?.nonstopMode) {
+                getSyncAndNonstopState(room, (eventName, data) => {
+                    io.to(roomId).emit(eventName, data);
+                });
+
+                // 更新玩家列表
+                io.to(roomId).emit('updatePlayers', {
+                    players: room.players
+                });
+
                 const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
                 const remainingPlayers = activePlayers.filter(p => 
                     !p.guesses.includes('✌') && 
@@ -2036,22 +2017,6 @@ function setupSocket(io, rooms) {
                     !p.guesses.includes('👑') &&
                     !p.guesses.includes('🏆')
                 );
-
-                // 广播血战模式进度（使用记录的实际得分）
-                io.to(roomId).emit('nonstopProgress', {
-                    winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({
-                        username: w.username,
-                        rank: idx + 1,
-                        score: w.score || Math.max(1, activePlayers.length - idx) // 优先使用记录的得分
-                    })),
-                    remainingCount: remainingPlayers.length,
-                    totalCount: activePlayers.length
-                });
-
-                // 更新玩家列表
-                io.to(roomId).emit('updatePlayers', {
-                    players: room.players
-                });
 
                 // 检查是否所有人都已结束
                 if (remainingPlayers.length === 0) {
@@ -2737,24 +2702,9 @@ function setupSocket(io, rooms) {
                 guesses: room.currentGame.guesses
             });
 
-            if (room.currentGame.settings?.syncMode) {
-                updateSyncProgress(room, roomId, io);
-            }
-            if (room.currentGame?.settings?.nonstopMode) {
-                const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
-                const remainingPlayers = activePlayers.filter(p => 
-                    !p.guesses.includes('✌') &&
-                    !p.guesses.includes('💀') &&
-                    !p.guesses.includes('🏳️') &&
-                    !p.guesses.includes('👑') &&
-                    !p.guesses.includes('🏆')
-                );
-                io.to(roomId).emit('nonstopProgress', {
-                    winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({ username: w.username, rank: idx + 1, score: w.score })),
-                    remainingCount: remainingPlayers.length,
-                    totalCount: activePlayers.length
-                });
-            }
+            getSyncAndNonstopState(room, (eventName, data) => {
+                io.to(roomId).emit(eventName, data);
+            });
 
             io.to(roomId).emit('gameStart', {
                 character,
