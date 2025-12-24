@@ -1094,7 +1094,8 @@ function setupSocket(io, rooms) {
                         });
 
                         socket.emit('guessHistoryUpdate', {
-                            guesses: room.currentGame.guesses
+                            guesses: room.currentGame.guesses,
+                            teamGuesses: room.currentGame.teamGuesses
                         });
 
                         socket.emit('tagBanStateUpdate', {
@@ -1206,7 +1207,8 @@ function setupSocket(io, rooms) {
                 });
 
                 socket.emit('guessHistoryUpdate', {
-                    guesses: room.currentGame.guesses
+                    guesses: room.currentGame.guesses,
+                    teamGuesses: room.currentGame.teamGuesses
                 });
 
                 socket.emit('tagBanStateUpdate', {
@@ -1435,23 +1437,12 @@ function setupSocket(io, rooms) {
                     };
                     playerGuesses.guesses.push(guessEntry);
 
-                    // If player is on a team, also append the same guess entry to teammates' guess arrays
-                    if (player.team && player.team !== '0') {
-                        room.currentGame.guesses.forEach(pg => {
-                            if (pg.username !== player.username) {
-                                const teammatePlayer = room.players.find(p => p.username === pg.username && p.team === player.team);
-                                if (teammatePlayer) {
-                                    pg.guesses.push({ ...guessEntry });
-                                }
-                            }
-                        });
-                    }
-
-                    // Send real-time guess history update to answer setter, observers and teammates
-                    room.players.forEach(teammate => {
-                        if (teammate.id !== socket.id && (teammate.isAnswerSetter || teammate.team === '0' || teammate.team === player.team)) {
-                            io.to(teammate.id).emit('guessHistoryUpdate', {
-                                guesses: room.currentGame.guesses
+                    // Send real-time guess history update to all relevant players (self, teammates, answer setter, observers, temp observers)
+                    room.players.forEach(targetPlayer => {
+                        if (targetPlayer.id === socket.id || targetPlayer.isAnswerSetter || targetPlayer.team === '0' || targetPlayer.team === player.team || targetPlayer._tempObserver) {
+                            io.to(targetPlayer.id).emit('guessHistoryUpdate', {
+                                guesses: room.currentGame.guesses,
+                                teamGuesses: room.currentGame.teamGuesses
                             });
                         }
                     });
@@ -2699,7 +2690,8 @@ function setupSocket(io, rooms) {
     
             // Send initial empty guess history to answer setter
             socket.emit('guessHistoryUpdate', {
-                guesses: room.currentGame.guesses
+                guesses: room.currentGame.guesses,
+                teamGuesses: room.currentGame.teamGuesses
             });
 
             getSyncAndNonstopState(room, (eventName, data) => {

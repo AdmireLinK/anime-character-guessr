@@ -321,24 +321,30 @@ const Multiplayer = () => {
       setNonstopProgress(null);
     });
 
-    newSocket.on('guessHistoryUpdate', ({ guesses }) => {
+    newSocket.on('guessHistoryUpdate', ({ guesses, teamGuesses }) => {
       setGuessesHistory(guesses);
 
       // Sync guessesLeft from server history to prevent double deduction
       const currentPlayer = latestPlayersRef.current.find(p => p.id === newSocket.id);
       if (currentPlayer && !currentPlayer.isAnswerSetter && currentPlayer.team !== '0') {
-        const myHistory = guesses.find(g => g.username === currentPlayer.username);
-        if (myHistory) {
-          const used = myHistory.guesses.length;
-          const max = gameSettingsRef.current?.maxAttempts || 10;
-          const left = Math.max(0, max - used);
-          setGuessesLeft(left);
-          
-          if (left <= 0) {
-            setTimeout(() => {
-              handleGameEnd(false);
-            }, 100);
+        let used = 0;
+        if (teamGuesses && teamGuesses[currentPlayer.team]) {
+          const cleanedTeam = String(teamGuesses[currentPlayer.team]).replace(/[✌👑💀🏳️🏆]/g, '');
+          used = cleanedTeam.length;
+        } else {
+          const myHistory = guesses.find(g => g.username === currentPlayer.username);
+          if (myHistory) {
+            used = myHistory.guesses.length;
           }
+        }
+        const max = gameSettingsRef.current?.maxAttempts || 10;
+        const left = Math.max(0, max - used);
+        setGuessesLeft(left);
+        
+        if (left <= 0) {
+          setTimeout(() => {
+            handleGameEnd(false);
+          }, 100);
         }
       }
     });
