@@ -346,6 +346,20 @@ const Multiplayer = () => {
             handleGameEnd(false);
           }, 100);
         }
+      } else if (currentPlayer && !currentPlayer.isAnswerSetter && currentPlayer.team === null) {
+        const myHistory = guesses.find(g => g.username === currentPlayer.username);
+        if (myHistory) {
+          const used = myHistory.guesses.length;
+          const max = gameSettingsRef.current?.maxAttempts || 10;
+          const left = Math.max(0, max - used);
+          setGuessesLeft(left);
+          
+          if (left <= 0) {
+            setTimeout(() => {
+              handleGameEnd(false);
+            }, 100);
+          }
+        }
       }
     });
 
@@ -731,8 +745,7 @@ const Multiplayer = () => {
           tags: feedback.metaTags.shared
         });
       }
-      // Send guess result to server
-      setGuessesLeft(prev => prev - 1);
+      // Send guess result to server (guessesLeft will be synced via guessHistoryUpdate)
       socketRef.current?.emit('playerGuess', {
         roomId,
         guessResult: {
@@ -771,32 +784,6 @@ const Multiplayer = () => {
           isAnswer: true
         }]);
         handleGameEnd(true);
-      } else if (guessesLeft <= 1) {
-        setGuesses(prevGuesses => [...prevGuesses, {
-          id: guessData.id,
-          icon: guessData.image,
-          name: guessData.name,
-          nameCn: guessData.nameCn,
-          nameEn: guessData.nameEn,
-          gender: guessData.gender,
-          genderFeedback: feedback.gender.feedback,
-          latestAppearance: guessData.latestAppearance,
-          latestAppearanceFeedback: feedback.latestAppearance.feedback,
-          earliestAppearance: guessData.earliestAppearance,
-          earliestAppearanceFeedback: feedback.earliestAppearance.feedback,
-          highestRating: guessData.highestRating,
-          ratingFeedback: feedback.rating.feedback,
-          appearancesCount: guessData.appearances.length,
-          appearancesCountFeedback: feedback.appearancesCount.feedback,
-          popularity: guessData.popularity,
-          popularityFeedback: feedback.popularity.feedback,
-          appearanceIds: guessData.appearanceIds,
-          sharedAppearances: feedback.shared_appearances,
-          metaTags: feedback.metaTags.guess,
-          sharedMetaTags: feedback.metaTags.shared,
-          isAnswer: false
-        }]);
-        handleGameEnd(false);
       } else {
         setGuesses(prevGuesses => [...prevGuesses, {
           id: guessData.id,
