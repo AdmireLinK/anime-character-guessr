@@ -1040,6 +1040,51 @@ function setupSocket(io, rooms) {
                             tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
                         });
 
+                        // 同步/血战模式：同步当前状态给重连玩家
+                        if (room.currentGame?.settings?.syncMode) {
+                            const isEnded = p => (
+                                p.guesses.includes('✌') ||
+                                p.guesses.includes('💀') ||
+                                p.guesses.includes('🏳️') ||
+                                p.guesses.includes('👑') ||
+                                p.guesses.includes('🏆')
+                            );
+                            const syncPlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected && !isEnded(p));
+                            const syncStatus = syncPlayers.map(p => ({
+                                id: p.id,
+                                username: p.username,
+                                completed: room.currentGame.syncPlayersCompleted ? room.currentGame.syncPlayersCompleted.has(p.id) : false
+                            }));
+                            socket.emit('syncWaiting', {
+                                round: room.currentGame.syncRound,
+                                syncStatus,
+                                completedCount: syncStatus.filter(s => s.completed).length,
+                                totalCount: syncStatus.length
+                            });
+                            if (room.currentGame.syncWinnerFound && !room.currentGame?.settings?.nonstopMode) {
+                                socket.emit('syncGameEnding', {
+                                    winnerUsername: room.currentGame.syncWinner?.username,
+                                    message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
+                                });
+                            }
+                        }
+
+                        if (room.currentGame.settings?.nonstopMode) {
+                            const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
+                            const remainingPlayers = activePlayers.filter(p => 
+                                !p.guesses.includes('✌') &&
+                                !p.guesses.includes('💀') &&
+                                !p.guesses.includes('🏳️') &&
+                                !p.guesses.includes('👑') &&
+                                !p.guesses.includes('🏆')
+                            );
+                            socket.emit('nonstopProgress', {
+                                winners: (room.currentGame.nonstopWinners || []).map((w, idx) => ({ username: w.username, rank: idx + 1, score: w.score })),
+                                remainingCount: remainingPlayers.length,
+                                totalCount: activePlayers.length
+                            });
+                        }
+
                         // If their team already won while they were disconnected, backfill their guess string and notify
                         if (existingPlayer.team && existingPlayer.team !== '0') {
                             const teamId = existingPlayer.team;
