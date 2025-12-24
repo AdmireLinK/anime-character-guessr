@@ -25,6 +25,28 @@ const announcements = [
   },
 
   {
+    version: '1.6.7',
+    date: '2025-12-24',
+    content: `
+      <b>新功能：</b><br/>
+      <ul>
+        <li>在“Baka专线”中默认应用了自建的Bangumi API，这应该能减少搜索和猜测的卡顿问题</li>
+        <li>多人模式连接中断时会有提醒并自动尝试重连</li>
+        <li>多人模式服务器重启或报错关闭时会进行提醒</li>
+      </ul>
+      <b>调整：</b><br/>
+      <ul>
+        <li>移动设备的部分样式</li>
+      </ul>
+      <b>修复：</b><br/>
+      <ul>
+        <li>大量多人模式偶发出现的Bug</li>
+        <li>部分样式错误</li>
+      </ul>
+    `
+  },
+
+  {
     version: '1.6.6',
     date: '2025-12-21',
     content: `
