@@ -1299,14 +1299,14 @@ const Multiplayer = () => {
                       <button
                         onClick={handleStartGame}
                         className="start-game-button"
-                        disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
+                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
                       >
                         开始
                       </button>
                       <button
                         onClick={handleManualMode}
                         className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                        disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
+                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
                       >
                         有人想出题？
                       </button>
@@ -1591,14 +1591,14 @@ const Multiplayer = () => {
                         <button
                           onClick={handleStartGame}
                           className="start-game-button"
-                          disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected)}
+                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
                         >
                           开始
                         </button>
                         <button
                           onClick={handleManualMode}
                           className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                          disabled={players.length < 2 || players.some(p => !p.isHost && p.team !== '0' && !p.ready && !p.disconnected)}
+                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
                         >
                           有人想出题？
                         </button>
