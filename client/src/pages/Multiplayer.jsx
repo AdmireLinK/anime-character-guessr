@@ -1482,15 +1482,39 @@ const Multiplayer = () => {
                     >
                       {(isObserver && !isTeamObserver && !isAnswerSetter) ? '我的' : '详细'}
                     </button>
-                    <div className="settings-row" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
-                      <label style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => setIsGuessTableCollapsed(!isGuessTableCollapsed)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px' }}>
+                      <div 
+                        className={`toggle-switch ${isGuessTableCollapsed ? 'active' : ''}`}
+                        style={{
+                          position: 'relative',
+                          width: '44px',
+                          height: '24px',
+                          borderRadius: '12px',
+                          backgroundColor: isGuessTableCollapsed ? '#3b82f6' : '#e5e7eb',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onClick={() => setIsGuessTableCollapsed(!isGuessTableCollapsed)}
+                      >
+                        <div 
+                          className="toggle-thumb"
+                          style={{
+                            position: 'absolute',
+                            top: '2px',
+                            left: '2px',
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            backgroundColor: 'white',
+                            transition: 'transform 0.2s',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            transform: isGuessTableCollapsed ? 'translateX(20px)' : 'translateX(0)'
+                          }}
+                        />
+                      </div>
+                      <span style={{ fontSize: '14px', color: '#475569' }}>
                         只显示最新3条
-                      </label>
-                      <input
-                        type="checkbox"
-                        checked={isGuessTableCollapsed}
-                        onChange={(e) => setIsGuessTableCollapsed(e.target.checked)}
-                      />
+                      </span>
                     </div>
                   </div>
                   {answerViewMode === 'simple' ? (
