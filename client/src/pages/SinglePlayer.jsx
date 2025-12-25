@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getRandomCharacter, getCharacterAppearances, generateFeedback } from '../utils/bangumi';
 import SearchBar from '../components/SearchBar';
 import GuessesTable from '../components/GuessesTable';
@@ -8,8 +9,10 @@ import GameEndPopup from '../components/GameEndPopup';
 import SocialLinks from '../components/SocialLinks';
 import GameInfo from '../components/GameInfo';
 import Timer from '../components/Timer';
+import FeedbackPopup from '../components/FeedbackPopup';
 import '../styles/game.css';
 import '../styles/SinglePlayer.css';
+import '../styles/social.css';
 import axios from 'axios';
 import { useLocalStorage } from 'usehooks-ts';
 
@@ -23,10 +26,13 @@ function SinglePlayer() {
   const [settingsPopup, setSettingsPopup] = useState(false);
   const [helpPopup, setHelpPopup] = useState(false);
   const [finishInit, setFinishInit] = useState(false);
+  const [initFailed, setInitFailed] = useState(false);
   const [shouldResetTimer, setShouldResetTimer] = useState(false);
   const [hints, setHints] = useState([]);
   const [imgHint, setImgHint] = useState(null);
   const [useImageHint, setUseImageHint] = useState(0);
+  const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
+  const navigate = useNavigate();
   const [gameSettings, setGameSettings] = useLocalStorage('singleplayer-game-settings', {
     startYear: new Date().getFullYear()-10,
     endYear: new Date().getFullYear(),
@@ -54,11 +60,8 @@ function SinglePlayer() {
   useEffect(() => {
     let isMounted = true;
 
-    axios.get(import.meta.env.VITE_SERVER_URL).then(response => {
-      console.log(response.data);
-    });
-
     const initializeGame = async () => {
+      setInitFailed(false);
       try {
         if (gameSettings.addedSubjects.length > 0) {
           await axios.post(import.meta.env.VITE_SERVER_URL + '/api/subject-added', {
@@ -93,11 +96,14 @@ function SinglePlayer() {
           setImgHint(gameSettings.useImageHint > 0 ? character.image : null);
           console.log('初始化游戏', gameSettings);
           setFinishInit(true);
+          setInitFailed(false);
         }
       } catch (error) {
         console.error('Failed to initialize game:', error);
         if (isMounted) {
-          alert('游戏初始化失败，请刷新页面重试，或在设置里清理缓存');
+          const message = error?.response?.data?.message || error?.message || '游戏初始化失败，请刷新页面重试，或在设置里清理缓存';
+          alert(message);
+          setInitFailed(true);
         }
       }
     };
@@ -127,9 +133,10 @@ function SinglePlayer() {
       };
 
       const isCorrect = guessData.id === answerCharacter.id;
-      setGuessesLeft(prev => prev - 1);
+      const newGuessesLeft = guessesLeft - 1;
 
       if (isCorrect) {
+        setGuessesLeft(newGuessesLeft);
         setGuesses(prevGuesses => [...prevGuesses, {
           id: guessData.id,
           icon: guessData.image,
@@ -164,8 +171,9 @@ function SinglePlayer() {
           result: 'win',
           answer: answerCharacter
         });
-      } else if (guessesLeft <= 1) {
+      } else if (newGuessesLeft <= 0) {
         const feedback = generateFeedback(guessData, answerCharacter, currentGameSettings);
+        setGuessesLeft(newGuessesLeft);
         setGuesses(prevGuesses => [...prevGuesses, {
           id: guessData.id,
           icon: guessData.image,
@@ -199,6 +207,7 @@ function SinglePlayer() {
         });
       } else {
         const feedback = generateFeedback(guessData, answerCharacter, currentGameSettings);
+        setGuessesLeft(newGuessesLeft);
         setGuesses(prevGuesses => [...prevGuesses, {
           id: guessData.id,
           icon: guessData.image,
@@ -250,6 +259,7 @@ function SinglePlayer() {
     setSettingsPopup(false);
     setShouldResetTimer(true);
     setFinishInit(false);
+    setInitFailed(false);
     setHints([]);
 
     try {
@@ -283,10 +293,13 @@ function SinglePlayer() {
       setImgHint(gameSettings.useImageHint > 0 ? character.image : null);
       console.log('初始化游戏', gameSettings);
       setFinishInit(true);
-    } catch (error) {
-      console.error('Failed to initialize new game:', error);
-      alert('游戏初始化失败，请刷新页面重试，或在设置里清理缓存');
-    }
+      setInitFailed(false);
+  } catch (error) {
+    console.error('Failed to initialize new game:', error);
+    const message = error?.response?.data?.message || error?.message || '游戏初始化失败，请刷新页面重试，或在设置里清理缓存';
+    alert(message);
+    setInitFailed(true);
+  }
   };
 
   const timeUpRef = useRef(false);
@@ -324,11 +337,31 @@ function SinglePlayer() {
     alert('已投降！查看角色详情');
   };
 
+  const handleFeedbackSubmit = async ({ type, description }) => {
+    const payload = {
+      bugType: type,
+      description,
+    };
+    const serverUrl = import.meta.env.VITE_SERVER_URL || '';
+    await axios.post(`${serverUrl}/api/bug-feedback`, payload);
+  };
+
   return (
     <div className="single-player-container">
+      <button
+        type="button"
+        className="social-link floating-feedback-button"
+        title="Bug/标签反馈"
+        onClick={() => setShowFeedbackPopup(true)}
+      >
+        🐞
+      </button>
+
       <SocialLinks
         onSettingsClick={() => setSettingsPopup(true)}
         onHelpClick={() => setHelpPopup(true)}
+        onFeedbackClick={() => setShowFeedbackPopup(true)}
+        showFeedbackInline={true}
       />
 
       <div className="search-bar">
@@ -337,6 +370,7 @@ function SinglePlayer() {
           isGuessing={isGuessing}
           gameEnd={gameEnd}
           subjectSearch={currentGameSettings.subjectSearch}
+          finishInit={finishInit}
         />
       </div>
 
@@ -355,6 +389,7 @@ function SinglePlayer() {
         onRestart={handleRestartWithSettings}
         answerCharacter={answerCharacter}
         finishInit={finishInit}
+        initFailed={initFailed}
         hints={hints}
         useImageHint={useImageHint}
         imgHint = {imgHint}
@@ -386,6 +421,13 @@ function SinglePlayer() {
           result={gameEndPopup.result}
           answer={gameEndPopup.answer}
           onClose={() => setGameEndPopup(null)}
+        />
+      )}
+
+      {showFeedbackPopup && (
+        <FeedbackPopup
+          onClose={() => setShowFeedbackPopup(false)}
+          onSubmit={handleFeedbackSubmit}
         />
       )}
     </div>

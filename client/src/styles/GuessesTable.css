@@ -13,6 +13,11 @@
   min-height: 100px;
 }
 
+/* Mobile list is hidden by default; shown only on small screens */
+.guesses-list {
+  display: none;
+}
+
 .guesses-table th,
 .guesses-table td {
   padding: 12px 16px;
@@ -165,6 +170,19 @@
   color: #14532d;
 }
 
+.meta-tag.banned-tag {
+  background-color: #f1f5f9;
+  color: #64748b;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    #e2e8f0 4px,
+    #e2e8f0 8px
+  );
+  opacity: 0.85;
+}
+
 /* Shared appearances */
 .shared-appearances {
   display: inline-block;
@@ -203,23 +221,343 @@
   .table-container {
     border-radius: 8px;
   }
-  
+
+  /* Hide feedback floating button in single-player on small screens to avoid overlapping the search bar */
+  .single-player-container .floating-feedback-button {
+    display: none;
+  }
+
+  /* Hide desktop table and show mobile-friendly list */
+  .guesses-table {
+    display: none;
+  }
+
+  .guesses-list {
+    display: block;
+    padding: 8px;
+    /* Limit mobile list to fill viewport and allow internal scrolling */
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+
+  /* Make mobile cards visually consistent with desktop table cells */
+  .guess-card {
+    background: #fff;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    border: 1px solid #e2e8f0; /* match table row separators */
+    position: relative;
+  }
+
+  .guess-card.correct {
+    background: #bbf7d0;
+  }
+
+  .guess-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+  }
+
+  .guess-card-names {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .guess-card-gender {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    font-size: 20px;
+    line-height: 1;
+    color: #8b5cf6;
+  }
+
+  .guess-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .guess-card-row .label {
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  .guess-card-row .value {
+    text-align: right;
+    min-width: 80px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
+  .guess-card-tags .meta-tags-container {
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding: 6px 0;
+    gap: 6px;
+  }
+
+  .meta-tags-container .meta-tag {
+    white-space: nowrap;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .feedback-cell {
+    padding: 6px 12px; /* match desktop feedback cell padding */
+    font-size: 14px;
+    min-width: 0;
+    border-radius: 6px;
+  }
+
+  .feedback-cell.highlight {
+    background: #fff7cc;
+    color: #7c2d12;
+    font-weight: 700;
+  }
+
+  .character-name {
+    font-size: 14px; /* match desktop */
+    font-weight: 500;
+  }
+
+  .character-name-cn {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  /* adjust avatar */
+  .guess-card-header .character-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 6px;
+    object-fit: cover;
+  }
+
+  .guess-card-row + .guess-card-row {
+    margin-top: 6px;
+  }
+
+  .shared-appearances {
+    margin-top: 6px;
+    display: inline-block;
+  }
+}
+
+/* Mobile-specific overrides to ensure all data is readable on small screens
+   - allow wrapping of header/cell text
+   - remove fixed column widths and large min-widths
+   - shrink icons and padding
+   - enable inner scrolling for long tag lists */
+@media (max-width: 600px) {
+  .guesses-table {
+    table-layout: auto;
+    font-size: 13px;
+  }
+
   .guesses-table th,
   .guesses-table td {
-    padding: 6px 8px;
+    white-space: normal;
+    word-break: break-word;
+    padding: 8px 10px;
+    text-align: left;
   }
-  
+
+  .guesses-table th {
+    text-align: left;
+  }
+
+  /* Reset previously fixed widths so columns can wrap and avoid truncation */
+  .guesses-table th:nth-child(1), .guesses-table td:nth-child(1),
+  .guesses-table th:nth-child(2), .guesses-table td:nth-child(2),
+  .guesses-table th:nth-child(3), .guesses-table td:nth-child(3),
+  .guesses-table th:nth-child(4), .guesses-table td:nth-child(4),
+  .guesses-table th:nth-child(5), .guesses-table td:nth-child(5),
+  .guesses-table th:nth-child(6), .guesses-table td:nth-child(6),
+  .guesses-table th:nth-child(7), .guesses-table td:nth-child(7),
+  .guesses-table th:nth-child(8), .guesses-table td:nth-child(8) {
+    width: auto;
+    min-width: 0;
+    max-width: 240px; /* let very long cells wrap instead of forcing horizontal scroll */
+  }
+
+  /* More room for tag and co-appearance text to wrap */
+  .guesses-table th:nth-child(7), .guesses-table td:nth-child(7),
+  .guesses-table th:nth-child(8), .guesses-table td:nth-child(8) {
+    max-width: 300px;
+  }
+
+  .feedback-cell,
+  .shared-appearances {
+    min-width: 0;
+    padding: 4px 6px;
+    white-space: normal;
+  }
+
+  .character-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .meta-tags-container {
+    justify-content: flex-start;
+  }
+
+  .modified-tag-display {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Card-style rows: hide header and render each tr as a card */
+  .guesses-table thead {
+    display: none;
+  }
+
+  .guesses-table tbody tr {
+    display: block;
+    position: relative;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 12px rgba(2,6,23,0.06);
+    border: 1px solid #eef2f6;
+  }
+
+  /* Default row layout: label left, value right */
+  .guesses-table tbody tr td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: none;
+    gap: 12px;
+  }
+
+  .guesses-table tbody tr td::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-weight: 600;
+    margin-right: 12px;
+    flex: 0 0 120px;
+    text-align: left;
+    font-size: 13px;
+  }
+
+  /* Top area: avatar + name on one line, gender icon on the top-right */
+  .cell-icon {
+    flex: 0 0 auto;
+    margin-right: 12px;
+  }
+
+  .cell-name {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding-right: 36px;
+  }
+
+  .cell-gender {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    flex: 0 0 auto;
+  }
+
   .character-name {
-    font-size: 13px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
   }
-  
+
   .character-name-cn {
-    font-size: 11px;
-  }
-  
-  .feedback-cell {
-    padding: 4px 8px;
     font-size: 13px;
+    color: #94a3b8;
+    margin-top: 2px;
+  }
+
+  /* Value alignment for simple rows */
+  .guesses-table tbody tr td .feedback-cell,
+  .guesses-table tbody tr td .shared-appearances {
+    justify-content: flex-end;
+  }
+
+  /* For complex cells (tags, modified content, coappearances, works, appearance), stack label above content */
+  .cell-tags,
+  .cell-modified,
+  .cell-coappearances,
+  .cell-works,
+  .cell-appearance {
+    display: block;
+  }
+
+  .cell-tags::before,
+  .cell-modified::before,
+  .cell-coappearances::before,
+  .cell-works::before,
+  .cell-appearance::before {
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .cell-tags .meta-tags-container {
+    justify-content: flex-start;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .meta-tag {
+    margin-bottom: 6px;
+  }
+
+  .modified-tag-display {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+  }
+
+  .cell-coappearances .shared-appearances {
+    display: inline-block;
+    margin-top: 6px;
+  }
+
+  /* Highlight pill for important numbers (e.g., 年份或分数) */
+  .feedback-cell.highlight {
+    background: #fff7cc;
+    color: #7c2d12;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+
+  .character-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+
+  /* Make name area a little taller so avatar aligns nicely */
+  .guesses-table tbody tr td.cell-name .character-name-container {
+    padding: 4px 0;
   }
 }
 

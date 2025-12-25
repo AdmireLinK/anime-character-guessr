@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Image from './Image';
 
 const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnonymousModeChange, isManualMode, isHost, answerSetterId, onSetAnswerSetter, onKickPlayer, onTransferHost, onMessageChange, onTeamChange }) => {
   const [showNames, setShowNames] = useState(true);
@@ -55,7 +56,9 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
       return renderStyledSpan('已断开','red');
     }
 
-    if (waitingForAnswer) {
+    // Use answerSetterId prop as the primary source of truth for "waiting for answer" state
+    // This ensures late joiners or refreshed clients see the correct status
+    if ((waitingForAnswer || answerSetterId) && !isGameStarted) {
       if (player.id === answerSetterId) {
         return renderStyledSpan('出题中','orange');
       }
@@ -65,7 +68,7 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
       return renderStyledSpan('已准备','green');
     }
 
-    if (isManualMode && !isGameStarted) {
+    if (isManualMode && !isGameStarted && isHost) {
       if (player.id === answerSetterId) {
         return <button className="ready-button ready">出题中</button>;
       }
@@ -168,7 +171,10 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
               </td>
               <td>
                 {player.avatarId && player.avatarImage && (
-                  <img src={player.avatarImage} className="player-avatar" />
+                  <Image 
+                    src={player.avatarImage} 
+                    className="player-avatar" 
+                    alt={player.memo ? player.memo : player.avatarName ? player.avatarName : player.username || 'avatar'} />
                 )}
               </td>
               <td>

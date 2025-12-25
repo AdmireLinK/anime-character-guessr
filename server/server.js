@@ -14,7 +14,7 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const CLIENT_URL_EN = process.env.CLIENT_URL_EN || 'http://localhost:5173';
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
 const cors_options = {
-    origin: [CLIENT_URL, CLIENT_URL_EN, SERVER_URL, 'https://anime-character-guessr.netlify.app', 'https://vertikarl.github.io'],
+    origin: [CLIENT_URL, CLIENT_URL_EN, SERVER_URL, 'https://ccb.baka.website', 'https://ccbeta.baka.website', 'https://anime-character-guessr.netlify.app', 'https://vertikarl.github.io'],
     methods: ['GET', 'POST'],
     credentials: true
 }
@@ -118,13 +118,73 @@ app.get('/clean-rooms', (req, res) => {
     res.json({message: `已清理${cleaned}个房间`});
 });
 
+app.get('/close-room/:id', (req, res) => {
+    const roomId = req.params.id;
+
+    if (!roomId || typeof roomId !== 'string') {
+        return res.status(400).json({error: '房间ID不能为空'});
+    }
+
+    const room = rooms.get(roomId);
+    if (!room) {
+        return res.status(404).json({error: '房间不存在'});
+    }
+
+    io.to(roomId).emit('roomClosed', {message: '房间被管理关闭'});
+    rooms.delete(roomId);
+
+    res.json({
+        message: '房间已关闭',
+        roomId,
+        playerCount: room.players?.length || 0
+    });
+});
+
+// 支持通过 POST 提交关闭原因: { reason: string }
+app.post('/close-room/:id', (req, res) => {
+    const roomId = req.params.id;
+
+    if (!roomId || typeof roomId !== 'string') {
+        return res.status(400).json({error: '房间ID不能为空'});
+    }
+
+    const room = rooms.get(roomId);
+    if (!room) {
+        return res.status(404).json({error: '房间不存在'});
+    }
+
+    const reason = req.body && typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+    const message = reason ? `房间因${reason}被关闭，如有疑问请添加首页QQ群` : '房间被管理关闭，如有疑问请添加首页QQ群';
+
+    io.to(roomId).emit('roomClosed', {message});
+    rooms.delete(roomId);
+
+    res.json({
+        message: '房间已关闭',
+        roomId,
+        playerCount: room.players?.length || 0,
+        closeMessage: message,
+        reason: reason || null
+    });
+});
+
 app.get('/list-rooms', (req, res) => {
-    const roomsList = Array.from(rooms.entries()).map(([id, room]) => ({
-        id,
-        isPublic: room.isPublic,
-        playerCount: room.players.length,
-        players: room.players.map(player => player.username)
-    }));
+    const roomsList = Array.from(rooms.entries()).map(([id, room]) => {
+        const hostPlayer = room.players.find(p => p.isHost) || room.players.find(p => p.id === room.host);
+        const hostName = hostPlayer?.username || '';
+        const displayRoomName = (room.roomName && room.roomName.trim()) ? room.roomName : `${hostName}的房间`;
+
+        return {
+            id,
+            isPublic: room.isPublic,
+            playerCount: room.players.length,
+            players: room.players.map(player => player.username),
+            isGameStarted: !!room.currentGame, // 游戏是否已开始
+            roomName: room.roomName || '',
+            displayRoomName,
+            hostName
+        };
+    });
     res.json(roomsList);
 });
 
@@ -422,6 +482,38 @@ app.post('/api/feedback-tags', async (req, res) => {
     }
 });
 
+app.post('/api/bug-feedback', async (req, res) => {
+    try {
+        const { bugType, description } = req.body;
+
+        if (!bugType || !description || typeof bugType !== 'string' || typeof description !== 'string') {
+            return res.status(400).json({
+                error: 'Invalid request body. Required format: { bugType: string, description: string }'
+            });
+        }
+
+        const client = db.getClient();
+        const database = client.db('misc');
+        const collection = database.collection('bug_feedback');
+
+        const document = {
+            bugType: bugType.trim(),
+            description: description.trim(),
+            createdAt: new Date()
+        };
+
+        const result = await collection.insertOne(document);
+
+        res.status(201).json({
+            message: 'Bug feedback submitted successfully',
+            feedbackId: result.insertedId
+        });
+    } catch (error) {
+        console.error('Error submitting tag feedback:', error);
+        res.status(500).json({ error: 'Failed to submit tag feedback' });
+    }
+});
+
 // Count character usage
 app.post('/api/answer-character-count', async (req, res) => {
     try {
@@ -436,34 +528,21 @@ app.post('/api/answer-character-count', async (req, res) => {
 
         const client = db.getClient();
         let database = client.db('stats');
-        let collection = database.collection('weekly_count');
+        let collection = database.collection('answer_count');
 
-        await collection.updateOne(
-        { _id: characterId },
-        { 
-            $inc: { count: 1 },
-            $set: { characterName: characterName.trim() }
-        },
-        { upsert: true }
+        let result = await collection.updateOne(
+            { _id: characterId },
+            { 
+                $inc: { count: 1 },
+                $set: { characterName: characterName.trim() }
+            },
+            { upsert: true }
         );
-
-        database = client.db('stats');
-        collection = database.collection('answer_count');
-
-        result = await collection.updateOne(
-        { _id: characterId },
-        { 
-            $inc: { count: 1 },
-            $set: { characterName: characterName.trim() }
-        },
-        { upsert: true }
-        );
-
         res.json({
-        message: 'Character answer count updated successfully',
-        characterId,
-        updated: result.modifiedCount > 0,
-        created: result.upsertedCount > 0
+            message: 'Character answer count updated successfully',
+            characterId,
+            updated: result.modifiedCount > 0,
+            created: result.upsertedCount > 0
         });
     } catch (error) {
         console.error('Error updating character answer count:', error);
@@ -487,24 +566,24 @@ app.post('/api/guess-character-count', async (req, res) => {
         let collection = database.collection('weekly_count');
 
         await collection.updateOne(
-        { _id: characterId },
-        { 
-            $inc: { count: 1 },
-            $set: { characterName: characterName.trim() }
-        },
-        { upsert: true }
+            { _id: characterId },
+            { 
+                $inc: { count: 1 },
+                $set: { characterName: characterName.trim() }
+            },
+            { upsert: true }
         );
 
         database = client.db('stats');
         collection = database.collection('guess_count');
 
         result = await collection.updateOne(
-        { _id: characterId },
-        { 
-            $inc: { count: 1 },
-            $set: { characterName: characterName.trim() }
-        },
-        { upsert: true }
+            { _id: characterId },
+            { 
+                $inc: { count: 1 },
+                $set: { characterName: characterName.trim() }
+            },
+            { upsert: true }
         );
 
         res.json({
@@ -518,6 +597,8 @@ app.post('/api/guess-character-count', async (req, res) => {
         res.status(500).json({ error: 'Failed to update character answer count' });
     }
 });
+
+
 
 // Get character usage by _id
 app.get('/api/character-usage/:id', async (req, res) => {
@@ -579,6 +660,38 @@ app.post('/api/subject-added', async (req, res) => {
 
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    startAutoClean(rooms);
+});
+
+// Graceful shutdown handling
+const gracefulShutdown = (signal) => {
+    console.log(`Received ${signal}. Server shutting down...`);
+    io.emit('serverShutdown', { message: '服务器已关闭，这可能是因为服务器正在重启或出现了Bug' });
+    
+    // Give sockets time to send the message
+    setTimeout(() => {
+        console.log('Exiting process.');
+        process.exit(0);
+    }, 1000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    io.emit('serverShutdown', { message: '服务器已关闭，这可能是因为服务器正在重启或出现了Bug' });
+    setTimeout(() => {
+        process.exit(1);
+    }, 1000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    io.emit('serverShutdown', { message: '服务器已关闭，这可能是因为服务器正在重启或出现了Bug' });
+    setTimeout(() => {
+        process.exit(1);
+    }, 1000);
 });
 
 app.get('/api/leaderboard/characters', async (req, res) => {

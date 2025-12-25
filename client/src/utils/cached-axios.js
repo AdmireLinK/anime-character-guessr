@@ -2,6 +2,45 @@ import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import debounce from 'lodash.debounce';
 
+// 重试配置
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  retryDelay: 1000, // 基础延迟（毫秒）
+  retryableStatusCodes: [408, 429, 500, 502, 503, 504], // 可重试的状态码
+};
+
+// 延迟函数
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 带重试的请求函数
+async function requestWithRetry(requestFn, retries = RETRY_CONFIG.maxRetries) {
+  let lastError;
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      lastError = error;
+      
+      // 判断是否应该重试
+      const shouldRetry = 
+        attempt < retries && (
+          !error.response || // 网络错误
+          RETRY_CONFIG.retryableStatusCodes.includes(error.response?.status) // 可重试的状态码
+        );
+      
+      if (shouldRetry) {
+        const waitTime = RETRY_CONFIG.retryDelay * Math.pow(2, attempt); // 指数退避
+        await delay(waitTime);
+      } else {
+        throw error;
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
 class RequestCache {
   constructor() {
     this.cache = new Map();
@@ -14,6 +53,7 @@ class RequestCache {
         GET: 0,
         POST: 0,
       },
+      retry: 0,
     };
     this._loadCacheFromStorage();
   }
@@ -26,7 +66,7 @@ class RequestCache {
     }
 
     this.stat.fetch.GET++;
-    const response = await axios.get(url, config);
+    const response = await requestWithRetry(() => axios.get(url, config));
     this.setCache(cacheKey, response);
     return response;
   }
@@ -39,7 +79,7 @@ class RequestCache {
     }
 
     this.stat.fetch.POST++;
-    const response = await axios.post(url, data, config);
+    const response = await requestWithRetry(() => axios.post(url, data, config));
     this.setCache(cacheKey, response);
     return response;
   }

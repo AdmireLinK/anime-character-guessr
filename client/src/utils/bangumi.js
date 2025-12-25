@@ -2,7 +2,7 @@ import axios from './cached-axios.js';
 import { idToTags } from '../data/id_tags.js';
 import { subjectsWithExtraTags } from '../data/extra_tag_subjects.js';
 
-const API_BASE_URL = 'https://api.bgm.tv';
+const API_BASE_URL = import.meta.env.VITE_BGM_API_URL || 'https://api.bgm.tv';
 
 async function getSubjectDetails(subjectId) {
   try {
@@ -85,7 +85,6 @@ async function getCharacterAppearances(characterId, gameSettings) {
         metaTags: []
       };
     }
-
     let filteredAppearances;
     if (gameSettings.includeGame) {
       filteredAppearances = subjectsResponse.data.filter(appearance => 
@@ -101,7 +100,7 @@ async function getCharacterAppearances(characterId, gameSettings) {
       if (filteredAppearances.length === 0) {
         filteredAppearances = subjectsResponse.data.filter(appearance => 
           (appearance.staff === '主角' || appearance.staff === '配角')
-          && (appearance.type === 4)
+          && (appearance.type === 1 || appearance.type === 4 || appearance.type === 6)
         );
       }
     }
@@ -131,6 +130,7 @@ async function getCharacterAppearances(characterId, gameSettings) {
       ['游戏改编', '游戏改'],
       ['小说改编', '小说改']
     ]);
+    const specialTags = new Set(['Galgame', '书籍', '三次元', "游戏", "全部"]);
     const sourceTagSet = new Set(['原创', '游戏改', '小说改', '漫画改']);
     const regionTagSet = new Set(['日本', '欧美', '美国', '中国', '法国', '韩国', '英国', '俄罗斯', '中国香港', '苏联', '捷克', '中国台湾', '马来西亚']);
     const sourceTagCounts = new Map();
@@ -148,7 +148,7 @@ async function getCharacterAppearances(characterId, gameSettings) {
           const details = await getSubjectDetails(appearance.id);
           if (!details || details.year === null) return null;
 
-          if (!gameSettings.metaTags.filter(tag => tag !== '').every(tag => details.meta_tags.includes(tag))){
+          if (!gameSettings.metaTags.filter(tag => tag !== '' && !specialTags.has(tag)).every(tag => details.meta_tags.includes(tag))){
             return null;
           }
           
@@ -222,7 +222,6 @@ async function getCharacterAppearances(characterId, gameSettings) {
         }
       })
     );
-
     let sortedRawTags;
     let sortedSourceTags;
     let sortedTags;
@@ -372,7 +371,8 @@ async function getCharactersBySubjectId(subjectId) {
     const response = await axios.get(`${API_BASE_URL}/v0/subjects/${subjectId}/characters`);
 
     if (!response.data || !response.data.length) {
-      throw new Error('No characters found for this anime');
+      console.error('作品没有角色：'+subjectId);
+      throw new Error('选到了作品，但数据库中没有角色，调整范围或重试');
     }
 
     const filteredCharacters = response.data.filter(character => 
@@ -380,12 +380,12 @@ async function getCharactersBySubjectId(subjectId) {
     );
 
     if (filteredCharacters.length === 0) {
-      throw new Error('No main or supporting characters found for this anime');
+      console.error('作品没有主角/配角？'+subjectId);
+      throw new Error('选到了作品，但数据库中没有角色，调整范围或重试');
     }
   
     return filteredCharacters;
   } catch (error) {
-    console.error('Error fetching characters:', error);
     throw error;
   }
 }
@@ -398,12 +398,40 @@ async function getRandomCharacter(gameSettings) {
     const batchSize = 10;
     let batchOffset;
     let indexInBatch;
+    const buildFilter = (startDate, endDate) => {
+      const primaryTag = gameSettings.metaTags[0];
+      let type = [2];
+      const baseMetaTags = (gameSettings.metaTags || [])
+        .filter(tag => tag !== "")
+        .filter(tag => !['游戏', '书籍', '三次元', '全部'].includes(tag));
+      const metaTags = primaryTag === 'Galgame' ? ['Galgame'] : baseMetaTags;
+
+      if (primaryTag === '书籍') {
+        type = [1];
+      } else if (primaryTag === '游戏') {
+        type = [4];
+      } else if (primaryTag === 'Galgame') {
+        type = [4];
+      } else if (primaryTag === '三次元') {
+        type = [6];
+      } else if (primaryTag === '全部') {
+        type = [1, 2, 4, 6];
+      }
+      return {
+        "type": type,
+        "air_date": [
+          startDate,
+          endDate
+        ],
+        "meta_tags": metaTags
+      };
+    };
     
     if (gameSettings.useIndex && gameSettings.indexId) {
       // Get index info first
       const indexInfo = await getIndexInfo(gameSettings.indexId);
       // Get total from index info
-      total = indexInfo.total + gameSettings.addedSubjects.length; 
+      total = indexInfo.total + gameSettings.addedSubjects.length;
       
       // Get a random offset within the total number of subjects
       randomOffset = Math.floor(Math.random() * total);
@@ -421,7 +449,7 @@ async function getRandomCharacter(gameSettings) {
         );
 
         if (!response.data || !response.data.data || response.data.data.length === 0) {
-          throw new Error('No subjects found in index');
+          throw new Error('范围为空');
         }
 
         subject = response.data.data[Math.min(indexInBatch, response.data.data.length - 1)];
@@ -443,29 +471,39 @@ async function getRandomCharacter(gameSettings) {
         subject = gameSettings.addedSubjects[randomOffset];
       } 
       else {
-        randomOffset = Math.floor(Math.random() * gameSettings.topNSubjects);
+        randomOffset = Math.floor(Math.random() * Math.min(gameSettings.topNSubjects, 1000));
         batchOffset = Math.floor(randomOffset / batchSize) * batchSize;
         indexInBatch = randomOffset % batchSize;
-        const response = await axios.post(`${API_BASE_URL}/v0/search/subjects?limit=${batchSize}&offset=${batchOffset}`, {
+        const fetchSubjects = async (offset) => axios.post(`${API_BASE_URL}/v0/search/subjects?limit=${batchSize}&offset=${offset}`, {
           "sort": "heat",
-          "filter": {
-            "type": [2],
-            "air_date": [
-              `>=${randomYear}-01-01`,
-              `<${minDate}`
-            ],
-            "meta_tags": gameSettings.metaTags.filter(tag => tag !== "")
-          }
+          "filter": buildFilter(`>=${randomYear}-01-01`, `<${minDate}`)
         });
+
+        let response = await fetchSubjects(batchOffset);
+
+        // If the batch comes back empty, retry using the API-reported total to pick a valid offset
         if (!response.data || !response.data.data || response.data.data.length === 0) {
-          throw new Error('Failed to fetch subject for the selected year');
+          const apiTotal = response?.data?.total; 
+          if (typeof apiTotal === 'number' && apiTotal > 0) {
+            console.log("Retrying, total number is "+apiTotal);
+            const availableTotal = Math.min(apiTotal, gameSettings.topNSubjects);
+            randomOffset = Math.floor(Math.random() * availableTotal);
+            batchOffset = Math.floor(randomOffset / batchSize) * batchSize;
+            indexInBatch = randomOffset % batchSize;
+            response = await fetchSubjects(batchOffset);
+          }
         }
+
+        if (!response.data || !response.data.data || response.data.data.length === 0) {
+          throw new Error('选不到作品，请重试或更改范围');
+        }
+
         subject = response.data.data[Math.min(indexInBatch, response.data.data.length - 1)];
       }
     }
     else {
       gameSettings.useIndex = false;
-      total = gameSettings.topNSubjects+gameSettings.addedSubjects.length;
+      total = Math.min(gameSettings.topNSubjects, 1000)+gameSettings.addedSubjects.length;
       randomOffset = Math.floor(Math.random() * total);
       const endDate = new Date(`${gameSettings.endYear + 1}-01-01`);
       const today = new Date();
@@ -474,27 +512,34 @@ async function getRandomCharacter(gameSettings) {
       if (randomOffset >= gameSettings.topNSubjects) {
         randomOffset = randomOffset - gameSettings.topNSubjects;
         subject = gameSettings.addedSubjects[randomOffset];
-      } 
+      }
       else {
         // Calculate batch-aligned offset
         batchOffset = Math.floor(randomOffset / batchSize) * batchSize;
         indexInBatch = randomOffset % batchSize;
-        
-        // Fetch batch of subjects
-        const response = await axios.post(`${API_BASE_URL}/v0/search/subjects?limit=${batchSize}&offset=${batchOffset}`, {
+
+        const fetchSubjects = async (offset) => axios.post(`${API_BASE_URL}/v0/search/subjects?limit=${batchSize}&offset=${offset}`, {
           "sort": "heat",
-          "filter": {
-            "type": [2],
-            "air_date": [
-              `>=${gameSettings.startYear}-01-01`,
-              `<${minDate}`
-            ],
-            "meta_tags": gameSettings.metaTags.filter(tag => tag !== "")
-          }
+          "filter": buildFilter(`>=${gameSettings.startYear}-01-01`, `<${minDate}`)
         });
 
+        let response = await fetchSubjects(batchOffset);
+
+        // Retry with API-reported total if initial batch is empty
         if (!response.data || !response.data.data || response.data.data.length === 0) {
-          throw new Error('Failed to fetch subject at random offset');
+          const apiTotal = response?.data?.total;
+          if (typeof apiTotal === 'number' && apiTotal > 0) {
+            console.log("Retrying, total number is " + apiTotal);
+            const availableTotal = Math.min(apiTotal, gameSettings.topNSubjects);
+            randomOffset = Math.floor(Math.random() * availableTotal);
+            batchOffset = Math.floor(randomOffset / batchSize) * batchSize;
+            indexInBatch = randomOffset % batchSize;
+            response = await fetchSubjects(batchOffset);
+          }
+        }
+
+        if (!response.data || !response.data.data || response.data.data.length === 0) {
+          throw new Error('选不到作品，请重试或更改范围');
         }
 
         subject = response.data.data[Math.min(indexInBatch, response.data.data.length - 1)];
@@ -510,7 +555,7 @@ async function getRandomCharacter(gameSettings) {
       : characters.filter(character => character.relation === '主角' || character.relation === '配角').slice(0, gameSettings.characterNum);
 
     if (filteredCharacters.length === 0) {
-      throw new Error('No characters found for this anime');
+      throw new Error('选到了作品，但数据库中没有角色，请在设置里重试');
     }
 
     // Randomly select one character from the filtered characters
@@ -528,7 +573,7 @@ async function getRandomCharacter(gameSettings) {
       ...appearances
     };
   } catch (error) {
-    console.error('Error getting random character:', error);
+    console.error('出现错误：', error);
     throw error;
   }
 }
@@ -540,7 +585,6 @@ async function designateCharacter(characterId, gameSettings) {
 
     // Get character appearances
     const appearances = await getCharacterAppearances(characterId, gameSettings);
-    console.log(characterDetails);
 
     return {
       id: characterId,
