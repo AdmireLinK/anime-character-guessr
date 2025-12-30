@@ -566,6 +566,12 @@ const Multiplayer = () => {
       });
     });
 
+    // Listen for reset timer event (team mode: when teammate times out)
+    newSocket.on('resetTimer', () => {
+      setShouldResetTimer(true);
+      setTimeout(() => setShouldResetTimer(false), 100);
+    });
+
     return () => {
       isManualDisconnectRef.current = true;
       
@@ -587,6 +593,7 @@ const Multiplayer = () => {
       newSocket.off('gameEnded');
       newSocket.off('resetReadyStatus');
       newSocket.off('boardcastTeamGuess');
+      newSocket.off('resetTimer');
       newSocket.off('syncWaiting');
       newSocket.off('syncRoundStart');
       newSocket.off('nonstopProgress');

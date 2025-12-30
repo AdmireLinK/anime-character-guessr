@@ -2184,6 +2184,13 @@ function setupSocket(io, rooms) {
                         teammate.guesses = room.currentGame.teamGuesses[player.team];
                     });
 
+                // 通知队友重置计时器，避免多次超时
+                room.players
+                    .filter(p => p.team === player.team && p.id !== socket.id && !p.isAnswerSetter && !p.disconnected)
+                    .forEach(teammate => {
+                        io.to(teammate.id).emit('resetTimer');
+                    });
+
                 // 在同步模式下，若团队的有效猜测次数已达最大轮数，立即将整队标记为已结束并禁止继续猜测
                 if (room.currentGame?.settings?.syncMode) {
                     const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
