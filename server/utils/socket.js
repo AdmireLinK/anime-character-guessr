@@ -1916,7 +1916,7 @@ function setupSocket(io, rooms) {
 
                             if (allEnded) {
                                 // 所有人结束，触发游戏结束
-                                // 这里不显式调用 markTeamVictory，因为 gameEnd 事件会处理
+                                finalizeStandardGame(room, roomId, io);
                             } else if (player.team && player.team !== '0') {
                                 // 队友胜利
                                 markTeamVictory(room, roomId, player, io);
@@ -1952,7 +1952,7 @@ function setupSocket(io, rooms) {
 
                             if (allEnded) {
                                 // 所有人结束，触发游戏结束
-                                // 这里不显式调用 markTeamVictory，因为 gameEnd 事件会处理
+                                finalizeStandardGame(room, roomId, io);
                             } else if (player.team && player.team !== '0') {
                                 // 队友胜利
                                 markTeamVictory(room, roomId, player, io);
