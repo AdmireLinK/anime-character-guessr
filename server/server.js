@@ -484,7 +484,7 @@ app.post('/api/feedback-tags', async (req, res) => {
 
 app.post('/api/bug-feedback', async (req, res) => {
     try {
-        const { bugType, description } = req.body;
+        const { bugType, description, logs, errors, diagnosticData } = req.body;
 
         if (!bugType || !description || typeof bugType !== 'string' || typeof description !== 'string') {
             return res.status(400).json({
@@ -501,6 +501,18 @@ app.post('/api/bug-feedback', async (req, res) => {
             description: description.trim(),
             createdAt: new Date()
         };
+
+        if (logs && Array.isArray(logs)) {
+            document.logs = logs;
+        }
+
+        if (errors && Array.isArray(errors)) {
+            document.errors = errors;
+        }
+
+        if (diagnosticData && typeof diagnosticData === 'object') {
+            document.diagnosticData = diagnosticData;
+        }
 
         const result = await collection.insertOne(document);
 

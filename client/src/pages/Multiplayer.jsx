@@ -15,6 +15,7 @@ import GameSettingsDisplay from '../components/GameSettingsDisplay';
 import Leaderboard from '../components/Leaderboard';
 import Roulette from '../components/Roulette';
 import Image from '../components/Image';
+import logCollector from '../utils/logCollector';
 import '../styles/Multiplayer.css';
 import '../styles/game.css';
 import CryptoJS from 'crypto-js';
@@ -131,11 +132,18 @@ const Multiplayer = () => {
     });
   };
 
-  const handleFeedbackSubmit = async ({ type, description }) => {
+  const handleFeedbackSubmit = async ({ type, description, includeLogs }) => {
     const payload = {
       bugType: type,
       description: roomId ? `[房间 ${roomId}] ${description}` : description,
     };
+
+    if (includeLogs) {
+      payload.logs = logCollector.getLogs();
+      payload.errors = logCollector.getErrors();
+      payload.diagnosticData = logCollector.getDiagnosticData();
+    }
+
     await axios.post(`${SOCKET_URL}/api/bug-feedback`, payload);
   };
 

@@ -13,6 +13,7 @@ const FEEDBACK_TYPES = [
 const FeedbackPopup = ({ onClose, onSubmit }) => {
   const [type, setType] = useState(FEEDBACK_TYPES[0]);
   const [description, setDescription] = useState('');
+  const [includeLogs, setIncludeLogs] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
@@ -20,7 +21,7 @@ const FeedbackPopup = ({ onClose, onSubmit }) => {
     if (!trimmed || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await onSubmit?.({ type, description: trimmed });
+      await onSubmit?.({ type, description: trimmed, includeLogs });
       onClose?.();
     } finally {
       setIsSubmitting(false);
@@ -58,6 +59,16 @@ const FeedbackPopup = ({ onClose, onSubmit }) => {
             maxLength={100}
           />
           <div className="feedback-hint">{description.length}/100</div>
+        </label>
+
+        <label className="feedback-label checkbox-label">
+          <div
+            className={`toggle-switch ${includeLogs ? 'active' : ''}`}
+            onClick={() => setIncludeLogs(!includeLogs)}
+          >
+            <div className="toggle-thumb"></div>
+          </div>
+          <span>包含客户端日志和报错信息（有助于问题排查）</span>
         </label>
 
         <div className="feedback-actions">

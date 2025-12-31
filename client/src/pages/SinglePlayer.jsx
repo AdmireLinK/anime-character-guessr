@@ -10,6 +10,7 @@ import SocialLinks from '../components/SocialLinks';
 import GameInfo from '../components/GameInfo';
 import Timer from '../components/Timer';
 import FeedbackPopup from '../components/FeedbackPopup';
+import logCollector from '../utils/logCollector';
 import '../styles/game.css';
 import '../styles/SinglePlayer.css';
 import '../styles/social.css';
@@ -337,11 +338,18 @@ function SinglePlayer() {
     alert('已投降！查看角色详情');
   };
 
-  const handleFeedbackSubmit = async ({ type, description }) => {
+  const handleFeedbackSubmit = async ({ type, description, includeLogs }) => {
     const payload = {
       bugType: type,
       description,
     };
+
+    if (includeLogs) {
+      payload.logs = logCollector.getLogs();
+      payload.errors = logCollector.getErrors();
+      payload.diagnosticData = logCollector.getDiagnosticData();
+    }
+
     const serverUrl = import.meta.env.VITE_SERVER_URL || '';
     await axios.post(`${serverUrl}/api/bug-feedback`, payload);
   };
