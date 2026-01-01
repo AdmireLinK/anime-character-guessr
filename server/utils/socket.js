@@ -2898,6 +2898,13 @@ function setupSocket(io, rooms) {
                 io.to(roomId).emit(eventName, data);
             });
 
+            // Explicitly clear answerSetterId for all clients
+            io.to(roomId).emit('updatePlayers', {
+                players: room.players,
+                isPublic: room.isPublic,
+                answerSetterId: null
+            });
+
             io.to(roomId).emit('gameStart', {
                 character,
                 settings: room.settings,

@@ -190,6 +190,18 @@ const Multiplayer = () => {
       }
     });
 
+    // 手动出题被取消（出题人离开或被踢出）
+    newSocket.on('waitForAnswerCanceled', ({ message }) => {
+      setWaitingForAnswer(false);
+      setAnswerSetterId(null);
+      setShowSetAnswerPopup(false);
+      console.log(`[INFO] ${message}`);
+      // Optionally show notification to user
+      if (message) {
+        showKickNotification(message, 'warning');
+      }
+    });
+
     // 同步模式：等待其他玩家
     newSocket.on('syncWaiting', ({ round, syncStatus, completedCount, totalCount }) => {
       setSyncStatus({ round, syncStatus, completedCount, totalCount });
@@ -392,6 +404,10 @@ const Multiplayer = () => {
       setSyncStatus({});
       // 重置血战模式状态
       setNonstopProgress(null);
+      // 重置手动出题状态：清空等待状态和弹窗
+      setWaitingForAnswer(false);
+      setAnswerSetterId(null);
+      setShowSetAnswerPopup(false);
     });
 
     newSocket.on('guessHistoryUpdate', ({ guesses, teamGuesses }) => {
@@ -592,6 +608,7 @@ const Multiplayer = () => {
       newSocket.off('hostTransferred');
       newSocket.off('updatePlayers');
       newSocket.off('waitForAnswer');
+      newSocket.off('waitForAnswerCanceled');
       newSocket.off('gameStart');
       newSocket.off('guessHistoryUpdate');
       newSocket.off('roomClosed');
