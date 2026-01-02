@@ -15,6 +15,7 @@ import GameSettingsDisplay from '../components/GameSettingsDisplay';
 import Leaderboard from '../components/Leaderboard';
 import Roulette from '../components/Roulette';
 import Image from '../components/Image';
+import logCollector from '../utils/logCollector';
 import '../styles/Multiplayer.css';
 import '../styles/game.css';
 import CryptoJS from 'crypto-js';
@@ -131,11 +132,18 @@ const Multiplayer = () => {
     });
   };
 
-  const handleFeedbackSubmit = async ({ type, description }) => {
+  const handleFeedbackSubmit = async ({ type, description, includeLogs }) => {
     const payload = {
       bugType: type,
       description: roomId ? `[房间 ${roomId}] ${description}` : description,
     };
+
+    if (includeLogs) {
+      payload.logs = logCollector.getLogs();
+      payload.errors = logCollector.getErrors();
+      payload.diagnosticData = logCollector.getDiagnosticData();
+    }
+
     await axios.post(`${SOCKET_URL}/api/bug-feedback`, payload);
   };
 
@@ -179,6 +187,18 @@ const Multiplayer = () => {
       // Show popup if current user is the answer setter
       if (answerSetterId === newSocket.id) {
         setShowSetAnswerPopup(true);
+      }
+    });
+
+    // 手动出题被取消（出题人离开或被踢出）
+    newSocket.on('waitForAnswerCanceled', ({ message }) => {
+      setWaitingForAnswer(false);
+      setAnswerSetterId(null);
+      setShowSetAnswerPopup(false);
+      console.log(`[INFO] ${message}`);
+      // Optionally show notification to user
+      if (message) {
+        showKickNotification(message, 'warning');
       }
     });
 
@@ -384,12 +404,19 @@ const Multiplayer = () => {
       setSyncStatus({});
       // 重置血战模式状态
       setNonstopProgress(null);
+      // 重置手动出题状态：清空等待状态和弹窗
+      setWaitingForAnswer(false);
+      setAnswerSetterId(null);
+      setShowSetAnswerPopup(false);
     });
 
     newSocket.on('guessHistoryUpdate', ({ guesses, teamGuesses }) => {
       setGuessesHistory(guesses);
 
       // Sync guessesLeft from server history to prevent double deduction
+      // 防止游戏已结束情况下的重复触发（使用 ref 判断以避免状态延迟）
+      if (gameEndedRef.current) return;
+
       const currentPlayer = latestPlayersRef.current.find(p => p.id === newSocket.id);
       if (currentPlayer && !currentPlayer.isAnswerSetter && currentPlayer.team !== '0') {
         let used = 0;
@@ -406,7 +433,10 @@ const Multiplayer = () => {
         const left = Math.max(0, max - used);
         setGuessesLeft(left);
         
-        if (left <= 0) {
+        // 只有在确实猜测完全用尽，才触发 gameEnd
+        // 避免在第一次猜测时错误触发 gameEnd 导致 feedback 消失
+        // 使用 ref 判断以避免状态延迟问题
+        if (left <= 0 && !gameEndedRef.current) {
           setTimeout(() => {
             handleGameEnd(false);
           }, 100);
@@ -419,7 +449,8 @@ const Multiplayer = () => {
           const left = Math.max(0, max - used);
           setGuessesLeft(left);
           
-          if (left <= 0) {
+          // 同样的防护
+          if (left <= 0 && !gameEndedRef.current) {
             setTimeout(() => {
               handleGameEnd(false);
             }, 100);
@@ -566,6 +597,12 @@ const Multiplayer = () => {
       });
     });
 
+    // Listen for reset timer event (team mode: when teammate times out)
+    newSocket.on('resetTimer', () => {
+      setShouldResetTimer(true);
+      setTimeout(() => setShouldResetTimer(false), 100);
+    });
+
     return () => {
       isManualDisconnectRef.current = true;
       
@@ -578,6 +615,7 @@ const Multiplayer = () => {
       newSocket.off('hostTransferred');
       newSocket.off('updatePlayers');
       newSocket.off('waitForAnswer');
+      newSocket.off('waitForAnswerCanceled');
       newSocket.off('gameStart');
       newSocket.off('guessHistoryUpdate');
       newSocket.off('roomClosed');
@@ -587,6 +625,7 @@ const Multiplayer = () => {
       newSocket.off('gameEnded');
       newSocket.off('resetReadyStatus');
       newSocket.off('boardcastTeamGuess');
+      newSocket.off('resetTimer');
       newSocket.off('syncWaiting');
       newSocket.off('syncRoundStart');
       newSocket.off('nonstopProgress');
@@ -904,7 +943,8 @@ const Multiplayer = () => {
     // Always emit timeout
     socketRef.current?.emit('timeOut', { roomId });
 
-    if (newGuessesLeft <= 0) {
+    // 防止已经游戏结束后仍然触发 gameEnd
+    if (newGuessesLeft <= 0 && !gameEndedRef.current) {
       setTimeout(() => {
         handleGameEnd(false);
       }, 100);

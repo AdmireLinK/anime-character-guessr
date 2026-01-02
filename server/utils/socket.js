@@ -1916,7 +1916,7 @@ function setupSocket(io, rooms) {
 
                             if (allEnded) {
                                 // 所有人结束，触发游戏结束
-                                // 这里不显式调用 markTeamVictory，因为 gameEnd 事件会处理
+                                finalizeStandardGame(room, roomId, io);
                             } else if (player.team && player.team !== '0') {
                                 // 队友胜利
                                 markTeamVictory(room, roomId, player, io);
@@ -1952,7 +1952,7 @@ function setupSocket(io, rooms) {
 
                             if (allEnded) {
                                 // 所有人结束，触发游戏结束
-                                // 这里不显式调用 markTeamVictory，因为 gameEnd 事件会处理
+                                finalizeStandardGame(room, roomId, io);
                             } else if (player.team && player.team !== '0') {
                                 // 队友胜利
                                 markTeamVictory(room, roomId, player, io);
@@ -2184,6 +2184,13 @@ function setupSocket(io, rooms) {
                         teammate.guesses = room.currentGame.teamGuesses[player.team];
                     });
 
+                // 通知队友重置计时器，避免多次超时
+                room.players
+                    .filter(p => p.team === player.team && p.id !== socket.id && !p.isAnswerSetter && !p.disconnected)
+                    .forEach(teammate => {
+                        io.to(teammate.id).emit('resetTimer');
+                    });
+
                 // 在同步模式下，若团队的有效猜测次数已达最大轮数，立即将整队标记为已结束并禁止继续猜测
                 if (room.currentGame?.settings?.syncMode) {
                     const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
@@ -2319,75 +2326,153 @@ function setupSocket(io, rooms) {
                             p.guesses.includes('🏆')
                         );
                         if (allEnded) {
-                            // Find answer setter (if any)
-                            const answerSetter = room.players.find(p => p.isAnswerSetter);
+                            const isNonstopMode = room.currentGame?.settings?.nonstopMode;
 
-                            // 结算阶段统一计算作品分（无人胜者也可能有人猜到作品）
-                            const partialAwardees = computePartialAwardeesFromGuessHistory(room);
-                            (room.players || []).forEach(p => {
-                                if (!p || p.isAnswerSetter) return;
-                                if (p.team === '0') return;
-                                if (partialAwardees.has(p.id)) {
-                                    p.score += 1;
-                                }
-                            });
-                            
-                            // 生成得分详情（无赢家情况）
-                            const scoreChanges = buildScoreChanges({
-                                isNonstopMode: false,
-                                actualWinners: [],
-                                winnerScoreResults: {},
-                                partialAwardees,
-                                players: room.players
-                            });
+                            if (isNonstopMode) {
+                                const answerSetter = room.players.find(p => p.isAnswerSetter);
+                                const winnersCount = (room.currentGame.nonstopWinners || []).length;
+                                const totalPlayersCount = activePlayers.length;
 
-                            // 清理中途加入标记：使其在下一局需要显式准备（避免下一局自动开始且该玩家未准备）
-                            room.players.forEach(p => {
-                                if (p.joinedDuringGame) {
-                                    p.joinedDuringGame = false;
-                                    p.team = null;
-                                    p.ready = false;
-                                }
-                            });
-                            
-                            if (answerSetter) {
-                                answerSetter.score--;
+                                const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+                                const winnerIds = new Set((room.currentGame.nonstopWinners || []).map(w => w.id));
+                                (room.players || []).forEach(p => {
+                                    if (!p || p.isAnswerSetter) return;
+                                    if (p.team === '0') return;
+                                    if (winnerIds.has(p.id)) return;
+                                    if (partialAwardees.has(p.id)) {
+                                        p.score += 1;
+                                    }
+                                });
                                 
-                                const scoreDetails = generateScoreDetails({
+                                const bigWinnerData = (room.currentGame.nonstopWinners || []).find(w => {
+                                    const winnerPlayer = room.players.find(p => p.id === w.id);
+                                    return winnerPlayer && winnerPlayer.guesses.includes('👑');
+                                });
+                                const hasBigWinner = !!bigWinnerData;
+                                const bigWinnerScore = bigWinnerData?.score || 0;
+
+                                const scoreChanges = buildScoreChanges({
+                                    isNonstopMode: true,
+                                    nonstopWinners: room.currentGame.nonstopWinners || [],
+                                    partialAwardees,
+                                    players: room.players
+                                });
+
+                                if (answerSetter) {
+                                    const setterResult = calculateNonstopSetterScore({
+                                        hasBigWinner,
+                                        bigWinnerScore,
+                                        winnersCount,
+                                        totalPlayersCount
+                                    });
+                                    
+                                    answerSetter.score += setterResult.score;
+                                    
+                                    const scoreDetails = generateScoreDetails({
+                                        players: room.players,
+                                        scoreChanges,
+                                        setterInfo: { username: answerSetter.username, score: setterResult.score, reason: setterResult.reason },
+                                        isNonstopMode: true
+                                    });
+                                    
+                                    io.to(roomId).emit('gameEnded', {
+                                        guesses: room.currentGame?.guesses || [],
+                                        scoreDetails
+                                    });
+                                } else {
+                                    const scoreDetails = generateScoreDetails({
+                                        players: room.players,
+                                        scoreChanges,
+                                        setterInfo: null,
+                                        isNonstopMode: true
+                                    });
+                                    
+                                    io.to(roomId).emit('gameEnded', {
+                                        guesses: room.currentGame?.guesses || [],
+                                        scoreDetails
+                                    });
+                                }
+
+                                revertSetterObservers(room, roomId, io);
+                                room.players.forEach(p => {
+                                    p.isAnswerSetter = false;
+                                });
+                                io.to(roomId).emit('resetReadyStatus');
+                                room.currentGame = null;
+                                io.to(roomId).emit('updatePlayers', {
                                     players: room.players,
-                                    scoreChanges,
-                                    setterInfo: { username: answerSetter.username, score: -1, reason: '没人猜中' },
-                                    isNonstopMode: false
+                                    isPublic: room.isPublic,
+                                    answerSetterId: null
                                 });
-                                
-                                io.to(roomId).emit('gameEnded', {
-                                    guesses: room.currentGame?.guesses || [],
-                                    scoreDetails
-                                });
+
+                                console.log(`[血战模式] 房间 ${roomId} 游戏结束（玩家断开连接导致）`);
                             } else {
-                                const scoreDetails = generateScoreDetails({
-                                    players: room.players,
-                                    scoreChanges,
-                                    setterInfo: null,
-                                    isNonstopMode: false
+                                const answerSetter = room.players.find(p => p.isAnswerSetter);
+
+                                const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+                                (room.players || []).forEach(p => {
+                                    if (!p || p.isAnswerSetter) return;
+                                    if (p.team === '0') return;
+                                    if (partialAwardees.has(p.id)) {
+                                        p.score += 1;
+                                    }
                                 });
                                 
-                                io.to(roomId).emit('gameEnded', {
-                                    guesses: room.currentGame?.guesses || [],
-                                    scoreDetails
+                                const scoreChanges = buildScoreChanges({
+                                    isNonstopMode: false,
+                                    actualWinners: [],
+                                    winnerScoreResults: {},
+                                    partialAwardees,
+                                    players: room.players
                                 });
+
+                                room.players.forEach(p => {
+                                    if (p.joinedDuringGame) {
+                                        p.joinedDuringGame = false;
+                                        p.team = null;
+                                        p.ready = false;
+                                    }
+                                });
+                                
+                                if (answerSetter) {
+                                    answerSetter.score--;
+                                    
+                                    const scoreDetails = generateScoreDetails({
+                                        players: room.players,
+                                        scoreChanges,
+                                        setterInfo: { username: answerSetter.username, score: -1, reason: '没人猜中' },
+                                        isNonstopMode: false
+                                    });
+                                    
+                                    io.to(roomId).emit('gameEnded', {
+                                        guesses: room.currentGame?.guesses || [],
+                                        scoreDetails
+                                    });
+                                } else {
+                                    const scoreDetails = generateScoreDetails({
+                                        players: room.players,
+                                        scoreChanges,
+                                        setterInfo: null,
+                                        isNonstopMode: false
+                                    });
+                                    
+                                    io.to(roomId).emit('gameEnded', {
+                                        guesses: room.currentGame?.guesses || [],
+                                        scoreDetails
+                                    });
+                                }
+                                room.players.forEach(p => {
+                                    p.isAnswerSetter = false;
+                                });
+                                io.to(roomId).emit('resetReadyStatus');
+                                room.currentGame = null;
+                                io.to(roomId).emit('updatePlayers', {
+                                    players: room.players,
+                                    isPublic: room.isPublic,
+                                    answerSetterId: null
+                                });
+                                console.log(`Game in room ${roomId} ended because all active players finished their game (by disconnect or surrender, no winner).`);
                             }
-                            room.players.forEach(p => {
-                                p.isAnswerSetter = false;
-                            });
-                            io.to(roomId).emit('resetReadyStatus');
-                            room.currentGame = null;
-                            io.to(roomId).emit('updatePlayers', {
-                                players: room.players,
-                                isPublic: room.isPublic,
-                                answerSetterId: null
-                            });
-                            console.log(`Game in room ${roomId} ended because all active players finished their game (by disconnect or surrender, no winner).`);
                         }
                     }
     
@@ -2629,6 +2714,98 @@ function setupSocket(io, rooms) {
                     updateSyncProgress(room, roomId, io);
                 }
 
+                // 血战模式：检查是否所有人都结束
+                if (room.currentGame && room.currentGame.settings?.nonstopMode) {
+                    const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
+                    const remainingPlayers = activePlayers.filter(p => 
+                        !p.guesses.includes('✌') && 
+                        !p.guesses.includes('💀') && 
+                        !p.guesses.includes('🏳️') && 
+                        !p.guesses.includes('👑') &&
+                        !p.guesses.includes('🏆')
+                    );
+
+                    if (remainingPlayers.length === 0) {
+                        const answerSetter = room.players.find(p => p.isAnswerSetter);
+                        const winnersCount = (room.currentGame.nonstopWinners || []).length;
+                        const totalPlayersCount = activePlayers.length;
+
+                        const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+                        const winnerIds = new Set((room.currentGame.nonstopWinners || []).map(w => w.id));
+                        (room.players || []).forEach(p => {
+                            if (!p || p.isAnswerSetter) return;
+                            if (p.team === '0') return;
+                            if (winnerIds.has(p.id)) return;
+                            if (partialAwardees.has(p.id)) {
+                                p.score += 1;
+                            }
+                        });
+                        
+                        const bigWinnerData = (room.currentGame.nonstopWinners || []).find(w => {
+                            const winnerPlayer = room.players.find(p => p.id === w.id);
+                            return winnerPlayer && winnerPlayer.guesses.includes('👑');
+                        });
+                        const hasBigWinner = !!bigWinnerData;
+                        const bigWinnerScore = bigWinnerData?.score || 0;
+
+                        const scoreChanges = buildScoreChanges({
+                            isNonstopMode: true,
+                            nonstopWinners: room.currentGame.nonstopWinners || [],
+                            partialAwardees,
+                            players: room.players
+                        });
+
+                        if (answerSetter) {
+                            const setterResult = calculateNonstopSetterScore({
+                                hasBigWinner,
+                                bigWinnerScore,
+                                winnersCount,
+                                totalPlayersCount
+                            });
+                            
+                            answerSetter.score += setterResult.score;
+                            
+                            const scoreDetails = generateScoreDetails({
+                                players: room.players,
+                                scoreChanges,
+                                setterInfo: { username: answerSetter.username, score: setterResult.score, reason: setterResult.reason },
+                                isNonstopMode: true
+                            });
+                            
+                            io.to(roomId).emit('gameEnded', {
+                                guesses: room.currentGame?.guesses || [],
+                                scoreDetails
+                            });
+                        } else {
+                            const scoreDetails = generateScoreDetails({
+                                players: room.players,
+                                scoreChanges,
+                                setterInfo: null,
+                                isNonstopMode: true
+                            });
+                            
+                            io.to(roomId).emit('gameEnded', {
+                                guesses: room.currentGame?.guesses || [],
+                                scoreDetails
+                            });
+                        }
+
+                        revertSetterObservers(room, roomId, io);
+                        room.players.forEach(p => {
+                            p.isAnswerSetter = false;
+                        });
+                        io.to(roomId).emit('resetReadyStatus');
+                        room.currentGame = null;
+                        io.to(roomId).emit('updatePlayers', {
+                            players: room.players,
+                            isPublic: room.isPublic,
+                            answerSetterId: null
+                        });
+
+                        console.log(`[血战模式] 房间 ${roomId} 游戏结束（玩家被踢出导致）`);
+                    }
+                }
+
                 // 将被踢玩家从房间中移除（仅离开房间，不强制断开连接）
                 const kickedSocket = io.sockets.sockets.get(playerId);
                 if (kickedSocket) {
@@ -2719,6 +2896,13 @@ function setupSocket(io, rooms) {
 
             getSyncAndNonstopState(room, (eventName, data) => {
                 io.to(roomId).emit(eventName, data);
+            });
+
+            // Explicitly clear answerSetterId for all clients
+            io.to(roomId).emit('updatePlayers', {
+                players: room.players,
+                isPublic: room.isPublic,
+                answerSetterId: null
             });
 
             io.to(roomId).emit('gameStart', {
