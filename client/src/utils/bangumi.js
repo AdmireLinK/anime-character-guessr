@@ -86,23 +86,27 @@ async function getCharacterAppearances(characterId, gameSettings) {
       };
     }
     let filteredAppearances;
-    if (gameSettings.includeGame) {
-      filteredAppearances = subjectsResponse.data.filter(appearance => 
-        (appearance.staff === '主角' || appearance.staff === '配角')
-        && (appearance.type === 2 || appearance.type === 4)
-      );
+    let bigTypes = [2];
+    if (gameSettings.metaTags.includes('游戏')) {
+      bigTypes.push(4);
     }
-    else {
+    if (gameSettings.metaTags.includes('书籍')) {
+      bigTypes.push(1);
+    }
+    if (gameSettings.metaTags.includes('三次元')) {
+      bigTypes.push(6);
+    }
+    if (gameSettings.metaTags.includes('全部')) {
+      bigTypes = [1, 2, 4, 6];
+    }
+    filteredAppearances = subjectsResponse.data.filter(appearance => 
+      (appearance.staff === '主角' || appearance.staff === '配角')
+      && (bigTypes.includes(appearance.type) || subjectsWithExtraTags.has(appearance.id))
+    );
+    if (filteredAppearances.length === 0) {
       filteredAppearances = subjectsResponse.data.filter(appearance => 
         (appearance.staff === '主角' || appearance.staff === '配角')
-        && (appearance.type === 2 || subjectsWithExtraTags.has(appearance.id))
       );
-      if (filteredAppearances.length === 0) {
-        filteredAppearances = subjectsResponse.data.filter(appearance => 
-          (appearance.staff === '主角' || appearance.staff === '配角')
-          && (appearance.type === 1 || appearance.type === 4 || appearance.type === 6)
-        );
-      }
     }
     if (filteredAppearances.length === 0) {
       return {
@@ -130,7 +134,6 @@ async function getCharacterAppearances(characterId, gameSettings) {
       ['游戏改编', '游戏改'],
       ['小说改编', '小说改']
     ]);
-    const metaTypeTags = new Set(['Galgame', '书籍', '三次元', "游戏", "全部"]);
     const sourceTagSet = new Set(['原创', '游戏改', '小说改', '漫画改']);
     const regionTagSet = new Set(['日本', '欧美', '美国', '中国', '法国', '韩国', '英国', '俄罗斯', '中国香港', '苏联', '捷克', '中国台湾', '马来西亚']);
     const sourceTagCounts = new Map();
@@ -147,10 +150,6 @@ async function getCharacterAppearances(characterId, gameSettings) {
           const stuffFactor = appearance.staff === '主角' ? 3 : 1;
           const details = await getSubjectDetails(appearance.id);
           if (!details || details.year === null) return null;
-
-          if (!gameSettings.metaTags.filter(tag => tag !== '' && !metaTypeTags.has(tag))){
-            return null;
-          }
           
           if (latestAppearance === -1 || details.year > latestAppearance) {
             latestAppearance = details.year;

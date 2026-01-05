@@ -662,13 +662,13 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                     </div>
                 </div>
 
-                <div className="setting-item-compact" style={{gap: '8px' }}>
+                {/* <div className="setting-item-compact" style={{gap: '8px' }}>
                     <label className="settings-label" title="计算登场作品（年份、分数）时会包括游戏。&#10;但是，答案角色还是只会从动画中选取，因为游戏的热度榜有bug。&#10;如果想要猜游戏角色，可以自创一个目录或者添加额外作品。">包含游戏作品数据</label>
                     <ToggleSwitch 
                         checked={gameSettings.includeGame}
                         onChange={(val) => onSettingsChange('includeGame', val)}
                     />
-                </div>
+                </div> */}
               </div>
 
               {/* Row 2: Year Range & Popularity Range */}
