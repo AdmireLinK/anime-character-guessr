@@ -130,7 +130,7 @@ async function getCharacterAppearances(characterId, gameSettings) {
       ['游戏改编', '游戏改'],
       ['小说改编', '小说改']
     ]);
-    const specialTags = new Set(['Galgame', '书籍', '三次元', "游戏", "全部"]);
+    const metaTypeTags = new Set(['Galgame', '书籍', '三次元', "游戏", "全部"]);
     const sourceTagSet = new Set(['原创', '游戏改', '小说改', '漫画改']);
     const regionTagSet = new Set(['日本', '欧美', '美国', '中国', '法国', '韩国', '英国', '俄罗斯', '中国香港', '苏联', '捷克', '中国台湾', '马来西亚']);
     const sourceTagCounts = new Map();
@@ -148,7 +148,7 @@ async function getCharacterAppearances(characterId, gameSettings) {
           const details = await getSubjectDetails(appearance.id);
           if (!details || details.year === null) return null;
 
-          if (!gameSettings.metaTags.filter(tag => tag !== '' && !specialTags.has(tag)).every(tag => details.meta_tags.includes(tag))){
+          if (!gameSettings.metaTags.filter(tag => tag !== '' && !metaTypeTags.has(tag))){
             return null;
           }
           
