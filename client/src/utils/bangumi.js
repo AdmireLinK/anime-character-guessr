@@ -88,13 +88,13 @@ async function getCharacterAppearances(characterId, gameSettings) {
     let filteredAppearances;
     let bigTypes = [2];
     if (gameSettings.metaTags.includes('游戏')) {
-      bigTypes.push(4);
+      bigTypes = [4];
     }
     if (gameSettings.metaTags.includes('书籍')) {
-      bigTypes.push(1);
+      bigTypes = [1];
     }
     if (gameSettings.metaTags.includes('三次元')) {
-      bigTypes.push(6);
+      bigTypes = [6];
     }
     if (gameSettings.metaTags.includes('全部')) {
       bigTypes = [1, 2, 4, 6];
