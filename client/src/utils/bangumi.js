@@ -90,13 +90,13 @@ async function getCharacterAppearances(characterId, gameSettings) {
     if (gameSettings.metaTags.includes('游戏')) {
       bigTypes = [4];
     }
-    if (gameSettings.metaTags.includes('书籍')) {
+    else if (gameSettings.metaTags.includes('书籍')) {
       bigTypes = [1];
     }
-    if (gameSettings.metaTags.includes('三次元')) {
+    else if (gameSettings.metaTags.includes('三次元')) {
       bigTypes = [6];
     }
-    if (gameSettings.metaTags.includes('全部')) {
+    else if (gameSettings.metaTags.includes('全部')) {
       bigTypes = [1, 2, 4, 6];
     }
     filteredAppearances = subjectsResponse.data.filter(appearance => 
