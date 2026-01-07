@@ -241,6 +241,12 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     touch-action: pan-y;
+    min-height: 0;
+  }
+
+  /* Hide guesses-list when empty to prevent showing blank space */
+  .guesses-list:empty {
+    display: none;
   }
 
   /* Make mobile cards visually consistent with desktop table cells */
