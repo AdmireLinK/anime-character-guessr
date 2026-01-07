@@ -414,9 +414,6 @@ const Multiplayer = () => {
       setGuessesHistory(guesses);
 
       // Sync guessesLeft from server history to prevent double deduction
-      // 防止游戏已结束情况下的重复触发（使用 ref 判断以避免状态延迟）
-      if (gameEndedRef.current) return;
-
       const currentPlayer = latestPlayersRef.current.find(p => p.id === newSocket.id);
       if (currentPlayer && !currentPlayer.isAnswerSetter && currentPlayer.team !== '0') {
         let used = 0;
@@ -433,10 +430,7 @@ const Multiplayer = () => {
         const left = Math.max(0, max - used);
         setGuessesLeft(left);
         
-        // 只有在确实猜测完全用尽，才触发 gameEnd
-        // 避免在第一次猜测时错误触发 gameEnd 导致 feedback 消失
-        // 使用 ref 判断以避免状态延迟问题
-        if (left <= 0 && !gameEndedRef.current) {
+        if (left <= 0) {
           setTimeout(() => {
             handleGameEnd(false);
           }, 100);
@@ -449,8 +443,7 @@ const Multiplayer = () => {
           const left = Math.max(0, max - used);
           setGuessesLeft(left);
           
-          // 同样的防护
-          if (left <= 0 && !gameEndedRef.current) {
+          if (left <= 0) {
             setTimeout(() => {
               handleGameEnd(false);
             }, 100);
@@ -943,8 +936,7 @@ const Multiplayer = () => {
     // Always emit timeout
     socketRef.current?.emit('timeOut', { roomId });
 
-    // 防止已经游戏结束后仍然触发 gameEnd
-    if (newGuessesLeft <= 0 && !gameEndedRef.current) {
+    if (newGuessesLeft <= 0) {
       setTimeout(() => {
         handleGameEnd(false);
       }, 100);
