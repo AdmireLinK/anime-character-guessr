@@ -172,6 +172,10 @@ const Multiplayer = () => {
       const me = players.find(p => p.id === newSocket.id);
       if (me) {
         setIsHost(me.isHost);
+        // 同时检查是否应该进入旁观模式（防止网络卡顿导致的状态不同步）
+        if (me.team === '0') {
+          setIsObserver(true);
+        }
       }
     });
 

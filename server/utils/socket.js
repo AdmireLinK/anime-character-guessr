@@ -1562,6 +1562,32 @@ function setupSocket(io, rooms) {
                 }
                 updateSyncProgress(room, roomId, io);
             }
+
+            // 检查玩家是否已经耗尽猜测次数（非同步模式）
+            // 这确保即使客户端因网络卡顿未及时接收 guessHistoryUpdate，服务器也能正确判定死亡
+            if (!room.currentGame?.settings?.syncMode && !room.currentGame?.settings?.nonstopMode) {
+                const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
+                let guessCount = 0;
+
+                if (player.team && player.team !== '0') {
+                    // 团队模式：使用团队共享的 guesses 字符串计算
+                    const teamGuesses = room.currentGame.teamGuesses?.[player.team] || '';
+                    guessCount = Array.from(teamGuesses.replace(/[✌👑💀🏳️🏆]/g, '')).length;
+                } else {
+                    // 个人模式：直接计算玩家 guesses 字符串
+                    guessCount = Array.from(player.guesses.replace(/[✌👑💀🏳️🏆]/g, '')).length;
+                }
+
+                // 如果猜测次数已达到上限且还未标记死亡
+                if (guessCount >= maxAttempts && !player.guesses.includes('💀') && 
+                    !player.guesses.includes('✌') && !player.guesses.includes('👑') && 
+                    !player.guesses.includes('🏳️') && !player.guesses.includes('🏆')) {
+                    // 标记玩家死亡
+                    player.guesses += '💀';
+                    player.team = '0'; // 进入旁观模式
+                    console.log(`[INFO][playerGuess][${socket.id}] 玩家 ${player.username} 已耗尽猜测次数，自动标记为死亡并进入旁观模式`);
+                }
+            }
     
             // Broadcast updated players to all clients in the room
             io.to(roomId).emit('updatePlayers', {
