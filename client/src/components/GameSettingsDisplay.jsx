@@ -13,7 +13,7 @@ import '../styles/GameSettingsDisplay.css';
  */
 const GameSettingsDisplay = ({ 
   settings, 
-  title = "该房间的题库范围", 
+  title = "该房间的游戏设置", 
   collapsible = true,
   defaultExpanded = true
 }) => {
@@ -156,7 +156,7 @@ const GameSettingsDisplay = ({
     '作品范围': ['yearRange', 'topNSubjects', 'useSubjectPerYear', 'metaTags'],
     '目录设置': ['useIndex', 'indexId'],
     '角色设置': ['mainCharacterOnly', 'characterNum', 'characterTagNum'],
-    '游戏规则': ['maxAttempts', 'useHints', 'timeLimit', 'subjectSearch', 'includeGame', 'subjectTagNum', 'commonTags', 'globalPick', 'syncMode', 'nonstopMode', 'tagBan']
+    '游戏规则': ['maxAttempts', 'useHints', 'timeLimit', 'subjectSearch', 'includeGame', 'subjectTagNum', 'commonTags']
   };
 
   const toggleExpand = () => {
@@ -173,14 +173,33 @@ const GameSettingsDisplay = ({
       >
         <div className="settings-title-container">
           <h3>{title}</h3>
-          {presetInfo.name && (
-            <div className="preset-info">
-              <span className="preset-name">{presetInfo.name}</span>
-              {presetInfo.modified && (
-                <span className="preset-modified">(房主有修改此预设)</span>
+          <div className="header-info-row">
+            {presetInfo.name && (
+              <div className="preset-info">
+                <span className="preset-name">{presetInfo.name}</span>
+                {presetInfo.modified && (
+                  <span className="preset-modified">(房主有修改此预设)</span>
+                )}
+              </div>
+            )}
+            <div className="mode-badges">
+              {!settings.globalPick && !settings.tagBan && !settings.syncMode && !settings.nonstopMode && (
+                <span className="mode-badge normal">普通模式</span>
+              )}
+              {settings.globalPick && (
+                <span className="mode-badge global-pick">角色全局BP</span>
+              )}
+              {settings.tagBan && (
+                <span className="mode-badge tag-ban">标签全局BP</span>
+              )}
+              {settings.syncMode && (
+                <span className="mode-badge sync-mode">同步模式</span>
+              )}
+              {settings.nonstopMode && (
+                <span className="mode-badge nonstop-mode">血战模式</span>
               )}
             </div>
-          )}
+          </div>
         </div>
         {collapsible && (
           <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>

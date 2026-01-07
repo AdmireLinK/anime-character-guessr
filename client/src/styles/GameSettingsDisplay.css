@@ -107,6 +107,8 @@
   
   .settings-display-header {
     padding: 12px 15px;
+    flex-direction: column;
+    align-items: flex-start;
   }
   
   .settings-display-header h3 {
@@ -124,19 +126,35 @@
   .setting-value {
     font-size: 15px;
   }
+
+  .mode-badges {
+    width: 100%;
+  }
+
+  .mode-badge {
+    font-size: 11px;
+    padding: 3px 10px;
+  }
 }
 
 .settings-title-container {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  gap: 8px;
+}
+
+.header-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
 }
 
 .preset-info {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
   font-size: 14px;
 }
 
@@ -152,4 +170,45 @@
   color: #f59e0b;
   font-size: 12px;
   font-style: italic;
+}
+
+.mode-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mode-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mode-badge.normal {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.mode-badge.global-pick {
+  background-color: #ef4444;
+  color: white;
+}
+
+.mode-badge.tag-ban {
+  background-color: #f97316;
+  color: white;
+}
+
+.mode-badge.sync-mode {
+  background-color: #06b6d4;
+  color: white;
+}
+
+.mode-badge.nonstop-mode {
+  background-color: #ec4899;
+  color: white;
 } 

@@ -641,21 +641,27 @@
 }
 
 .mode-tag.nonstop {
-  background: #fee2e2;
-  color: #b91c1c;
-  border: 1px solid #fca5a5;
+  background: #ec4899;
+  color: white;
+  border: 1px solid #ec4899;
 }
 
 .mode-tag.sync {
-  background: #f0fdf4;
-  color: #15803d;
-  border: 1px solid #86efac;
+  background: #06b6d4;
+  color: white;
+  border: 1px solid #06b6d4;
 }
 
 .mode-tag.global-bp {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fcd34d;
+  background: #ef4444;
+  color: white;
+  border: 1px solid #ef4444;
+}
+
+.mode-tag.tag-ban {
+  background: #f97316;
+  color: white;
+  border: 1px solid #f97316;
 }
 
 .score-details-title {

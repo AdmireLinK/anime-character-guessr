@@ -1786,7 +1786,7 @@ const Multiplayer = () => {
                               <span className="mode-tag global-bp">角色全局BP</span>
                             )}
                             {displaySettings.tagBan && (
-                              <span className="mode-tag global-bp">标签全局BP</span>
+                              <span className="mode-tag tag-ban">标签全局BP</span>
                             )}
                           </div>
                           <span className="answer-label">答案是</span>
