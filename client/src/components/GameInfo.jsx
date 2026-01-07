@@ -1,20 +1,20 @@
 import '../styles/game.css';
 import Image from './Image';
 
-function GameInfo({ gameEnd, guessesLeft, onRestart, finishInit, hints, useHints = [], onSurrender, imgHint=null, useImageHint=0, initFailed=false }) {
+function GameInfo({ gameEnd, guessesLeft, onRestart, finishInit, hints, useHints = [], onSurrender, imgHint=null, useImageHint=0, initFailed=false, isRestarting=false }) {
   return (
     <div className="game-info">
       {gameEnd ? (
-        <button className="restart-button" onClick={onRestart}>
-          再玩一次
+        <button className="restart-button" onClick={onRestart} disabled={isRestarting}>
+          {isRestarting ? '正在加载...' : '再玩一次'}
         </button>
       ) : (
         <div className="game-info-container">
           <div className="game-controls">
             <span>剩余次数: {guessesLeft}</span>
             {initFailed ? (
-              <button className="restart-button" onClick={onRestart}>
-                重试
+              <button className="restart-button" onClick={onRestart} disabled={isRestarting}>
+                {isRestarting ? '正在加载...' : '重试'}
               </button>
             ) : (
               onSurrender && (

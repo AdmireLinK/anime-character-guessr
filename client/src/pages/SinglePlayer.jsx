@@ -33,6 +33,7 @@ function SinglePlayer() {
   const [imgHint, setImgHint] = useState(null);
   const [useImageHint, setUseImageHint] = useState(0);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
+  const [isGameRestarting, setIsGameRestarting] = useState(false); // 防止重复点击"再玩一次"
   const navigate = useNavigate();
   const [gameSettings, setGameSettings] = useLocalStorage('singleplayer-game-settings', {
     startYear: new Date().getFullYear()-10,
@@ -251,56 +252,65 @@ function SinglePlayer() {
   };
 
   const handleRestartWithSettings = async () => {
-    setGuesses([]);
-    setGuessesLeft(gameSettings.maxAttempts);
-    setIsGuessing(false);
-    setGameEnd(false);
-    setGameEndPopup(null);
-    setAnswerCharacter(null);
-    setSettingsPopup(false);
-    setShouldResetTimer(true);
-    setFinishInit(false);
-    setInitFailed(false);
-    setHints([]);
-
+    // 防止重复点击："再玩一次"按钮
+    if (isGameRestarting) return;
+    
+    setIsGameRestarting(true);
+    
     try {
-      if (gameSettings.addedSubjects.length > 0) {
-        await axios.post(import.meta.env.VITE_SERVER_URL + '/api/subject-added', {
-          addedSubjects: gameSettings.addedSubjects
-        });
-      }
-    } catch (error) {
-      console.error('Failed to update subject count:', error);
-    }
-    try {
-      setCurrentGameSettings({ ...gameSettings });
-      const character = await getRandomCharacter(gameSettings);
-      setAnswerCharacter(character);
-      // Prepare hints based on settings for new game
-      let hintTexts = [];
-      if (Array.isArray(gameSettings.useHints) && gameSettings.useHints.length > 0 && character.summary) {
-        const sentences = character.summary.replace('[mask]', '').replace('[/mask]','')
-          .split(/[。、，。！？ ""]/).filter(s => s.trim());
-        if (sentences.length > 0) {
-          const selectedIndices = new Set();
-          while (selectedIndices.size < Math.min(gameSettings.useHints.length, sentences.length)) {
-            selectedIndices.add(Math.floor(Math.random() * sentences.length));
-          }
-          hintTexts = Array.from(selectedIndices).map(i => "……"+sentences[i].trim()+"……");
-        }
-      }
-      setHints(hintTexts);
-      setUseImageHint(gameSettings.useImageHint);
-      setImgHint(gameSettings.useImageHint > 0 ? character.image : null);
-      console.log('初始化游戏', gameSettings);
-      setFinishInit(true);
+      setGuesses([]);
+      setGuessesLeft(gameSettings.maxAttempts);
+      setIsGuessing(false);
+      setGameEnd(false);
+      setGameEndPopup(null);
+      setAnswerCharacter(null);
+      setSettingsPopup(false);
+      setShouldResetTimer(true);
+      setFinishInit(false);
       setInitFailed(false);
-  } catch (error) {
-    console.error('Failed to initialize new game:', error);
-    const message = error?.response?.data?.message || error?.message || '游戏初始化失败，请刷新页面重试，或在设置里清理缓存';
-    alert(message);
-    setInitFailed(true);
-  }
+      setHints([]);
+
+      try {
+        if (gameSettings.addedSubjects.length > 0) {
+          await axios.post(import.meta.env.VITE_SERVER_URL + '/api/subject-added', {
+            addedSubjects: gameSettings.addedSubjects
+          });
+        }
+      } catch (error) {
+        console.error('Failed to update subject count:', error);
+      }
+      try {
+        setCurrentGameSettings({ ...gameSettings });
+        const character = await getRandomCharacter(gameSettings);
+        setAnswerCharacter(character);
+        // Prepare hints based on settings for new game
+        let hintTexts = [];
+        if (Array.isArray(gameSettings.useHints) && gameSettings.useHints.length > 0 && character.summary) {
+          const sentences = character.summary.replace('[mask]', '').replace('[/mask]','')
+            .split(/[。、，。！？ ""]/).filter(s => s.trim());
+          if (sentences.length > 0) {
+            const selectedIndices = new Set();
+            while (selectedIndices.size < Math.min(gameSettings.useHints.length, sentences.length)) {
+              selectedIndices.add(Math.floor(Math.random() * sentences.length));
+            }
+            hintTexts = Array.from(selectedIndices).map(i => "……"+sentences[i].trim()+"……");
+          }
+        }
+        setHints(hintTexts);
+        setUseImageHint(gameSettings.useImageHint);
+        setImgHint(gameSettings.useImageHint > 0 ? character.image : null);
+        console.log('初始化游戏', gameSettings);
+        setFinishInit(true);
+        setInitFailed(false);
+      } catch (error) {
+        console.error('Failed to initialize new game:', error);
+        const message = error?.response?.data?.message || error?.message || '游戏初始化失败，请刷新页面重试，或在设置里清理缓存';
+        alert(message);
+        setInitFailed(true);
+      }
+    } finally {
+      setIsGameRestarting(false);
+    }
   };
 
   const timeUpRef = useRef(false);
@@ -403,6 +413,7 @@ function SinglePlayer() {
         imgHint = {imgHint}
         useHints={currentGameSettings.useHints}
         onSurrender={handleSurrender}
+        isRestarting={isGameRestarting}
       />
 
       <GuessesTable

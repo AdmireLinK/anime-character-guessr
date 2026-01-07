@@ -1306,15 +1306,11 @@ function setupSocket(io, rooms) {
                 socket.emit('error', {message: 'gameStart: 房间不存在'});
                 return;
             }
-    
-            // Set room to private when game starts
-            // room.isPublic = false;
-    
-            // Only allow host to start game
-            const player = room.players.find(p => p.id === socket.id);
-            if (!player || !player.isHost) {
-                console.log(`[ERROR][gameStart][${socket.id}] 只有房主可以开始游戏`);
-                socket.emit('error', {message: 'gameStart: 只有房主可以开始游戏'});
+
+            // 防止重复启动游戏：如果游戏已经启动，拒绝新的开始请求
+            if (room.currentGame) {
+                console.log(`[ERROR][gameStart][${socket.id}] 游戏已经启动，拒绝重复开始请求`);
+                socket.emit('error', {message: 'gameStart: 游戏已经在进行中'});
                 return;
             }
     
@@ -1565,6 +1561,32 @@ function setupSocket(io, rooms) {
                     }
                 }
                 updateSyncProgress(room, roomId, io);
+            }
+
+            // 检查玩家是否已经耗尽猜测次数（非同步模式）
+            // 这确保即使客户端因网络卡顿未及时接收 guessHistoryUpdate，服务器也能正确判定死亡
+            if (!room.currentGame?.settings?.syncMode && !room.currentGame?.settings?.nonstopMode) {
+                const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
+                let guessCount = 0;
+
+                if (player.team && player.team !== '0') {
+                    // 团队模式：使用团队共享的 guesses 字符串计算
+                    const teamGuesses = room.currentGame.teamGuesses?.[player.team] || '';
+                    guessCount = Array.from(teamGuesses.replace(/[✌👑💀🏳️🏆]/g, '')).length;
+                } else {
+                    // 个人模式：直接计算玩家 guesses 字符串
+                    guessCount = Array.from(player.guesses.replace(/[✌👑💀🏳️🏆]/g, '')).length;
+                }
+
+                // 如果猜测次数已达到上限且还未标记死亡
+                if (guessCount >= maxAttempts && !player.guesses.includes('💀') && 
+                    !player.guesses.includes('✌') && !player.guesses.includes('👑') && 
+                    !player.guesses.includes('🏳️') && !player.guesses.includes('🏆')) {
+                    // 标记玩家死亡
+                    player.guesses += '💀';
+                    player.team = '0'; // 进入旁观模式
+                    console.log(`[INFO][playerGuess][${socket.id}] 玩家 ${player.username} 已耗尽猜测次数，自动标记为死亡并进入旁观模式`);
+                }
             }
     
             // Broadcast updated players to all clients in the room
@@ -2128,6 +2150,50 @@ function setupSocket(io, rooms) {
             }
     
             console.log(`Player ${player.username} ended their game in room ${roomId} with result: ${result}`);
+        });
+
+        // Handle entering observer mode (when player runs out of guesses or surrenders)
+        socket.on('enterObserverMode', ({roomId}) => {
+            const room = rooms.get(roomId);
+            if (room) room.lastActive = Date.now();
+
+            if (!room) {
+                console.log(`[ERROR][enterObserverMode][${socket.id}] 房间不存在`);
+                socket.emit('error', {message: 'enterObserverMode: 房间不存在'});
+                return;
+            }
+
+            const player = room.players.find(p => p.id === socket.id);
+            if (!player) {
+                console.log(`[ERROR][enterObserverMode][${socket.id}] 连接中断了`);
+                socket.emit('error', {message: 'enterObserverMode: 连接中断了'});
+                return;
+            }
+
+            // Check if player already ended their game
+            if (player.guesses.includes('✌') || player.guesses.includes('👑') || 
+                player.guesses.includes('💀') || player.guesses.includes('🏳️') ||
+                player.guesses.includes('🏆')) {
+                // Already ended, just move to observer
+                player.team = '0';
+            } else {
+                // First time ending, mark as surrendered
+                player.guesses += '🏳️';
+                player.team = '0';
+                
+                // Update team guesses if in a team
+                if (room.currentGame && player.team) {
+                    room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                    room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '🏳️';
+                }
+            }
+
+            // Update all players about the change
+            io.to(roomId).emit('updatePlayers', {
+                players: room.players
+            });
+
+            console.log(`Player ${player.username} entered observer mode in room ${roomId}`);
         });
 
     
@@ -2826,6 +2892,13 @@ function setupSocket(io, rooms) {
             if (!room) {
                 console.log(`[ERROR][setAnswer][${socket.id}] 房间不存在`);
                 socket.emit('error', {message: 'setAnswer: 房间不存在'});
+                return;
+            }
+
+            // 防止重复启动游戏：如果游戏已经启动，拒绝新的出题请求
+            if (room.currentGame) {
+                console.log(`[ERROR][setAnswer][${socket.id}] 游戏已经启动，拒绝重复出题请求`);
+                socket.emit('error', {message: 'setAnswer: 游戏已经在进行中'});
                 return;
             }
     
