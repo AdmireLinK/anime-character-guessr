@@ -1145,20 +1145,23 @@
 }
 
 .connection-status.disconnected {
-  background-color: rgba(108, 117, 125, 0.95);
+  /* 与其它通知保持一致：使用红色警示色 */
+  background-color: rgba(220, 53, 69, 0.95);
   color: white;
 }
 
 .connection-status-content {
+  /* 与 kick-notification 内容保持一致 */
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 15px;
+  gap: 12px;
+  font-size: 16px;
   font-weight: 500;
 }
 
 .connection-status i {
-  font-size: 18px;
+  /* 与 kick-notification 图标尺寸保持一致 */
+  font-size: 20px;
 }
 
 .connection-status .fa-spin {

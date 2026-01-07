@@ -1237,7 +1237,8 @@ const Multiplayer = () => {
             )}
             {connectionStatus === 'disconnected' && (
               <>
-                <i className="fas fa-times-circle"></i>
+                {/* 与其它同类型提醒保持一致的图标样式 */}
+                <i className="fas fa-exclamation-circle"></i>
                 <span>连接已断开</span>
               </>
             )}
