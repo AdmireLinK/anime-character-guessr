@@ -86,6 +86,7 @@ const Multiplayer = () => {
   const [guesses, setGuesses] = useState([]);
   const [guessesLeft, setGuessesLeft] = useState(10);
   const [isGuessing, setIsGuessing] = useState(false);
+  const [isGameStarting, setIsGameStarting] = useState(false); // 防止重复点击开始按钮
   const answerCharacterRef = useRef(null);
   const gameSettingsRef = useRef(gameSettings);
   const [answerCharacter, setAnswerCharacter] = useState(null);
@@ -503,6 +504,7 @@ const Multiplayer = () => {
       setGlobalGameEnd(true);
       setGuessesHistory(guesses);
       setIsGameStarted(false);
+      setIsGameStarting(false); // 重置游戏启动标志，允许下一局开始
       setIsObserver(false); // 重置旁观者状态，下一局开始时会重新判断
     });
 
@@ -963,58 +965,74 @@ const Multiplayer = () => {
   };
 
   const handleStartGame = async () => {
+    // 防止重复点击：如果正在初始化游戏或游戏已开始，则返回
+    if (isGameStarting || isGameStarted) return;
+    
     if (isHost) {
-      // 保存最新创建的多人模式设置
+      // 设置正在启动游戏的标志
+      setIsGameStarting(true);
+      
       try {
-        localStorage.setItem('latestMultiplayerSettings', JSON.stringify(gameSettings));
-      } catch (e) { /* ignore */ }
-      try {
-        if (gameSettings.addedSubjects.length > 0) {
-          await axios.post(SOCKET_URL + '/api/subject-added', {
-            addedSubjects: gameSettings.addedSubjects
-          });
-        }
-      } catch (error) {
-        console.error('Failed to update subject count:', error);
-      }
-      try {
-        const character = await getRandomCharacter(gameSettings);
-        character.rawTags = Array.from(character.rawTags.entries());
-        const encryptedCharacter = CryptoJS.AES.encrypt(JSON.stringify(character), secret).toString();
-        socketRef.current?.emit('gameStart', {
-          roomId,
-          character: encryptedCharacter,
-          settings: gameSettings
-        });
-
-        // Update local state
-        setAnswerCharacter(character);
-        setGuessesLeft(gameSettings.maxAttempts);
-
-        // Prepare hints if enabled
-        let hintTexts = [];
-        if (Array.isArray(gameSettings.useHints) && gameSettings.useHints.length > 0 && character.summary) {
-          const sentences = character.summary.replace('[mask]', '').replace('[/mask]','')
-            .split(/[。、，。！？ ""]/).filter(s => s.trim());
-          if (sentences.length > 0) {
-            const selectedIndices = new Set();
-            while (selectedIndices.size < Math.min(gameSettings.useHints.length, sentences.length)) {
-              selectedIndices.add(Math.floor(Math.random() * sentences.length));
-            }
-            hintTexts = Array.from(selectedIndices).map(i => "……"+sentences[i].trim()+"……");
+        // 保存最新创建的多人模式设置
+        try {
+          localStorage.setItem('latestMultiplayerSettings', JSON.stringify(gameSettings));
+        } catch (e) { /* ignore */ }
+        try {
+          if (gameSettings.addedSubjects.length > 0) {
+            await axios.post(SOCKET_URL + '/api/subject-added', {
+              addedSubjects: gameSettings.addedSubjects
+            });
           }
+        } catch (error) {
+          console.error('Failed to update subject count:', error);
         }
-        setHints(hintTexts);
-        setUseImageHint(gameSettings.useImageHint);
-        setImgHint(gameSettings.useImageHint > 0 ? character.image : null);
-        setGlobalGameEnd(false);
-        setScoreDetails(null);
-        setIsGameStarted(true);
-        setGameEnd(false);
-        setGuesses([]);
-      } catch (error) {
-        console.error('Failed to initialize game:', error);
-        alert('游戏初始化失败，请重试');
+        try {
+          const character = await getRandomCharacter(gameSettings);
+          character.rawTags = Array.from(character.rawTags.entries());
+          const encryptedCharacter = CryptoJS.AES.encrypt(JSON.stringify(character), secret).toString();
+          socketRef.current?.emit('gameStart', {
+            roomId,
+            character: encryptedCharacter,
+            settings: gameSettings
+          });
+
+          // Update local state
+          setAnswerCharacter(character);
+          setGuessesLeft(gameSettings.maxAttempts);
+
+          // Prepare hints if enabled
+          let hintTexts = [];
+          if (Array.isArray(gameSettings.useHints) && gameSettings.useHints.length > 0 && character.summary) {
+            const sentences = character.summary.replace('[mask]', '').replace('[/mask]','')
+              .split(/[。、，。！？ ""]/).filter(s => s.trim());
+            if (sentences.length > 0) {
+              const selectedIndices = new Set();
+              while (selectedIndices.size < Math.min(gameSettings.useHints.length, sentences.length)) {
+                selectedIndices.add(Math.floor(Math.random() * sentences.length));
+              }
+              hintTexts = Array.from(selectedIndices).map(i => "……"+sentences[i].trim()+"……");
+            }
+          }
+          setHints(hintTexts);
+          setUseImageHint(gameSettings.useImageHint);
+          setImgHint(gameSettings.useImageHint > 0 ? character.image : null);
+          setGlobalGameEnd(false);
+          setScoreDetails(null);
+          setIsGameStarted(true);
+          setGameEnd(false);
+          setGuesses([]);
+        } catch (error) {
+          console.error('Failed to initialize game:', error);
+          alert('游戏初始化失败，请重试');
+          setIsGameStarting(false); // 重置标志以允许重试
+        }
+      } finally {
+        // 确保标志在超时后重置，防止永久锁定（超时时间设为5秒）
+        setTimeout(() => {
+          if (isGameStarting) {
+            setIsGameStarting(false);
+          }
+        }, 5000);
       }
     }
   };
@@ -1426,9 +1444,9 @@ const Multiplayer = () => {
                       <button
                         onClick={handleStartGame}
                         className="start-game-button"
-                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
+                        disabled={isGameStarting || players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
                       >
-                        开始
+                        {isGameStarting ? '正在启动...' : '开始'}
                       </button>
                       <button
                         onClick={handleManualMode}

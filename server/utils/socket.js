@@ -1306,15 +1306,11 @@ function setupSocket(io, rooms) {
                 socket.emit('error', {message: 'gameStart: 房间不存在'});
                 return;
             }
-    
-            // Set room to private when game starts
-            // room.isPublic = false;
-    
-            // Only allow host to start game
-            const player = room.players.find(p => p.id === socket.id);
-            if (!player || !player.isHost) {
-                console.log(`[ERROR][gameStart][${socket.id}] 只有房主可以开始游戏`);
-                socket.emit('error', {message: 'gameStart: 只有房主可以开始游戏'});
+
+            // 防止重复启动游戏：如果游戏已经启动，拒绝新的开始请求
+            if (room.currentGame) {
+                console.log(`[ERROR][gameStart][${socket.id}] 游戏已经启动，拒绝重复开始请求`);
+                socket.emit('error', {message: 'gameStart: 游戏已经在进行中'});
                 return;
             }
     
@@ -2826,6 +2822,13 @@ function setupSocket(io, rooms) {
             if (!room) {
                 console.log(`[ERROR][setAnswer][${socket.id}] 房间不存在`);
                 socket.emit('error', {message: 'setAnswer: 房间不存在'});
+                return;
+            }
+
+            // 防止重复启动游戏：如果游戏已经启动，拒绝新的出题请求
+            if (room.currentGame) {
+                console.log(`[ERROR][setAnswer][${socket.id}] 游戏已经启动，拒绝重复出题请求`);
+                socket.emit('error', {message: 'setAnswer: 游戏已经在进行中'});
                 return;
             }
     
