@@ -433,7 +433,8 @@ const Multiplayer = () => {
         
         if (left <= 0) {
           setTimeout(() => {
-            handleGameEnd(false);
+            // 没有猜测次数后进入旁观模式
+            handleEnterObserverMode();
           }, 100);
         }
       } else if (currentPlayer && !currentPlayer.isAnswerSetter && currentPlayer.team === null) {
@@ -446,7 +447,8 @@ const Multiplayer = () => {
           
           if (left <= 0) {
             setTimeout(() => {
-              handleGameEnd(false);
+              // 没有猜测次数后进入旁观模式
+              handleEnterObserverMode();
             }, 100);
           }
         }
@@ -951,17 +953,18 @@ const Multiplayer = () => {
     }, 100);
   };
 
+  const handleEnterObserverMode = () => {
+    // 进入旁观模式（不结束游戏，允许其他玩家继续）
+    setIsObserver(true);
+    socketRef.current?.emit('enterObserverMode', {
+      roomId
+    });
+  };
+
   const handleSurrender = () => {
     if (gameEnd || gameEndedRef.current) return;
-    gameEndedRef.current = true;
-    setGameEnd(true);
-    // 重置同步等待状态
-    setWaitingForSync(false);
-    // Emit game end event with surrender result
-    socketRef.current?.emit('gameEnd', {
-      roomId,
-      result: 'surrender'
-    });
+    // 投降后进入旁观模式
+    handleEnterObserverMode();
   };
 
   const handleStartGame = async () => {
@@ -1533,6 +1536,7 @@ const Multiplayer = () => {
                       <button
                         className="surrender-button"
                         onClick={handleSurrender}
+                        disabled={isObserver || gameEnd}
                       >
                         投降 🏳️
                       </button>

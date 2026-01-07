@@ -2126,6 +2126,50 @@ function setupSocket(io, rooms) {
             console.log(`Player ${player.username} ended their game in room ${roomId} with result: ${result}`);
         });
 
+        // Handle entering observer mode (when player runs out of guesses or surrenders)
+        socket.on('enterObserverMode', ({roomId}) => {
+            const room = rooms.get(roomId);
+            if (room) room.lastActive = Date.now();
+
+            if (!room) {
+                console.log(`[ERROR][enterObserverMode][${socket.id}] 房间不存在`);
+                socket.emit('error', {message: 'enterObserverMode: 房间不存在'});
+                return;
+            }
+
+            const player = room.players.find(p => p.id === socket.id);
+            if (!player) {
+                console.log(`[ERROR][enterObserverMode][${socket.id}] 连接中断了`);
+                socket.emit('error', {message: 'enterObserverMode: 连接中断了'});
+                return;
+            }
+
+            // Check if player already ended their game
+            if (player.guesses.includes('✌') || player.guesses.includes('👑') || 
+                player.guesses.includes('💀') || player.guesses.includes('🏳️') ||
+                player.guesses.includes('🏆')) {
+                // Already ended, just move to observer
+                player.team = '0';
+            } else {
+                // First time ending, mark as surrendered
+                player.guesses += '🏳️';
+                player.team = '0';
+                
+                // Update team guesses if in a team
+                if (room.currentGame && player.team) {
+                    room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                    room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '🏳️';
+                }
+            }
+
+            // Update all players about the change
+            io.to(roomId).emit('updatePlayers', {
+                players: room.players
+            });
+
+            console.log(`Player ${player.username} entered observer mode in room ${roomId}`);
+        });
+
     
         // Handle game settings request
         socket.on('requestGameSettings', ({roomId}) => {
