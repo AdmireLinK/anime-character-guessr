@@ -300,6 +300,9 @@ function setupSocket(io, rooms) {
          * @param {string} answerSetterId - 出题人的 socket ID
          */
         const initGameState = (room, character, settings, hints, answerSetterId) => {
+            // 计算初始的活跃玩家数（用于血战模式基础分计算，保持不变）
+            const initialActivePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length;
+            
             room.currentGame = {
                 character,
                 settings,
@@ -315,7 +318,8 @@ function setupSocket(io, rooms) {
                 nonstopWinners: [],
                 firstWinner: null,
                 tagBanState: [],
-                tagBanStatePending: []
+                tagBanStatePending: [],
+                nonstopTotalPlayers: initialActivePlayers  // 记录初始玩家数，用于基础分计算
             };
 
             room.players.forEach(p => {
@@ -539,12 +543,9 @@ function setupSocket(io, rooms) {
                 updateSyncProgress(room, roomId, io);
             }
 
-            const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
-            const totalPlayers = activePlayers.length;
-            const winnerRank = room.currentGame?.settings?.syncMode
-                ? room.currentGame.nonstopWinners.length + 1 + (room.currentGame.syncRoundStartRank - 1)
-                : room.currentGame.nonstopWinners.length + 1;
-            const rankScore = Math.max(1, totalPlayers - winnerRank + 1);
+            const initialTotalPlayers = room.currentGame?.nonstopTotalPlayers || 1;
+            const winnersCount = room.currentGame?.nonstopWinners?.length || 0;
+            const rankScore = Math.max(1, initialTotalPlayers - winnersCount);
             const totalRounds = room.currentGame?.settings?.maxAttempts || 10;
             const scoreResult = calculateWinnerScore({ guesses: player.guesses, baseScore: rankScore, totalRounds });
             const score = scoreResult.totalScore;
