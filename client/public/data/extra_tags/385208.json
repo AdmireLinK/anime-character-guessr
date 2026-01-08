@@ -530,5 +530,29 @@
     "武器类型": {
       "长刃": "<img src='/assets/tag/mc/长刃.png'/>长刃"
     }
+  },
+  "195805": {
+    "_name": "爱弥斯",
+    "稀有度": {
+      "5星": "<img src='/assets/tag/mc/5星.png' alt='5星' />"
+    },
+    "属性": {
+      "热熔": "<img src='/assets/tag/mc/热熔.png'/>热熔"
+    },
+    "武器类型": {
+      "迅刀": "<img src='/assets/tag/mc/迅刀.png'/>迅刀"
+    }
+  },
+  "191862": {
+    "_name": "陆·赫斯",
+    "稀有度": {
+      "5星": "<img src='/assets/tag/mc/5星.png' alt='5星' />"
+    },
+    "属性": {
+      "衍射": "<img src='/assets/tag/mc/衍射.png'/>衍射"
+    },
+    "武器类型": {
+      "臂铠": "<img src='/assets/tag/mc/臂铠.png'/>臂铠"
+    }
   }
 }
