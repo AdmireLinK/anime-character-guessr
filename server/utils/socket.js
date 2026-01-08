@@ -349,7 +349,10 @@ function setupSocket(io, rooms) {
             initGameState(room, character, settings, null, null);
             io.to(roomId).emit('gameStart', { character, settings, players: room.players, isPublic: room.isPublic, isGameStarted: true });
             io.to(roomId).emit('tagBanStateUpdate', { tagBanState: [] });
-            if (room.currentGame.settings?.syncMode) updateSyncProgress(room, roomId, io);
+            // 游戏开始时发送初始进度（同步模式和血战模式）
+            getSyncAndNonstopState(room, (eventName, data) => {
+                io.to(roomId).emit(eventName, data);
+            });
             room.lastActive = Date.now();
             log.info(`game started in ${roomId}`);
         });

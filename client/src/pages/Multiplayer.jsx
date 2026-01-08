@@ -220,10 +220,15 @@ const Multiplayer = () => {
 
     // 同步模式：收到服务端通知，开始下一轮
     newSocket.on('syncRoundStart', ({ round }) => {
-      setWaitingForSync(false);  // 解除等待状态
-      setSyncStatus({});  // 清空同步状态
-      setShouldResetTimer(true);  // 触发计时器重置
-      setTimeout(() => setShouldResetTimer(false), 100);  // 短暂延迟后取消重置标志
+      setWaitingForSync(false);
+      // 保持同步状态显示，但重置为新一轮的初始状态（避免闪屏）
+      setSyncStatus(prevStatus => ({
+        ...prevStatus,
+        round,
+        syncStatus: prevStatus.syncStatus?.map(p => ({ ...p, completed: false })) || []
+      }));
+      setShouldResetTimer(true);
+      setTimeout(() => setShouldResetTimer(false), 100);
       console.log(`[同步模式] 第 ${round} 轮开始`);
     });
 
@@ -406,11 +411,31 @@ const Multiplayer = () => {
       setScoreDetails(null);
       setIsGameStarted(true);
       setGuesses([]);
-      // 重置同步模式状态
-      setWaitingForSync(false);
-      setSyncStatus({});
-      // 重置血战模式状态
-      setNonstopProgress(null);
+      // 初始化同步和血战模式的进度显示
+      if (settings?.syncMode) {
+        // 初始化同步模式进度：所有非出题人、非旁观者、未断连的玩家
+        const syncPlayers = players?.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected) || [];
+        setSyncStatus({
+          round: 1,
+          syncStatus: syncPlayers.map(p => ({ id: p.id, username: p.username, completed: false })),
+          completedCount: 0,
+          totalCount: syncPlayers.length
+        });
+      } else {
+        setWaitingForSync(false);
+        setSyncStatus({});
+      }
+      if (settings?.nonstopMode) {
+        // 初始化血战模式进度：0人猜对
+        const activePlayers = players?.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected) || [];
+        setNonstopProgress({
+          winners: [],
+          remainingCount: activePlayers.length,
+          totalCount: activePlayers.length
+        });
+      } else {
+        setNonstopProgress(null);
+      }
       // 重置手动出题状态：清空等待状态和弹窗
       setWaitingForAnswer(false);
       setAnswerSetterId(null);
