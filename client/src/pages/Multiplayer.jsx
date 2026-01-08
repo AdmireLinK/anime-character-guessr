@@ -168,10 +168,12 @@ const Multiplayer = () => {
       if (answerSetterId !== undefined) {
         setAnswerSetterId(answerSetterId);
       }
-      // Sync isHost state from player list to ensure correctness
+      // Sync isHost, isAnswerSetter, and isObserver state from player list to ensure correctness
       const me = players.find(p => p.id === newSocket.id);
       if (me) {
         setIsHost(me.isHost);
+        // Update isAnswerSetter flag based on current player status to prevent network lag spoilers
+        setIsAnswerSetter(me.isAnswerSetter || false);
         // 同时检查是否应该进入旁观模式（防止网络卡顿导致的状态不同步）
         if (me.team === '0') {
           setIsObserver(true);
@@ -218,10 +220,15 @@ const Multiplayer = () => {
 
     // 同步模式：收到服务端通知，开始下一轮
     newSocket.on('syncRoundStart', ({ round }) => {
-      setWaitingForSync(false);  // 解除等待状态
-      setSyncStatus({});  // 清空同步状态
-      setShouldResetTimer(true);  // 触发计时器重置
-      setTimeout(() => setShouldResetTimer(false), 100);  // 短暂延迟后取消重置标志
+      setWaitingForSync(false);
+      // 保持同步状态显示，但重置为新一轮的初始状态（避免闪屏）
+      setSyncStatus(prevStatus => ({
+        ...prevStatus,
+        round,
+        syncStatus: prevStatus.syncStatus?.map(p => ({ ...p, completed: false })) || []
+      }));
+      setShouldResetTimer(true);
+      setTimeout(() => setShouldResetTimer(false), 100);
       console.log(`[同步模式] 第 ${round} 轮开始`);
     });
 
@@ -404,11 +411,31 @@ const Multiplayer = () => {
       setScoreDetails(null);
       setIsGameStarted(true);
       setGuesses([]);
-      // 重置同步模式状态
-      setWaitingForSync(false);
-      setSyncStatus({});
-      // 重置血战模式状态
-      setNonstopProgress(null);
+      // 初始化同步和血战模式的进度显示
+      if (settings?.syncMode) {
+        // 初始化同步模式进度：所有非出题人、非旁观者、未断连的玩家
+        const syncPlayers = players?.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected) || [];
+        setSyncStatus({
+          round: 1,
+          syncStatus: syncPlayers.map(p => ({ id: p.id, username: p.username, completed: false })),
+          completedCount: 0,
+          totalCount: syncPlayers.length
+        });
+      } else {
+        setWaitingForSync(false);
+        setSyncStatus({});
+      }
+      if (settings?.nonstopMode) {
+        // 初始化血战模式进度：0人猜对
+        const activePlayers = players?.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected) || [];
+        setNonstopProgress({
+          winners: [],
+          remainingCount: activePlayers.length,
+          totalCount: activePlayers.length
+        });
+      } else {
+        setNonstopProgress(null);
+      }
       // 重置手动出题状态：清空等待状态和弹窗
       setWaitingForAnswer(false);
       setAnswerSetterId(null);
@@ -1568,15 +1595,24 @@ const Multiplayer = () => {
                   />
                 </>
               ) : (
-                // Answer setter view
+                // Answer setter view or observer view
                 <div className="answer-setter-view">
-                  <div className="selected-answer">
-                    <Image src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
-                    <div className="answer-info">
-                      <div>{answerCharacter.name}</div>
-                      <div>{answerCharacter.nameCn}</div>
-                    </div>
-                  </div>
+                  {/* Show selected answer for: answer setter, observers, and temp observers */}
+                  {(() => {
+                    const currentPlayer = players.find(p => p.id === socketRef.current?.id);
+                    const canSeeAnswer = isAnswerSetter || 
+                                         isObserver || 
+                                         currentPlayer?._tempObserver;
+                    return canSeeAnswer && answerCharacter ? (
+                      <div className="selected-answer">
+                        <Image src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
+                        <div className="answer-info">
+                          <div>{answerCharacter.name}</div>
+                          <div>{answerCharacter.nameCn}</div>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                   {/* 血战模式进度显示（出题人视角）  */}
                   {gameSettings.nonstopMode && (
                     <div className="nonstop-progress-banner">
