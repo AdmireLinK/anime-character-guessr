@@ -1601,7 +1601,7 @@ function setupSocket(io, rooms) {
             }
 
             // 检查是否还有活跃玩家能继续猜测（非同步/血战模式，且玩家刚才死亡或已结束）
-            if (room.currentGame && room.isGameInProgress && !room.currentGame?.settings?.syncMode && !room.currentGame?.settings?.nonstopMode) {
+            if (room.currentGame && !room.currentGame?.settings?.syncMode && !room.currentGame?.settings?.nonstopMode) {
                 const isEnded = p => (
                     p.guesses.includes('✌') ||
                     p.guesses.includes('💀') ||
@@ -2229,13 +2229,14 @@ function setupSocket(io, rooms) {
             } else {
                 // First time ending, mark as surrendered
                 player.guesses += '🏳️';
-                player.team = '0';
                 
-                // Update team guesses if in a team
-                if (room.currentGame && player.team) {
+                // Update team guesses BEFORE changing team (if in a team)
+                if (room.currentGame && player.team && player.team !== '0') {
                     room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
                     room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '🏳️';
                 }
+                
+                player.team = '0';
             }
 
             // Update all players about the change
@@ -2245,8 +2246,8 @@ function setupSocket(io, rooms) {
 
             console.log(`Player ${player.username} entered observer mode in room ${roomId}`);
 
-            // 检查是否还有活跃玩家能继续猜测
-            if (room.currentGame && room.isGameInProgress) {
+            // 检查是否还有活跃玩家能继续猜测（普通模式：非同步、非血战）
+            if (room.currentGame && !room.currentGame?.settings?.syncMode && !room.currentGame?.settings?.nonstopMode) {
                 const isEnded = p => (
                     p.guesses.includes('✌') ||
                     p.guesses.includes('💀') ||
@@ -2262,10 +2263,114 @@ function setupSocket(io, rooms) {
                     !isEnded(p)
                 );
                 
+                console.log(`[CHECK-ACTIVE] 房间 ${roomId} 活跃玩家数: ${activePlayers.length}, 全部玩家: ${room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).map(p => `${p.username}(${p.guesses})`).join(', ')}`);
+                
                 // 如果没有活跃玩家了，自动结束游戏
                 if (activePlayers.length === 0) {
                     console.log(`[AUTO-END] 房间 ${roomId} 最后一名能猜测的玩家投降，自动结束游戏`);
                     finalizeStandardGame(room, roomId, io, { force: true });
+                }
+            }
+            
+            // 血战模式：检查是否所有人都结束
+            if (room.currentGame?.settings?.nonstopMode) {
+                const activePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected);
+                const remainingPlayers = activePlayers.filter(p => 
+                    !p.guesses.includes('✌') && 
+                    !p.guesses.includes('💀') && 
+                    !p.guesses.includes('🏳️') && 
+                    !p.guesses.includes('👑') &&
+                    !p.guesses.includes('🏆')
+                );
+
+                console.log(`[CHECK-NONSTOP] 房间 ${roomId} 血战模式：剩余玩家数: ${remainingPlayers.length}/${activePlayers.length}`);
+
+                // 检查是否所有人都已结束
+                if (remainingPlayers.length === 0) {
+                    const answerSetter = room.players.find(p => p.isAnswerSetter);
+                    const winnersCount = (room.currentGame.nonstopWinners || []).length;
+                    const totalPlayersCount = activePlayers.length;
+
+                    console.log(`[AUTO-END-NONSTOP] 房间 ${roomId} 最后一名能猜测的玩家投降，血战模式游戏结束`);
+
+                    // 结算阶段统一计算作品分（每队/个人最多+1，胜者不叠加）
+                    const partialAwardees = computePartialAwardeesFromGuessHistory(room);
+                    const winnerIds = new Set((room.currentGame.nonstopWinners || []).map(w => w.id));
+                    (room.players || []).forEach(p => {
+                        if (!p || p.isAnswerSetter) return;
+                        if (p.team === '0') return;
+                        if (winnerIds.has(p.id)) return;
+                        if (partialAwardees.has(p.id)) {
+                            p.score += 1;
+                        }
+                    });
+                    
+                    // 检查是否有 bigwinner 并获取其得分
+                    const bigWinnerData = (room.currentGame.nonstopWinners || []).find(w => {
+                        const winnerPlayer = room.players.find(p => p.id === w.id);
+                        return winnerPlayer && winnerPlayer.guesses.includes('👑');
+                    });
+                    const hasBigWinner = !!bigWinnerData;
+                    const bigWinnerScore = bigWinnerData?.score || 0;
+
+                    // 生成得分详情
+                    const scoreChanges = buildScoreChanges({
+                        isNonstopMode: true,
+                        nonstopWinners: room.currentGame.nonstopWinners || [],
+                        partialAwardees,
+                        players: room.players
+                    });
+
+                    if (answerSetter) {
+                        // 使用统一函数计算出题人得分
+                        const setterResult = calculateNonstopSetterScore({
+                            hasBigWinner,
+                            bigWinnerScore,
+                            winnersCount,
+                            totalPlayersCount
+                        });
+                        
+                        answerSetter.score += setterResult.score;
+                        
+                        const scoreDetails = generateScoreDetails({
+                            players: room.players,
+                            scoreChanges,
+                            setterInfo: { username: answerSetter.username, score: setterResult.score, reason: setterResult.reason },
+                            isNonstopMode: true
+                        });
+                        
+                        io.to(roomId).emit('gameEnded', {
+                            guesses: room.currentGame?.guesses || [],
+                            scoreDetails
+                        });
+                    } else {
+                        const scoreDetails = generateScoreDetails({
+                            players: room.players,
+                            scoreChanges,
+                            setterInfo: null,
+                            isNonstopMode: true
+                        });
+                        
+                        io.to(roomId).emit('gameEnded', {
+                            guesses: room.currentGame?.guesses || [],
+                            scoreDetails
+                        });
+                    }
+
+                    // 重置状态
+                    revertSetterObservers(room, roomId, io);
+                    room.players.forEach(p => {
+                        p.isAnswerSetter = false;
+                    });
+                    io.to(roomId).emit('resetReadyStatus');
+                    room.currentGame = null;
+                    io.to(roomId).emit('updatePlayers', {
+                        players: room.players,
+                        isPublic: room.isPublic,
+                        answerSetterId: null
+                    });
+
+                    console.log(`[血战模式] 房间 ${roomId} 游戏结束（玩家投降导致）`);
                 }
             }
         });
@@ -2371,7 +2476,7 @@ function setupSocket(io, rooms) {
             console.log(`Player ${player.username} timed out in room ${roomId}`);
 
             // 检查是否还有活跃玩家能继续猜测（非同步模式）
-            if (room.currentGame && room.isGameInProgress && !room.currentGame?.settings?.syncMode) {
+            if (room.currentGame && !room.currentGame?.settings?.syncMode) {
                 const isEnded = p => (
                     p.guesses.includes('✌') ||
                     p.guesses.includes('💀') ||
