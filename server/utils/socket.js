@@ -1599,6 +1599,30 @@ function setupSocket(io, rooms) {
             } else {
                 console.log(`Player ${player.username} made a guess in room ${roomId} with no valid guessData.`, guessResult);
             }
+
+            // 检查是否还有活跃玩家能继续猜测（非同步/血战模式，且玩家刚才死亡或已结束）
+            if (room.currentGame && room.isGameInProgress && !room.currentGame?.settings?.syncMode && !room.currentGame?.settings?.nonstopMode) {
+                const isEnded = p => (
+                    p.guesses.includes('✌') ||
+                    p.guesses.includes('💀') ||
+                    p.guesses.includes('🏳️') ||
+                    p.guesses.includes('👑') ||
+                    p.guesses.includes('🏆')
+                );
+                
+                const activePlayers = room.players.filter(p => 
+                    !p.isAnswerSetter && 
+                    p.team !== '0' && 
+                    !p.disconnected &&
+                    !isEnded(p)
+                );
+                
+                // 如果没有活跃玩家了，自动结束游戏
+                if (activePlayers.length === 0) {
+                    console.log(`[AUTO-END] 房间 ${roomId} 最后一名能猜测的玩家已耗尽猜测次数，自动结束游戏`);
+                    finalizeStandardGame(room, roomId, io, { force: true });
+                }
+            }
         });
 
         socket.on('tagBanSharedMetaTags', ({ roomId, tags }) => {
@@ -1911,6 +1935,32 @@ function setupSocket(io, rooms) {
             switch (finalResult) {
                 case 'surrender':
                     player.guesses += '🏳️';
+                    player.team = '0'; // 进入旁观模式
+                    
+                    // 检查是否还有活跃玩家能继续猜测（非血战、非同步模式）
+                    if (!room.currentGame?.settings?.nonstopMode && !room.currentGame?.settings?.syncMode) {
+                        const isEnded = p => (
+                            p.guesses.includes('✌') ||
+                            p.guesses.includes('💀') ||
+                            p.guesses.includes('🏳️') ||
+                            p.guesses.includes('👑') ||
+                            p.guesses.includes('🏆')
+                        );
+                        
+                        const activePlayers = room.players.filter(p => 
+                            !p.isAnswerSetter && 
+                            p.team !== '0' && 
+                            !p.disconnected &&
+                            !isEnded(p)
+                        );
+                        
+                        // 如果没有活跃玩家了，自动结束游戏
+                        if (activePlayers.length === 0) {
+                            console.log(`[AUTO-END] 房间 ${roomId} 最后一名能猜测的玩家投降，自动结束游戏`);
+                            finalizeStandardGame(room, roomId, io, { force: true });
+                            return;
+                        }
+                    }
                     break;
                 case 'win':
                     player.guesses += '✌';
@@ -2194,6 +2244,30 @@ function setupSocket(io, rooms) {
             });
 
             console.log(`Player ${player.username} entered observer mode in room ${roomId}`);
+
+            // 检查是否还有活跃玩家能继续猜测
+            if (room.currentGame && room.isGameInProgress) {
+                const isEnded = p => (
+                    p.guesses.includes('✌') ||
+                    p.guesses.includes('💀') ||
+                    p.guesses.includes('🏳️') ||
+                    p.guesses.includes('👑') ||
+                    p.guesses.includes('🏆')
+                );
+                
+                const activePlayers = room.players.filter(p => 
+                    !p.isAnswerSetter && 
+                    p.team !== '0' && 
+                    !p.disconnected &&
+                    !isEnded(p)
+                );
+                
+                // 如果没有活跃玩家了，自动结束游戏
+                if (activePlayers.length === 0) {
+                    console.log(`[AUTO-END] 房间 ${roomId} 最后一名能猜测的玩家投降，自动结束游戏`);
+                    finalizeStandardGame(room, roomId, io, { force: true });
+                }
+            }
         });
 
     
@@ -2295,6 +2369,30 @@ function setupSocket(io, rooms) {
             });
     
             console.log(`Player ${player.username} timed out in room ${roomId}`);
+
+            // 检查是否还有活跃玩家能继续猜测（非同步模式）
+            if (room.currentGame && room.isGameInProgress && !room.currentGame?.settings?.syncMode) {
+                const isEnded = p => (
+                    p.guesses.includes('✌') ||
+                    p.guesses.includes('💀') ||
+                    p.guesses.includes('🏳️') ||
+                    p.guesses.includes('👑') ||
+                    p.guesses.includes('🏆')
+                );
+                
+                const activePlayers = room.players.filter(p => 
+                    !p.isAnswerSetter && 
+                    p.team !== '0' && 
+                    !p.disconnected &&
+                    !isEnded(p)
+                );
+                
+                // 如果没有活跃玩家了，自动结束游戏
+                if (activePlayers.length === 0) {
+                    console.log(`[AUTO-END] 房间 ${roomId} 最后一名能猜测的玩家超时结束，自动结束游戏`);
+                    finalizeStandardGame(room, roomId, io, { force: true });
+                }
+            }
         });
     
         // Handle disconnection
