@@ -370,7 +370,8 @@ function setupSocket(io, rooms) {
             if (!room.currentGame) return emitError('playerGuess', '游戏未开始或已结束');
 
             const hasEnded = ['✌','👑','💀','🏳️','🏆'].some(mark => player.guesses.includes(mark));
-            if (player.team === '0') return emitError('playerGuess', '观战中不能猜测');
+            // 检查是否为旁观者：team='0' 或被标记为临时观战者
+            if (player.team === '0' || player._tempObserver) return emitError('playerGuess', '观战中不能猜测');
             if (hasEnded) return;
 
             const settings = room.currentGame.settings || {};
@@ -509,6 +510,8 @@ function setupSocket(io, rooms) {
 
             room.currentGame.nonstopWinners = room.currentGame.nonstopWinners || [];
             if (room.currentGame.nonstopWinners.some(w => w.id === socket.id)) return;
+            // 检查是否为旁观者或临时观战者
+            if (player._tempObserver) return emitError('nonstopWin', '旁观者无法猜测');
             if (player.team && player.team !== '0') {
                 const teammateWon = room.currentGame.nonstopWinners.some(w => {
                     const wPlayer = room.players.find(p => p.id === w.id);
@@ -663,7 +666,7 @@ function setupSocket(io, rooms) {
 
         /**
          * 超时事件处理
-         * 标记玩家超时，更新队伍状态，推进同步进度
+         * 标记玩家超时，计入一次猜测尝试，更新队伍状态，推进同步进度
          * @event timeOut
          * @param {string} roomId - 房间 ID
          */
@@ -674,13 +677,17 @@ function setupSocket(io, rooms) {
             if (!player) return emitError('timeOut', '连接中断了');
             if (!room.currentGame) return emitError('timeOut', '游戏未开始或已结束');
 
-            player.guesses += '⏱️';
+            // 超时计为一次失败猜测（用 ⏱️ 标记）
+            const timeoutMark = '⏱️';
+
+            player.guesses += timeoutMark;
             if (player.team && player.team !== '0') {
-                room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '⏱️';
+                room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + timeoutMark;
                 room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
                     .forEach(teammate => { teammate.guesses = room.currentGame.teamGuesses[player.team]; io.to(teammate.id).emit('resetTimer'); });
                 if (room.currentGame?.settings?.syncMode) {
                     const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
+                    // 计算猜测次数时，计入所有非结束标记，包括超时
                     const cleaned = String(room.currentGame.teamGuesses[player.team] || '').replace(/[✌👑💀🏳️🏆]/g, '');
                     const teamAttemptCount = Array.from(cleaned).length;
                     if (teamAttemptCount >= maxAttempts) {
