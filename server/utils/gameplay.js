@@ -242,10 +242,9 @@ function applySetterObservers(room, roomId, setterId, io) {
 
     room.players.forEach(p => {
         if (p.team === setter.team && p.id !== setterId && !p.isAnswerSetter && !p.disconnected) {
-            if (p._prevTeam === undefined) p._prevTeam = p.team;
-            p.team = '0';
-            p.ready = false;
+            // 只设置临时观战标记，不改变队伍
             p._tempObserver = true;
+            p.ready = false;
         }
     });
 
@@ -264,8 +263,7 @@ function revertSetterObservers(room, roomId, io) {
     let changed = false;
     room.players.forEach(p => {
         if (p._tempObserver) {
-            p.team = (p._prevTeam !== undefined) ? p._prevTeam : null;
-            delete p._prevTeam;
+            // 只删除临时观战标记，队伍保持不变
             delete p._tempObserver;
             changed = true;
         }
@@ -299,7 +297,7 @@ function markTeamVictory(room, roomId, player, io) {
         if (!teammate.guesses.includes('🏆')) {
             teammate.guesses += '🏆';
         }
-        if (teammate._prevTeam === undefined) teammate._prevTeam = teammate.team;
+        // 只设置临时观战标记，不改变队伍
         teammate._tempObserver = true;
         if (room.currentGame.syncPlayersCompleted) {
             room.currentGame.syncPlayersCompleted.delete(teammate.id);
@@ -308,12 +306,12 @@ function markTeamVictory(room, roomId, player, io) {
             winnerName: player.username,
             message: `队友 ${player.username} 已猜对！`
         });
-        console.log(`[TEAM WIN] ${teammate.username} 的队友 ${player.username} 猜对，标记为队伍胜利并设为观战`);
+        console.log(`[TEAM WIN] ${teammate.username} 的队友 ${player.username} 猜对，标记为临时观战`);
     });
 
     if (!room.currentGame?.settings?.nonstopMode && room.currentGame?.settings?.syncMode) {
         if (player && (!player.team || player.team !== '0')) {
-            if (player._prevTeam === undefined) player._prevTeam = player.team;
+            // 同步模式下获胜者也只设置临时观战标记
             player._tempObserver = true;
         }
     }
