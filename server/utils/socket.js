@@ -77,10 +77,12 @@ function setupSocket(io, rooms) {
                 hints: room.currentGame.hints || null,
                 isAnswerSetter
             });
-            targetSocket.emit('guessHistoryUpdate', {
-                guesses: room.currentGame.guesses,
-                teamGuesses: room.currentGame.teamGuesses
-            });
+            if (room.currentGame) {
+                targetSocket.emit('guessHistoryUpdate', {
+                    guesses: room.currentGame.guesses,
+                    teamGuesses: room.currentGame.teamGuesses
+                });
+            }
             targetSocket.emit('tagBanStateUpdate', {
                 tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
             });
@@ -411,6 +413,7 @@ function setupSocket(io, rooms) {
 
             const mark = (!guessResult.isCorrect && guessResult.isPartialCorrect) ? '💡' : (guessResult.isCorrect ? '✔' : '❌');
             if (player.team && player.team !== '0') {
+                if (!room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
                 room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + mark;
                 room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected).forEach(teammate => {
                     teammate.guesses = room.currentGame.teamGuesses[player.team];
@@ -582,6 +585,7 @@ function setupSocket(io, rooms) {
                 case 'surrender':
                     player.guesses += '🏳️';
                     if (room.currentGame && player.team && player.team !== '0') {
+                        if (!room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
                         room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '🏳️';
                     }
                     break;
@@ -606,6 +610,7 @@ function setupSocket(io, rooms) {
                 default:
                     player.guesses += '💀';
                     if (player.team && player.team !== '0' && room.currentGame) {
+                        if (!room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
                         room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '💀';
                         room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
                             .forEach(teammate => { teammate.guesses = room.currentGame.teamGuesses[player.team]; });
@@ -648,6 +653,7 @@ function setupSocket(io, rooms) {
                 player.team = '0';
             } else {
                 if (room.currentGame && player.team && player.team !== '0') {
+                    if (!room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
                     room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '🏳️';
                 }
                 player.guesses += '🏳️';
@@ -687,6 +693,7 @@ function setupSocket(io, rooms) {
 
             player.guesses += timeoutMark;
             if (player.team && player.team !== '0') {
+                if (!room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
                 room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + timeoutMark;
                 room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
                     .forEach(teammate => { teammate.guesses = room.currentGame.teamGuesses[player.team]; io.to(teammate.id).emit('resetTimer'); });
@@ -891,7 +898,9 @@ function setupSocket(io, rooms) {
             initGameState(room, character, room.settings, hints, socket.id);
             room.waitingForAnswer = false;
             room.answerSetterId = null;
-            socket.emit('guessHistoryUpdate', { guesses: room.currentGame.guesses, teamGuesses: room.currentGame.teamGuesses });
+            if (room.currentGame) {
+                socket.emit('guessHistoryUpdate', { guesses: room.currentGame.guesses, teamGuesses: room.currentGame.teamGuesses });
+            }
             broadcastState(roomId, room);
             broadcastPlayers(roomId, room, { answerSetterId: null });
             io.to(roomId).emit('gameStart', { character, settings: room.settings, players: room.players, isPublic: room.isPublic, isGameStarted: true, hints, isAnswerSetter: false });
