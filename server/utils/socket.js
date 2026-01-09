@@ -657,16 +657,19 @@ function setupSocket(io, rooms) {
             const player = room.players.find(p => p.id === socket.id);
             if (!player) return emitError('enterObserverMode', '连接中断了');
 
-            if (['✌','👑','💀','🏳️','🏆'].some(m => player.guesses.includes(m))) {
-                player.team = '0';
-            } else {
+            const hasEndedMark = ['✌','👑','💀','🏳️','🏆'].some(m => player.guesses.includes(m));
+
+            if (!hasEndedMark) {
+                // 未结束且主动进入观战，视为投降但不更改队伍，只做临时观战
                 if (room.currentGame && player.team && player.team !== '0') {
                     if (!room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
                     room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '🏳️';
                 }
                 player.guesses += '🏳️';
-                player.team = '0';
             }
+
+            // 始终仅标记为临时观战，不修改队伍
+            player._tempObserver = true;
 
             broadcastPlayers(roomId, room);
             runFlowAndRefresh(roomId, room);
