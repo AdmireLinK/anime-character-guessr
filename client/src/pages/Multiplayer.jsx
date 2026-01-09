@@ -105,8 +105,8 @@ const Multiplayer = () => {
   const [showCharacterPopup, setShowCharacterPopup] = useState(false);
   const [showSetAnswerPopup, setShowSetAnswerPopup] = useState(false);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
-  const [isAnswerSetter, setIsAnswerSetter] = useState(false);
   const [kickNotification, setKickNotification] = useState(null);
+  const isSelfAnswerSetter = Boolean(socket?.id && answerSetterId === socket?.id);
   const [answerViewMode, setAnswerViewMode] = useState('simple'); // 'simple' or 'detailed'
   const [isGuessTableCollapsed, setIsGuessTableCollapsed] = useState(false); // 折叠猜测表格（只显示最新3个）
   const [waitingForSync, setWaitingForSync] = useState(false); // 同步模式：等待其他玩家
@@ -341,7 +341,7 @@ const Multiplayer = () => {
       gameEndedRef.current = true;
     });
 
-    newSocket.on('gameStart', ({ character, settings, players, isPublic, hints = null, isAnswerSetter: isAnswerSetterFlag }) => {
+    newSocket.on('gameStart', ({ character, settings, players, isPublic, hints = null }) => {
       const decryptedCharacter = JSON.parse(CryptoJS.AES.decrypt(character, secret).toString(CryptoJS.enc.Utf8));
       decryptedCharacter.rawTags = new Map(decryptedCharacter.rawTags);
       setAnswerCharacter(decryptedCharacter);
@@ -375,7 +375,6 @@ const Multiplayer = () => {
         setGameEnd(false);
       }
       
-      setIsAnswerSetter(isAnswerSetterFlag);
       if (players) {
         setPlayers(players);
       }
@@ -824,7 +823,7 @@ const Multiplayer = () => {
     if (isGuessing || !answerCharacter || gameEnd) return;
 
     // 旁观者和出题人不能猜测
-    if (isObserver || isAnswerSetter) {
+    if (isObserver || isSelfAnswerSetter) {
       return;
     }
 
@@ -1506,7 +1505,7 @@ const Multiplayer = () => {
           {isGameStarted && !globalGameEnd && (
             // In game
             <div className="container">
-              {!isAnswerSetter && !isObserver ? (
+              {!isSelfAnswerSetter && !isObserver ? (
                 // Regular player view
                 <>
                   <SearchBar
@@ -1644,14 +1643,14 @@ const Multiplayer = () => {
                       style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: answerViewMode === 'simple' ? '#e0e0e0' : '#fff', cursor: 'pointer', color: 'inherit' }}
                       onClick={() => setAnswerViewMode('simple')}
                     >
-                      {(isObserver && !isTeamObserver && !isAnswerSetter) ? '旁观' : '简单'}
+                      {(isObserver && !isTeamObserver && !isSelfAnswerSetter) ? '旁观' : '简单'}
                     </button>
                     <button
                       className={answerViewMode === 'detailed' ? 'active' : ''}
                       style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: answerViewMode === 'detailed' ? '#e0e0e0' : '#fff', cursor: 'pointer', color: 'inherit'}}
                       onClick={() => setAnswerViewMode('detailed')}
                     >
-                      {(isObserver && !isTeamObserver && !isAnswerSetter) ? '我的' : '详细'}
+                      {(isObserver && !isTeamObserver && !isSelfAnswerSetter) ? '我的' : '详细'}
                     </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px' }}>
                       <div 
