@@ -1498,7 +1498,7 @@ const Multiplayer = () => {
                       <button
                         onClick={handleManualMode}
                         className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
+                        disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || allSpectators}
                       >
                         有人想出题？
                       </button>
@@ -1816,7 +1816,7 @@ const Multiplayer = () => {
                         <button
                           onClick={handleManualMode}
                           className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
-                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
+                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || allSpectators}
                         >
                           有人想出题？
                         </button>
