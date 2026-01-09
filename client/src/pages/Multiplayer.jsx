@@ -1816,7 +1816,7 @@ const Multiplayer = () => {
                       <th className="game-end-header-cell">
                         <div className="game-end-header-content">
                           <div className="mode-tags">
-                            {!displaySettings.nonstopMode && !displaySettings.syncMode && (
+                            {!displaySettings.nonstopMode && !displaySettings.syncMode && !displaySettings.globalPick && !displaySettings.tagBan && (
                               <span className="mode-tag normal">普通模式</span>
                             )}
                             {displaySettings.nonstopMode && (
