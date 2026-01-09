@@ -168,12 +168,10 @@ const Multiplayer = () => {
       if (answerSetterId !== undefined) {
         setAnswerSetterId(answerSetterId);
       }
-      // Sync isHost, isAnswerSetter, and isObserver state from player list to ensure correctness
+      // Sync isHost state from player list to ensure correctness
       const me = players.find(p => p.id === newSocket.id);
       if (me) {
         setIsHost(me.isHost);
-        // Update isAnswerSetter flag based on current player status to prevent network lag spoilers
-        setIsAnswerSetter(me.isAnswerSetter || false);
         // 同时检查是否应该进入旁观模式（防止网络卡顿导致的状态不同步）
         if (me.team === '0') {
           setIsObserver(true);
@@ -1595,24 +1593,15 @@ const Multiplayer = () => {
                   />
                 </>
               ) : (
-                // Answer setter view or observer view
+                // Answer setter view
                 <div className="answer-setter-view">
-                  {/* Show selected answer for: answer setter, observers, and temp observers */}
-                  {(() => {
-                    const currentPlayer = players.find(p => p.id === socketRef.current?.id);
-                    const canSeeAnswer = isAnswerSetter || 
-                                         isObserver || 
-                                         currentPlayer?._tempObserver;
-                    return canSeeAnswer && answerCharacter ? (
-                      <div className="selected-answer">
-                        <Image src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
-                        <div className="answer-info">
-                          <div>{answerCharacter.name}</div>
-                          <div>{answerCharacter.nameCn}</div>
-                        </div>
-                      </div>
-                    ) : null;
-                  })()}
+                  <div className="selected-answer">
+                    <Image src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
+                    <div className="answer-info">
+                      <div>{answerCharacter.name}</div>
+                      <div>{answerCharacter.nameCn}</div>
+                    </div>
+                  </div>
                   {/* 血战模式进度显示（出题人视角）  */}
                   {gameSettings.nonstopMode && (
                     <div className="nonstop-progress-banner">
