@@ -126,6 +126,10 @@ const Multiplayer = () => {
   const maxReconnectAttempts = 5;
   const reconnectTimerRef = useRef(null);
   const isManualDisconnectRef = useRef(false);
+  const allSpectators = useMemo(() => {
+    if (!players || players.length === 0) return false;
+    return players.every(p => p.disconnected || p.team === '0');
+  }, [players]);
 
   // 同步模式队列展示过滤：已完成且（断线/投降/猜对/队伍胜利）的不显示
   const getFilteredSyncStatus = () => {
@@ -1004,6 +1008,12 @@ const Multiplayer = () => {
   const handleStartGame = async () => {
     // 防止重复点击：如果正在初始化游戏或游戏已开始，则返回
     if (isGameStarting || isGameStarted) return;
+
+    // 若全员为旁观者队伍，不允许开始
+    if (allSpectators) {
+      alert('至少需要一名非旁观者才能开始游戏');
+      return;
+    }
     
     if (isHost) {
       // 设置正在启动游戏的标志
@@ -1481,7 +1491,7 @@ const Multiplayer = () => {
                       <button
                         onClick={handleStartGame}
                         className="start-game-button"
-                        disabled={isGameStarting || players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || players.every(p => p.team === '0')}
+                        disabled={isGameStarting || players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || allSpectators}
                       >
                         {isGameStarting ? '正在启动...' : '开始'}
                       </button>
@@ -1799,7 +1809,7 @@ const Multiplayer = () => {
                         <button
                           onClick={handleStartGame}
                           className="start-game-button"
-                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected)}
+                          disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || allSpectators}
                         >
                           开始
                         </button>
