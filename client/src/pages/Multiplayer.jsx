@@ -107,6 +107,9 @@ const Multiplayer = () => {
   const [showSetAnswerPopup, setShowSetAnswerPopup] = useState(false);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
   const [isAnswerSetter, setIsAnswerSetter] = useState(false);
+  // 是否允许在本局游戏中显示 selected-answer（答案卡片）。
+  // 该状态必须：每局开始时默认 false；仅在收到服务端“本客户端应显示答案”的信号后置为 true（出题人/旁观者/临时旁观者）；每局结束时重置。
+  const [canShowSelectedAnswer, setCanShowSelectedAnswer] = useState(false);
   const [kickNotification, setKickNotification] = useState(null);
   const [answerViewMode, setAnswerViewMode] = useState('simple'); // 'simple' or 'detailed'
   const [isGuessTableCollapsed, setIsGuessTableCollapsed] = useState(false); // 折叠猜测表格（只显示最新3个）
@@ -182,6 +185,8 @@ const Multiplayer = () => {
       if (isDead) {
         // 已被服务器判死，进入旁观状态，避免重复触发结束逻辑
         setIsObserver(true);
+        // 死亡后属于“临时旁观者”，允许看到答案卡片
+        setCanShowSelectedAnswer(true);
       } else if (left <= 0) {
         // 次数耗尽但服务器还未标记死亡，进入旁观模式
         setTimeout(() => {
@@ -328,6 +333,9 @@ const Multiplayer = () => {
 
     newSocket.on('disconnect', (reason) => {
       console.log('[WebSocket] 连接断开:', reason);
+
+      // 断线期间不展示答案卡片，避免状态残留导致的短暂泄露
+      setCanShowSelectedAnswer(false);
       
       if (isManualDisconnectRef.current) {
         setConnectionStatus('disconnected');
@@ -377,6 +385,8 @@ const Multiplayer = () => {
     });
 
     newSocket.on('gameStart', ({ character, settings, players, isPublic, hints = null, isAnswerSetter: isAnswerSetterFlag }) => {
+      // 每局开始先默认不显示答案卡片，避免网络卡顿/状态乱序导致短暂泄露
+      setCanShowSelectedAnswer(false);
       const decryptedCharacter = JSON.parse(CryptoJS.AES.decrypt(character, secret).toString(CryptoJS.enc.Utf8));
       decryptedCharacter.rawTags = new Map(decryptedCharacter.rawTags);
       setAnswerCharacter(decryptedCharacter);
@@ -391,7 +401,6 @@ const Multiplayer = () => {
       
       // 检查当前玩家是否为旁观者
       const observerFlag = currentPlayer?.team === '0';
-      setIsObserver(observerFlag);
       
       // 检查当前玩家是否已经结束游戏（重连时恢复状态）
       const playerGuesses = currentPlayer?.guesses || '';
@@ -409,8 +418,14 @@ const Multiplayer = () => {
         gameEndedRef.current = false;
         setGameEnd(false);
       }
+
+      // 旁观者（team==='0'）与已结束玩家（临时旁观者：猜对/投降/死亡等）都应进入旁观视角
+      const effectiveObserver = !!observerFlag || !!hasGameEnded;
+      setIsObserver(effectiveObserver);
       
       setIsAnswerSetter(isAnswerSetterFlag);
+      // 仅当服务端明确告知“本客户端应显示答案”（出题人/旁观者/临时旁观者）时才允许显示 selected-answer
+      setCanShowSelectedAnswer(!!isAnswerSetterFlag || effectiveObserver);
       if (players) {
         setPlayers(players);
       }
@@ -538,6 +553,8 @@ const Multiplayer = () => {
       setIsGameStarted(false);
       setIsGameStarting(false); // 重置游戏启动标志，允许下一局开始
       setIsObserver(false); // 重置旁观者状态，下一局开始时会重新判断
+      setIsAnswerSetter(false);
+      setCanShowSelectedAnswer(false);
     });
 
     newSocket.on('resetReadyStatus', () => {
@@ -788,6 +805,8 @@ const Multiplayer = () => {
     // 猜中后进入旁观模式（isObserver=true），但不加入旁观队伍（team不变）
     if (isWin) {
       setIsObserver(true);
+      // 猜中后属于“临时旁观者”，允许看到答案卡片
+      setCanShowSelectedAnswer(true);
     }
 
     // 血战模式下，猜对不结束游戏，只发送 nonstopWin 事件
@@ -824,8 +843,8 @@ const Multiplayer = () => {
   const handleCharacterSelect = async (character) => {
     if (isGuessing || !answerCharacter || gameEnd) return;
 
-    // 旁观者和出题人不能猜测
-    if (isObserver || isAnswerSetter) {
+    // 旁观者和出题人不能猜测（用 canShowSelectedAnswer 作为本局“出题人视角”的门闩，防止状态抖动）
+    if (isObserver || isAnswerSetter || canShowSelectedAnswer) {
       return;
     }
 
@@ -989,6 +1008,8 @@ const Multiplayer = () => {
   const handleEnterObserverMode = () => {
     // 进入旁观模式（不结束游戏，允许其他玩家继续）
     setIsObserver(true);
+    // 进入旁观后允许看到答案卡片
+    setCanShowSelectedAnswer(true);
     socketRef.current?.emit('enterObserverMode', {
       roomId
     });
@@ -1605,13 +1626,15 @@ const Multiplayer = () => {
               ) : (
                 // Answer setter view
                 <div className="answer-setter-view">
-                  <div className="selected-answer">
-                    <Image src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
-                    <div className="answer-info">
-                      <div>{answerCharacter.name}</div>
-                      <div>{answerCharacter.nameCn}</div>
+                  {canShowSelectedAnswer && answerCharacter && (
+                    <div className="selected-answer">
+                      <Image src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
+                      <div className="answer-info">
+                        <div>{answerCharacter.name}</div>
+                        <div>{answerCharacter.nameCn}</div>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   {/* 血战模式进度显示（出题人视角）  */}
                   {gameSettings.nonstopMode && (
                     <div className="nonstop-progress-banner">
