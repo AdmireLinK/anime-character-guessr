@@ -355,7 +355,6 @@ function applySetterObservers(room, roomId, setterId, io) {
         if (p.team === setter.team && p.id !== setterId && !p.isAnswerSetter && !p.disconnected) {
             // 只设置临时观战标记，不改变队伍
             p._tempObserver = true;
-            p.ready = false;
         }
     });
 
