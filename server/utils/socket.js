@@ -698,15 +698,27 @@ function setupSocket(io, rooms) {
             const player = room.players.find(p => p.id === socket.id);
             if (!player) return emitError('enterObserverMode', '连接中断了');
 
+            // 仅允许在游戏进行中进入观战；避免跨局/延迟事件污染当前局状态
+            if (!room.currentGame) return emitError('enterObserverMode', '游戏未开始或已结束');
+
             const hasEndedMark = ['✌','👑','💀','🏳️','🏆'].some(m => player.guesses.includes(m));
 
             if (!hasEndedMark) {
                 // 未结束且主动进入观战，视为投降但不更改队伍，只做临时观战
                 if (room.currentGame && player.team && player.team !== '0') {
                     if (!room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
-                    room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '🏳️';
+                    room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + endMark;
+
+                    // 同步队友的 guesses（保持与 teamGuesses 一致）
+                    const updated = room.currentGame.teamGuesses[player.team];
+                    room.players
+                        .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
+                        .forEach(teammate => {
+                            teammate.guesses = updated;
+                        });
+                } else {
+                    player.guesses += endMark;
                 }
-                player.guesses += '🏳️';
             }
 
             // 始终仅标记为临时观战，不修改队伍

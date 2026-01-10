@@ -187,11 +187,6 @@ const Multiplayer = () => {
         setIsObserver(true);
         // 死亡后属于“临时旁观者”，允许看到答案卡片
         setCanShowSelectedAnswer(true);
-      } else if (left <= 0) {
-        // 次数耗尽但服务器还未标记死亡，进入旁观模式
-        setTimeout(() => {
-          handleEnterObserverMode();
-        }, 100);
       }
     };
 
