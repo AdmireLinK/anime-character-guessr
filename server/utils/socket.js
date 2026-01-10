@@ -72,10 +72,10 @@ function setupSocket(io, rooms) {
             const isAnswerSetter = playerContext ? !!playerContext.isAnswerSetter : false;
             targetSocket.emit('gameStart', {
                 character: room.currentGame.character,
-                settings: room.currentGame.settings,
+                settings: room.currentGame?.settings,
                 players: room.players,
                 isPublic: room.isPublic,
-                hints: room.currentGame.hints || null,
+                hints: room.currentGame?.hints || null,
                 isAnswerSetter
             });
             if (room.currentGame) {
@@ -406,7 +406,7 @@ function setupSocket(io, rooms) {
                 playerGuesses.guesses.push(entry);
                 room.players.forEach(target => {
                     if (target.id === socket.id || target.isAnswerSetter || target.team === '0' || target.team === player.team || target._tempObserver) {
-                        io.to(target.id).emit('guessHistoryUpdate', { guesses: room.currentGame.guesses, teamGuesses: room.currentGame.teamGuesses });
+                        io.to(target.id).emit('guessHistoryUpdate', { guesses: room.currentGame?.guesses, teamGuesses: room.currentGame?.teamGuesses });
                     }
                 });
             }
@@ -421,15 +421,17 @@ function setupSocket(io, rooms) {
 
             const mark = (!guessResult.isCorrect && guessResult.isPartialCorrect) ? '💡' : (guessResult.isCorrect ? '✔' : '❌');
             if (player.team && player.team !== '0') {
-                if (!room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
-                room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + mark;
-                room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected).forEach(teammate => {
-                    teammate.guesses = room.currentGame.teamGuesses[player.team];
-                });
+                if (room.currentGame && !room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
+                if (room.currentGame?.teamGuesses) {
+                    room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + mark;
+                    room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected).forEach(teammate => {
+                        teammate.guesses = room.currentGame.teamGuesses[player.team];
+                    });
+                }
 
                 if (room.currentGame?.settings?.syncMode) {
                     const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
-                    const cleanedTeam = String(room.currentGame.teamGuesses[player.team] || '').replace(/[✌👑💀🏳️🏆]/g, '');
+                    const cleanedTeam = String(room.currentGame?.teamGuesses?.[player.team] || '').replace(/[✌👑💀🏳️🏆]/g, '');
                     const teamAttemptCount = Array.from(cleanedTeam).length;
                     if (teamAttemptCount >= maxAttempts) {
                         room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected).forEach(teammate => {
@@ -444,7 +446,7 @@ function setupSocket(io, rooms) {
                 player.guesses += mark;
             }
 
-            if (room.currentGame.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
+            if (room.currentGame?.settings?.syncMode && room.currentGame?.syncPlayersCompleted) {
                 if (!guessResult.isCorrect) {
                     room.currentGame.syncPlayersCompleted.add(socket.id);
                     if (player.team && player.team !== '0') {
@@ -458,7 +460,7 @@ function setupSocket(io, rooms) {
             if (!room.currentGame?.settings?.syncMode && !room.currentGame?.settings?.nonstopMode) {
                 const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
                 const countStr = player.team && player.team !== '0'
-                    ? room.currentGame.teamGuesses?.[player.team] || ''
+                    ? room.currentGame?.teamGuesses?.[player.team] || ''
                     : player.guesses;
                 const guessCount = Array.from(countStr.replace(/[✌👑💀🏳️🏆]/g, '')).length;
                 if (guessCount >= maxAttempts && !['💀','✌','👑','🏳️','🏆'].some(m => player.guesses.includes(m))) {
