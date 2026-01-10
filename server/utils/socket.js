@@ -347,8 +347,18 @@ function setupSocket(io, rooms) {
          * @param {string} answerSetterId - 出题人的 socket ID
          */
         const initGameState = (room, character, settings, hints, answerSetterId) => {
-            // 计算初始的活跃玩家数（用于血战模式基础分计算，保持不变）
-            const initialActivePlayers = room.players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length;
+            // 计算初始的活跃玩家数（用于血战模式基础分计算）：仅统计“能猜测”的玩家
+            // - 排除出题人
+            // - 排除旁观者队伍（team==='0'）
+            // - 排除临时旁观（_tempObserver）
+            // - 排除断线玩家
+            const initialActivePlayers = room.players.filter(p => {
+                if (!p || p.disconnected) return false;
+                if (p.team === '0') return false;
+                if (p._tempObserver) return false;
+                if (answerSetterId && p.id === answerSetterId) return false;
+                return true;
+            }).length;
             
             room.currentGame = {
                 character,
