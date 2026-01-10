@@ -391,7 +391,7 @@ const Multiplayer = () => {
       // Calculate guesses left based on current player's guess history
       const currentPlayer = players?.find(p => p.id === newSocket.id);
       const guessesMade = currentPlayer?.guesses?.length || 0;
-      const remainingGuesses = Math.max(0, settings.maxAttempts - guessesMade);
+      const remainingGuesses = Math.max(0, (settings?.maxAttempts ?? 10) - guessesMade);
       setGuessesLeft(remainingGuesses);
       
       // 检查当前玩家是否为旁观者
@@ -432,9 +432,9 @@ const Multiplayer = () => {
 
       // Prepare hints if enabled
       let hintTexts = [];
-      if (Array.isArray(settings.useHints) && settings.useHints.length > 0 && hints) {
+      if (Array.isArray(settings?.useHints) && settings.useHints.length > 0 && hints) {
         hintTexts = hints;
-      } else if (Array.isArray(settings.useHints) && settings.useHints.length > 0 && decryptedCharacter && decryptedCharacter.summary) {
+      } else if (Array.isArray(settings?.useHints) && settings.useHints.length > 0 && decryptedCharacter && decryptedCharacter.summary) {
         // Automatic mode - generate hints from summary
         const sentences = decryptedCharacter.summary.replace('[mask]', '').replace('[/mask]','')
           .split(/[。、，。！？ ""]/).filter(s => s.trim());
@@ -447,8 +447,8 @@ const Multiplayer = () => {
         }
       }
       setHints(hintTexts);
-      setUseImageHint(settings.useImageHint);
-      setImgHint(settings.useImageHint > 0 ? decryptedCharacter.image : null);
+      setUseImageHint(settings?.useImageHint ?? 0);
+      setImgHint((settings?.useImageHint ?? 0) > 0 ? decryptedCharacter.image : null);
       setGlobalGameEnd(false);
       setEndGameSettings(null); // 新局开始时清空上一局模式快照
       setScoreDetails(null);
