@@ -81,6 +81,31 @@ function handlePlayerTimeout(room, player, io, roomId) {
     return { needsSyncUpdate, affectedPlayers };
 }
 
+const SYNC_WAITING_MIN_INTERVAL = 150; // ms，限制同步进度广播频率
+
+function buildSyncWaitingKey(round, syncStatus = []) {
+    const normalized = [...(syncStatus || [])]
+        .map(s => ({ id: String(s.id || ''), completed: !!s.completed }))
+        .sort((a, b) => a.id.localeCompare(b.id));
+    return `r:${round}|${normalized.map(s => `${s.id}:${s.completed ? 1 : 0}`).join('|')}`;
+}
+
+function shouldSkipSyncWaiting(room, payload, { force = false } = {}) {
+    if (!room?.currentGame) return true;
+    const key = buildSyncWaitingKey(payload.round, payload.syncStatus);
+    const now = Date.now();
+    const lastKey = room.currentGame._lastSyncWaitingKey;
+    const lastAt = room.currentGame._lastSyncWaitingAt || 0;
+
+    if (!force && key === lastKey && now - lastAt < SYNC_WAITING_MIN_INTERVAL) {
+        return true;
+    }
+
+    room.currentGame._lastSyncWaitingKey = key;
+    room.currentGame._lastSyncWaitingAt = now;
+    return false;
+}
+
 /**
  * 获取同步模式和血战模式状态
  * @param {Object} room - 房间对象，包含 currentGame 和 players
@@ -106,12 +131,15 @@ function getSyncAndNonstopState(room, emitCallback) {
         }));
         
         if (emitCallback) {
-            emitCallback('syncWaiting', {
+            const payload = {
                 round: room.currentGame?.syncRound,
                 syncStatus,
                 completedCount: syncStatus.filter(s => s.completed).length,
                 totalCount: syncStatus.length
-            });
+            };
+            if (!shouldSkipSyncWaiting(room, payload)) {
+                emitCallback('syncWaiting', payload);
+            }
 
             if (room.currentGame?.syncWinnerFound && !room.currentGame?.settings?.nonstopMode) {
                 emitCallback('syncGameEnding', {
@@ -496,12 +524,15 @@ function updateSyncProgress(room, roomId, io) {
                 pendingBanBroadcast = null;
             }
             room.currentGame.syncReadyToEnd = true;
-            io.to(roomId).emit('syncWaiting', {
+            const payload = {
                 round: room.currentGame.syncRound,
                 syncStatus,
                 completedCount: syncStatus.length,
                 totalCount: syncStatus.length
-            });
+            };
+            if (!shouldSkipSyncWaiting(room, payload)) {
+                io.to(roomId).emit('syncWaiting', payload);
+            }
             io.to(roomId).emit('syncGameEnding', {
                 winnerUsername: room.currentGame.syncWinner?.username,
                 message: `${room.currentGame.syncWinner?.username} 已猜对！等待本轮结束...`
@@ -513,6 +544,8 @@ function updateSyncProgress(room, roomId, io) {
         room.currentGame.syncReadyToEnd = false;
         room.currentGame.syncRound += 1;
         room.currentGame.syncPlayersCompleted.clear();
+        room.currentGame._lastSyncWaitingKey = null;
+        room.currentGame._lastSyncWaitingAt = 0;
         room.players.forEach(p => {
             if (typeof p.syncCompletedRound === 'number') {
                 delete p.syncCompletedRound;
@@ -540,19 +573,26 @@ function updateSyncProgress(room, roomId, io) {
             round: room.currentGame.syncRound
         });
 
-        io.to(roomId).emit('syncWaiting', {
+        const nextPayload = {
             round: room.currentGame.syncRound,
             syncStatus: nextSyncStatus,
             completedCount: nextSyncStatus.filter(s => s.completed).length,
             totalCount: nextSyncStatus.length
-        });
+        };
+        if (!shouldSkipSyncWaiting(room, nextPayload, { force: true })) {
+            io.to(roomId).emit('syncWaiting', nextPayload);
+        }
     } else {
-        io.to(roomId).emit('syncWaiting', {
+        const payload = {
             round: room.currentGame.syncRound,
             syncStatus,
             completedCount: syncStatus.filter(s => s.completed).length,
             totalCount: syncStatus.length
-        });
+        };
+
+        if (!shouldSkipSyncWaiting(room, payload)) {
+            io.to(roomId).emit('syncWaiting', payload);
+        }
 
         if (!room.currentGame?.settings?.nonstopMode && room.currentGame?.syncWinnerFound) {
             io.to(roomId).emit('syncGameEnding', {

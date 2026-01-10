@@ -39,13 +39,50 @@ function setupSocket(io, rooms) {
             return room;
         };
 
+        const PLAYER_BROADCAST_COOLDOWN = 120; // ms，合并短时间内的玩家列表广播
         const broadcastPlayers = (roomId, room, extra = {}) => {
-            io.to(roomId).emit('updatePlayers', {
+            if (!room) return;
+            const now = Date.now();
+            const forceImmediate = !!extra.forceImmediate;
+            const sanitizedExtra = { ...extra };
+            delete sanitizedExtra.forceImmediate;
+
+            const buildPayload = (extraPayload = {}) => ({
                 players: room.players,
                 isPublic: room.isPublic,
                 answerSetterId: room.answerSetterId,
-                ...extra
+                ...extraPayload
             });
+
+            const emitPayload = (payload) => {
+                room._lastPlayersBroadcastAt = Date.now();
+                room._pendingPlayerBroadcastExtra = null;
+                if (room._playerBroadcastTimer) {
+                    clearTimeout(room._playerBroadcastTimer);
+                    room._playerBroadcastTimer = null;
+                }
+                io.to(roomId).emit('updatePlayers', payload);
+            };
+
+            const mergedExtra = { ...(room._pendingPlayerBroadcastExtra || {}), ...sanitizedExtra };
+            const lastAt = room._lastPlayersBroadcastAt || 0;
+            const elapsed = now - lastAt;
+
+            if (forceImmediate || elapsed >= PLAYER_BROADCAST_COOLDOWN) {
+                emitPayload(buildPayload(mergedExtra));
+                return;
+            }
+
+            room._pendingPlayerBroadcastExtra = mergedExtra;
+            if (!room._playerBroadcastTimer) {
+                const delay = Math.max(10, PLAYER_BROADCAST_COOLDOWN - elapsed);
+                room._playerBroadcastTimer = setTimeout(() => {
+                    room._playerBroadcastTimer = null;
+                    const pendingExtra = room._pendingPlayerBroadcastExtra || {};
+                    room._pendingPlayerBroadcastExtra = null;
+                    emitPayload(buildPayload(pendingExtra));
+                }, delay);
+            }
         };
 
         /**
@@ -329,7 +366,9 @@ function setupSocket(io, rooms) {
                 firstWinner: null,
                 tagBanState: [],
                 tagBanStatePending: [],
-                nonstopTotalPlayers: initialActivePlayers  // 记录初始玩家数，用于基础分计算
+                nonstopTotalPlayers: initialActivePlayers,  // 记录初始玩家数，用于基础分计算
+                _lastSyncWaitingKey: null,
+                _lastSyncWaitingAt: 0
             };
 
             room.players.forEach(p => {
