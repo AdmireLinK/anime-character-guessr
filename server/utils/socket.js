@@ -703,9 +703,20 @@ function setupSocket(io, rooms) {
 
             const hasEndedMark = ['✌','👑','💀','🏳️','🏆'].some(m => player.guesses.includes(m));
 
+            // 若已耗尽尝试次数，则应判定为死亡（💀），而不是投降（🏳️）。
+            // 这可以覆盖“最后一次猜测为同作品(💡)导致 left==0 后误触发 enterObserverMode”一类边界情况。
+            const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
+            const countSource = (player.team && player.team !== '0')
+                ? String(room.currentGame?.teamGuesses?.[player.team] || '')
+                : String(player.guesses || '');
+            const attemptCount = Array.from(countSource.replace(/[✌👑💀🏳️🏆]/g, '')).length;
+
             if (!hasEndedMark) {
-                // 未结束且主动进入观战，视为投降但不更改队伍，只做临时观战
-                if (room.currentGame && player.team && player.team !== '0') {
+                const endMark = attemptCount >= maxAttempts ? '💀' : '🏳️';
+
+                // 未结束且主动进入观战：默认视为投降（🏳️）
+                // 但若已耗尽次数（attemptCount>=maxAttempts），改为死亡（💀）
+                if (player.team && player.team !== '0') {
                     if (!room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
                     room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + endMark;
 
