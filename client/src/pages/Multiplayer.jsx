@@ -95,7 +95,7 @@ const Multiplayer = () => {
   const [imgHint, setImgHint] = useState(null);
   const [shouldResetTimer, setShouldResetTimer] = useState(false);
   const [gameEnd, setGameEnd] = useState(false);
-  const timeUpRef = useRef(false);
+  const timeUpRef = useRef(0);
   const lastTimeoutEmitRef = useRef(0);
   const gameEndedRef = useRef(false);
   const [scoreDetails, setScoreDetails] = useState(null);
@@ -974,7 +974,7 @@ const Multiplayer = () => {
   };
 
   const handleTimeUp = () => {
-    if (timeUpRef.current || gameEnd || gameEndedRef.current) return;
+    if (timeUpRef.current >= 5 || gameEnd || gameEndedRef.current) return;
 
     // 已结束/观战状态不再发送超时
     const myId = socketRef.current?.id || socket?.id;
@@ -987,7 +987,7 @@ const Multiplayer = () => {
     if (now - lastTimeoutEmitRef.current < 1500) return;
     lastTimeoutEmitRef.current = now;
 
-    timeUpRef.current = true;
+    timeUpRef.current += 1;
 
     // 发送超时事件到服务器，由服务器统一处理次数扣除和死亡判定
     // 不在客户端手动减少 guessesLeft，避免与服务器状态不同步
@@ -996,7 +996,7 @@ const Multiplayer = () => {
     setShouldResetTimer(true);
     setTimeout(() => {
       setShouldResetTimer(false);
-      timeUpRef.current = false;
+      timeUpRef.current = 0;
     }, 100);
   };
 
