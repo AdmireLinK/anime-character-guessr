@@ -1,5 +1,7 @@
 const {
     handlePlayerTimeout,
+    countAttemptMarks,
+    hasEndMark,
     getSyncAndNonstopState,
     calculateWinnerScore,
     applySetterObservers,
@@ -449,9 +451,9 @@ function setupSocket(io, rooms) {
             const countSource = player.team && player.team !== '0'
                 ? String(room.currentGame?.teamGuesses?.[player.team] || '')
                 : String(player.guesses || '');
-            const attemptCount = Array.from(countSource.replace(/[✌👑💀🏳️🏆]/g, '')).length;
+            const attemptCount = countAttemptMarks(countSource);
             if (attemptCount >= maxAttempts) {
-                const alreadyEnded = ['✌','👑','💀','🏳️','🏆'].some(mark => countSource.includes(mark));
+                const alreadyEnded = hasEndMark(countSource);
 
                 // 如果尚未标记结束，为其补充死亡标记，确保下一局不会遗留“未结束但次数已用尽”的状态
                 if (!alreadyEnded) {
@@ -527,8 +529,7 @@ function setupSocket(io, rooms) {
 
                 if (room.currentGame?.settings?.syncMode) {
                     const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
-                    const cleanedTeam = String(room.currentGame?.teamGuesses?.[player.team] || '').replace(/[✌👑💀🏳️🏆]/g, '');
-                    const teamAttemptCount = Array.from(cleanedTeam).length;
+                    const teamAttemptCount = countAttemptMarks(room.currentGame?.teamGuesses?.[player.team] || '');
                     if (teamAttemptCount >= maxAttempts) {
                         room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected).forEach(teammate => {
                             const ended = ['✌','👑','🏆','💀','🏳️'].some(mark => teammate.guesses.includes(mark));
@@ -558,11 +559,12 @@ function setupSocket(io, rooms) {
                 const countStr = player.team && player.team !== '0'
                     ? room.currentGame?.teamGuesses?.[player.team] || ''
                     : player.guesses;
-                const guessCount = Array.from(countStr.replace(/[✌👑💀🏳️🏆]/g, '')).length;
+                const guessCount = countAttemptMarks(countStr);
 
                 // 团队模式下，若已用尽次数则整队死亡，避免继续尝试导致下局残留观战/死亡视角
                 if (player.team && player.team !== '0') {
-                    if (guessCount >= maxAttempts) {
+                    // 注意：猜对后会由客户端发送 gameEnd(win/bigwin) 结束；这里避免把“最后一发猜中”误判为死亡
+                    if (guessCount >= maxAttempts && !guessResult?.isCorrect) {
                         const teamGuessStr = room.currentGame.teamGuesses[player.team] || '';
                         room.currentGame.teamGuesses[player.team] = teamGuessStr + '💀';
                         room.players
@@ -575,7 +577,8 @@ function setupSocket(io, rooms) {
                         log.info(`auto mark team dead due to attempts team=${player.team}`);
                     }
                 } else {
-                    if (guessCount >= maxAttempts && !['💀','✌','👑','🏳️','🏆'].some(m => player.guesses.includes(m))) {
+                    // 同上：避免“最后一次猜中”在 gameEnd 到达前被自动判死
+                    if (!guessResult?.isCorrect && guessCount >= maxAttempts && !['💀','✌','👑','🏳️','🏆'].some(m => player.guesses.includes(m))) {
                         player.guesses += '💀';
                         log.info(`auto mark dead due to attempts ${player.username}`);
                     }
@@ -653,7 +656,7 @@ function setupSocket(io, rooms) {
                 if (teammateWon) return emitError('nonstopWin', '你的队友已经猜对了，你无法继续猜测');
             }
 
-            const rawGuessCount = Array.from(player.guesses.replace(/[✌👑💀🏳️🏆]/g, '')).length;
+            const rawGuessCount = countAttemptMarks(player.guesses);
             if (!isBigWin && rawGuessCount === 1) isBigWin = true;
             player.guesses += isBigWin ? '👑' : '✌';
             room.currentGame.syncPlayersCompleted?.delete(socket.id);
@@ -701,7 +704,7 @@ function setupSocket(io, rooms) {
             if (!player) return emitError('gameEnd', '连接中断了');
             if (!room.currentGame) return emitError('gameEnd', '游戏未开始或已结束');
 
-            const rawGuessCount = Array.from(player.guesses.replace(/[✌👑💀🏳️🏆]/g, '')).length;
+            const rawGuessCount = countAttemptMarks(player.guesses);
             const finalResult = (result === 'win' && rawGuessCount === 1 && !player.guesses.includes('👑')) ? 'bigwin' : result;
 
             switch (finalResult) {
@@ -783,7 +786,7 @@ function setupSocket(io, rooms) {
             const countSource = (player.team && player.team !== '0')
                 ? String(room.currentGame?.teamGuesses?.[player.team] || '')
                 : String(player.guesses || '');
-            const attemptCount = Array.from(countSource.replace(/[✌👑💀🏳️🏆]/g, '')).length;
+            const attemptCount = countAttemptMarks(countSource);
 
             if (!hasEndedMark) {
                 const endMark = attemptCount >= maxAttempts ? '💀' : '🏳️';
