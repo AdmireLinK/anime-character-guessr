@@ -39,9 +39,12 @@ function handlePlayerTimeout(room, player, io, roomId) {
         // 计算队伍的有效猜测次数（不包含结束标记）
         const cleaned = String(room.currentGame?.teamGuesses?.[player.team] || '').replace(/[✌👑💀🏳️🏆]/g, '');
         const teamAttemptCount = Array.from(cleaned).length;
-        
+
         // 检查队伍次数是否耗尽
         if (teamAttemptCount >= maxAttempts) {
+            // 在 teamGuesses 中追加死亡标记，保证后续统计与客户端表现一致
+            room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '💀';
+
             teammates.forEach(teammate => {
                 const ended = ['✌','👑','🏆','💀','🏳️'].some(mark => teammate.guesses.includes(mark));
                 if (!ended) {
@@ -53,7 +56,7 @@ function handlePlayerTimeout(room, player, io, roomId) {
                 }
             });
         }
-    } else if (player.team === null) {
+    } else if (player.team === null || player.team === undefined || player.team === '') {
         // 个人模式处理
         const cleaned = String(player.guesses || '').replace(/[✌👑💀🏳️🏆]/g, '');
         const personalAttemptCount = Array.from(cleaned).length;
