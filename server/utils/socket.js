@@ -118,16 +118,18 @@ function setupSocket(io, rooms) {
                 isAnswerSetter
             });
             if (room.currentGame) {
-                targetSocket.emit('guessHistoryUpdate', {
-                    guesses: room.currentGame.guesses,
-                    teamGuesses: room.currentGame.teamGuesses
-                });
+                targetSocket.emit('guessHistoryUpdate', buildGuessHistoryPayload(room.currentGame));
             }
             targetSocket.emit('tagBanStateUpdate', {
                 tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
             });
             if (shouldBroadcastState) broadcastState(roomId, room);
         };
+
+        const buildGuessHistoryPayload = (currentGame) => ({
+            guesses: Array.isArray(currentGame?.guesses) ? currentGame.guesses : [],
+            teamGuesses: currentGame?.teamGuesses || {}
+        });
 
         /**
          * 统一的标准流程入口，自动在未结算时补充玩家广播。
@@ -849,10 +851,7 @@ function setupSocket(io, rooms) {
             }
 
             // 广播猜测历史更新，让客户端重新计算剩余次数
-            io.to(roomId).emit('guessHistoryUpdate', {
-                guesses: room.currentGame.guesses,
-                teamGuesses: room.currentGame.teamGuesses
-            });
+            io.to(roomId).emit('guessHistoryUpdate', buildGuessHistoryPayload(room.currentGame));
 
             broadcastPlayers(roomId, room);
             runFlowAndRefresh(roomId, room);
@@ -1032,7 +1031,7 @@ function setupSocket(io, rooms) {
             room.waitingForAnswer = false;
             room.answerSetterId = null;
             if (room.currentGame) {
-                socket.emit('guessHistoryUpdate', { guesses: room.currentGame.guesses, teamGuesses: room.currentGame.teamGuesses });
+                socket.emit('guessHistoryUpdate', buildGuessHistoryPayload(room.currentGame));
             }
             broadcastState(roomId, room);
             broadcastPlayers(roomId, room, { answerSetterId: null });
