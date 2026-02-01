@@ -1101,7 +1101,8 @@
   "90093": {
     "_name": "生野狄杜斯",
     "稀有度": {
-      "2星": "<img src='/assets/tag/umamusume/2star.png' alt='2星' />"
+      "2星": "<img src='/assets/tag/umamusume/2star.png' alt='2星' />",
+      "3星": "<img src='/assets/tag/umamusume/3star.png' alt='3星' />"
     },
     "场地": {
       "草地": "草地"
@@ -2081,6 +2082,23 @@
     },
     "跑法": {
       "跟前": "跟前"
+    }
+  },
+  "176528": {
+    "_name": "黄金旅程",
+    "稀有度": {
+      "3星": "<img src='/assets/tag/umamusume/3star.png' alt='3星' />"
+    },
+    "场地": {
+      "草地": "草地"
+    },
+    "距离": {
+      "中距离": "中距离",
+      "长距离": "长距离"
+    },
+    "跑法": {
+      "跟前": "跟前",
+      "居中": "居中"
     }
   }
 }
