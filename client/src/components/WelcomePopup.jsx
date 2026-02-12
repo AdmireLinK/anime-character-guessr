@@ -27,9 +27,17 @@ function WelcomePopup({ onClose }) {
         <div className="popup-body">
           <div className="welcome-content">
             <div className="welcome-text">
-              <p>目前正在举办：<b>第二届新人杯</b>——2026年1月9日-2026年1月11日，每晚20：00</p>
-              <p>欢迎大家加入QQ群交流比赛详情或参与未来的比赛！</p>
-              <iframe style={{width: '700px', height: '400px'}} src="https://www.bilibili.com/blackboard/live/live-activity-player.html?cid=7899056&quality=0" frameBorder="no" scrolling="no" allow="autoplay; encrypted-media" allowFullScreen={true} alt="第二届新人杯观赛直播间"></iframe>
+              <p>目前正在举办<b>第二届LBC</b>：2.1-2.15，本次为团队赛，总奖金52W韩元，最后一名也有奖金，参赛名单为从报名的人里面挑选直邀选手并由主办方兼出资人老鸨手动分组。</p>
+              <p>本次比赛特殊规则：禁止所有bang dream的角色，出现一次扣5分。</p>
+              <ul>
+                <p><b>比赛分组：</b></p>
+                <li>1．玩设备，akizawa，阿赵</li>
+                <li>2.安格，绫依骑士，Shaw</li>
+                <li>3．切尔茜，水映天虹，新条茜</li>
+                <li>4. lese，顶碗人，gura</li>
+                <li>5．非也非也，Ishmael，大当家</li>
+              </ul>
+              <p>欢迎大家加入QQ群立即捡钱或参与未来的比赛！</p>
               <p><b>如果您有任何建议或问题，欢迎加入我们的<a href="https://qm.qq.com/q/2sWbSsCwBu" target="_blank" >QQ群</a>或<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" >提交Issue</a>！</b></p>
               <p><b><a href="https://space.bilibili.com/87983557" target="_blank" rel="noopener noreferrer">作者</a>的话</b>：“感谢 <a href="https://github.com/trim21" target="_blank" rel="noopener noreferrer">Bangumi 管理员</a> 的优化支持，
               以及各位<a href="https://github.com/kennylimz/anime-character-guessr/graphs/contributors" target="_blank" rel="noopener noreferrer">网友</a>贡献的代码和数据。
