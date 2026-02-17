@@ -572,7 +572,6 @@ const Multiplayer = () => {
         setGameEnd(true); 
         setTimeout(() => {
           navigate('/multiplayer/');
-          console.log('navigate to /');
         }, 100); // 延长延迟时间确保通知显示后再跳转
       } else {
         showKickNotification(`玩家 ${username} 已被踢出房间`, 'kick');
