@@ -498,7 +498,7 @@ const Multiplayer = () => {
     newSocket.on('roomClosed', ({ message }) => {
       alert(message || '房主已断开连接，房间已关闭。');
       setError('房间已关闭');
-      navigate('/multiplayer');
+      navigate('/multiplayer/');
     });
 
     newSocket.on('hostTransferred', ({ oldHostName, newHostId, newHostName }) => {
@@ -523,7 +523,7 @@ const Multiplayer = () => {
         sessionStorage.removeItem('avatarId');
         sessionStorage.removeItem('avatarImage');
         setIsJoined(false);
-        navigate('/multiplayer');
+        navigate('/multiplayer/');
       }
     });
 
@@ -532,7 +532,7 @@ const Multiplayer = () => {
       setError(message);
       setIsJoined(false);
       setGameEnd(true);
-      navigate('/multiplayer');
+      navigate('/multiplayer/');
     });
 
     newSocket.on('updateGameSettings', ({ settings }) => {
@@ -566,12 +566,13 @@ const Multiplayer = () => {
       kickEventProcessed[eventId] = true;
       
       if (playerId === newSocket.id) {
-        // 如果当前玩家被踢出，显示通知并重定向到多人游戏大厅
+        // 如果当前玩家被踢出，显示通知并返回主页
         showKickNotification('你已被房主踢出房间', 'kick');
         setIsJoined(false); 
         setGameEnd(true); 
         setTimeout(() => {
-          navigate('/multiplayer');
+          navigate('/multiplayer/');
+          console.log('navigate to /');
         }, 100); // 延长延迟时间确保通知显示后再跳转
       } else {
         showKickNotification(`玩家 ${username} 已被踢出房间`, 'kick');
@@ -1282,7 +1283,99 @@ const Multiplayer = () => {
   }, [players]);
 
   if (!roomId) {
-    return <div>Loading...</div>;
+    return (
+      <div className="multiplayer-container">
+        <div className="top-row">
+          <div className="room-info">
+            <h2>多人游戏大厅</h2>
+            <p>选择一个公开房间加入，或创建新房间。</p>
+          </div>
+        </div>
+
+        <div className="settings-and-players">
+          <div className="settings-panel">
+            <div className="settings-header">
+              <h3>加入或创建</h3>
+            </div>
+            <div className="form-row">
+              <label htmlFor="username">用户名</label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="请输入用户名"
+              />
+            </div>
+            <div className="button-group">
+              <button className="primary-btn" onClick={() => navigate('/multiplayer', { replace: true, state: { autoCreate: true } })}>
+                创建新房间
+              </button>
+              <button className="secondary-btn" onClick={handleQuickJoin}>
+                快速加入公开房间
+              </button>
+            </div>
+          </div>
+
+          <div className="player-list">
+            <div className="player-list-header">
+              <div>
+                <h3>公开房间 {roomList.length > 0 && `(${roomList.length})`}</h3>
+                <small>展开列表以刷新（每 5 秒自动刷新）</small>
+              </div>
+              <div className="button-group">
+                <button className="secondary-btn" onClick={() => { fetchRoomList(); setRoomListExpanded(true); }}>
+                  刷新
+                </button>
+              </div>
+            </div>
+
+            {loadingRooms ? (
+              <div className="loading">正在加载房间列表...</div>
+            ) : roomList.length === 0 ? (
+              <div className="no-rooms">暂无公开房间</div>
+            ) : (
+              <>
+                <ul className="players">
+                  {roomList.slice(roomListPage * ROOMS_PER_PAGE, (roomListPage + 1) * ROOMS_PER_PAGE).map(room => (
+                    <li key={room.id} className="player">
+                      <div className="player-info">
+                        <div className="player-name">{room.name || '未命名房间'}</div>
+                        <div className="player-meta">
+                          <span>ID: {room.id}</span>
+                          <span>房主: {room.hostName || '未知'}</span>
+                          <span>人数: {room.playerCount}/{room.maxPlayers || 8}</span>
+                        </div>
+                      </div>
+                      <button className="primary-btn" onClick={() => handleJoinSpecificRoom(room.id)}>
+                        加入
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {roomList.length > ROOMS_PER_PAGE && (
+                  <div className="pagination">
+                    <button
+                      disabled={roomListPage === 0}
+                      onClick={() => setRoomListPage(p => Math.max(0, p - 1))}
+                    >
+                      上一页
+                    </button>
+                    <span>{roomListPage + 1} / {Math.max(1, Math.ceil(roomList.length / ROOMS_PER_PAGE))}</span>
+                    <button
+                      disabled={(roomListPage + 1) * ROOMS_PER_PAGE >= roomList.length}
+                      onClick={() => setRoomListPage(p => Math.min(Math.ceil(roomList.length / ROOMS_PER_PAGE) - 1, p + 1))}
+                    >
+                      下一页
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
