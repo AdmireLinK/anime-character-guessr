@@ -39,8 +39,6 @@ function WelcomePopup({ onClose }) {
                 以及各位<a href="https://github.com/kennylimz/anime-character-guessr/graphs/contributors" target="_blank" rel="noopener noreferrer">网友</a>贡献的代码和数据。
                 感谢大家这段时间的热情和支持
               <br/>
-              <p>另外，我们的QQ群正在火热招新中，群中即将举办新一届新人杯，此后还将有新一届CCB Major等赛事，参与无门槛，获胜有奖品，欢迎点击主页下方按钮或扫描Logo旁的二维码加入！</p>
-
               <p><b>如果您有任何建议或问题，欢迎加入我们的<a href="https://qm.qq.com/q/2sWbSsCwBu" target="_blank" >QQ群</a>或<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" >提交Issue</a>！</b></p>
               
               <hr style={{margin: '20px 0', border: '0', borderTop: '1px solid rgba(0,0,0,0.1)'}} />
