@@ -1,6 +1,6 @@
 // ===== Guess mark helpers (shared by socket/gameplay) =====
 // Attempt marks: count towards maxAttempts
-const ATTEMPT_MARK_RE = /(?:⏱️|💡|✔|❌)/g;
+const ATTEMPT_MARK_RE = /(?:⏱️?|💡|✔|❌)/g;
 // End marks: indicate the player/team has ended the round
 const END_MARKS = ['✌', '👑', '💀', '🏆', '🏳️'];
 const END_MARK_RE = /[✌👑💀🏆🏳️]/g;

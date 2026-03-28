@@ -23,6 +23,14 @@ function setupSocket(io, rooms) {
     io.on('connection', (socket) => {
         const log = createLogger('socket', socket.id);
 
+        const isSocketStillInRoom = (socketId, roomId) => {
+            if (!socketId || !roomId) return false;
+            const targetSocket = io.sockets.sockets.get(socketId);
+            if (!targetSocket) return false;
+            const roomSet = io.sockets.adapter.rooms.get(roomId);
+            return !!roomSet && roomSet.has(socketId);
+        };
+
         const emitError = (code, message) => {
             log.warn(`${code}: ${message}`);
             socket.emit('error', { message: `${code}: ${message}` });
@@ -111,6 +119,11 @@ function setupSocket(io, rooms) {
         const emitGameSnapshot = ({ roomId, room, targetSocket, playerContext, broadcastState: shouldBroadcastState = false }) => {
             if (!room?.currentGame || !room.currentGame.character || !targetSocket) return;
             const isAnswerSetter = playerContext ? !!playerContext.isAnswerSetter : false;
+            targetSocket.emit('updatePlayers', {
+                players: room.players,
+                isPublic: room.isPublic,
+                answerSetterId: room.answerSetterId
+            });
             targetSocket.emit('gameStart', {
                 character: room.currentGame.character,
                 settings: room.currentGame?.settings,
@@ -265,13 +278,44 @@ function setupSocket(io, rooms) {
                     }
 
                     socket.join(roomId);
-                    broadcastPlayers(roomId, room);
+                    broadcastPlayers(roomId, room, { forceImmediate: true });
                     socket.emit('roomNameUpdated', { roomName: room.roomName || '' });
 
                     if (room.currentGame && room.currentGame.character) {
                         emitGameSnapshot({ roomId, room, targetSocket: socket, playerContext: existingPlayer, broadcastState: true });
                     }
                     log.info(`${username} reconnected to room ${roomId}`);
+                    return;
+                }
+                const staleSocket = !isSocketStillInRoom(existingPlayer.id, roomId);
+                if (staleSocket) {
+                    log.warn(`stale socket detected for ${username}; forcing reconnect bind`);
+                    existingPlayer.disconnected = true;
+                    const previousSocketId = existingPlayer.id;
+                    existingPlayer.id = socket.id;
+                    existingPlayer.disconnected = false;
+                    if (avatarId !== undefined) existingPlayer.avatarId = avatarId;
+                    if (avatarImage !== undefined) existingPlayer.avatarImage = avatarImage;
+
+                    const replaceRevealerId = (list) => {
+                        if (!Array.isArray(list) || !previousSocketId) return;
+                        list.forEach(entry => {
+                            if (!entry || !Array.isArray(entry.revealer)) return;
+                            entry.revealer = Array.from(new Set(entry.revealer.map(id => id === previousSocketId ? socket.id : id)));
+                        });
+                    };
+                    if (room.currentGame) {
+                        replaceRevealerId(room.currentGame.tagBanState);
+                        replaceRevealerId(room.currentGame.tagBanStatePending);
+                    }
+
+                    socket.join(roomId);
+                    broadcastPlayers(roomId, room, { forceImmediate: true });
+                    socket.emit('roomNameUpdated', { roomName: room.roomName || '' });
+                    if (room.currentGame && room.currentGame.character) {
+                        emitGameSnapshot({ roomId, room, targetSocket: socket, playerContext: existingPlayer, broadcastState: true });
+                    }
+                    log.info(`${username} rebound to room ${roomId} from stale socket`);
                     return;
                 }
                 return emitError('joinRoom', '换个名字吧');
@@ -449,11 +493,23 @@ function setupSocket(io, rooms) {
             if (player.team === '0' || player._tempObserver) return emitError('playerGuess', '观战中不能猜测');
             if (hasEnded) return;
 
+            const guessData = guessResult?.guessData;
+            if (!guessData || guessData.id === undefined || guessData.id === null) {
+                return emitError('playerGuess', '猜测数据无效');
+            }
+            const isCorrect = !!guessResult?.isCorrect;
+            const isPartialCorrect = !isCorrect && !!guessResult?.isPartialCorrect;
+
             const settings = room.currentGame.settings || {};
 
             // 统一在写入猜测前检查次数上限（个人/团队/同步模式均适用）
             const preLimit = enforceAttemptLimit(room, player, io, roomId, { isCorrect: false });
             if (preLimit.exhausted) {
+                socket.emit('updatePlayers', {
+                    players: room.players,
+                    isPublic: room.isPublic,
+                    answerSetterId: room.answerSetterId
+                });
                 io.to(roomId).emit('guessHistoryUpdate', {
                     guesses: room.currentGame?.guesses,
                     teamGuesses: room.currentGame?.teamGuesses
@@ -463,17 +519,17 @@ function setupSocket(io, rooms) {
                 return emitError('playerGuess', '已用尽可用次数');
             }
 
-            if (settings.globalPick && !settings.syncMode && guessResult.guessData) {
-                const characterId = guessResult.guessData.id;
+            if (settings.globalPick && !settings.syncMode && guessData) {
+                const characterId = guessData.id;
                 const already = room.currentGame.guesses.some(pg => pg.username !== player.username && Array.isArray(pg.guesses) && pg.guesses.some(g => g?.guessData?.id === characterId));
-                if (already && (!settings.nonstopMode || !guessResult.isCorrect)) {
+                if (already && (!settings.nonstopMode || !isCorrect)) {
                     return emitError('playerGuess', '【全局BP】该角色已经被其他玩家猜过了');
                 }
             }
 
             const playerGuesses = room.currentGame.guesses.find(g => g.username === player.username);
             if (playerGuesses) {
-                const entry = { playerId: socket.id, playerName: player.username, ...guessResult };
+                const entry = { playerId: socket.id, playerName: player.username, isCorrect, isPartialCorrect, guessData };
                 playerGuesses.guesses.push(entry);
                 room.players.forEach(target => {
                     if (target.id === socket.id || target.isAnswerSetter || target.team === '0' || target.team === player.team || target._tempObserver) {
@@ -482,15 +538,15 @@ function setupSocket(io, rooms) {
                 });
             }
 
-            if (guessResult.guessData) {
-                const serialized = { ...guessResult.guessData };
+            if (guessData) {
+                const serialized = { ...guessData };
                 if (serialized.rawTags instanceof Map) serialized.rawTags = Array.from(serialized.rawTags.entries());
                 room.players.filter(p => p.id !== socket.id && ((p.team !== null && p.team === player.team && !p.isAnswerSetter) || p.team === '0' || p.isAnswerSetter)).forEach(recipient => {
                     io.to(recipient.id).emit('boardcastTeamGuess', { guessData: { ...serialized, guessrName: player.username }, playerId: socket.id, playerName: player.username });
                 });
             }
 
-            const mark = (!guessResult.isCorrect && guessResult.isPartialCorrect) ? '💡' : (guessResult.isCorrect ? '✔' : '❌');
+            const mark = (!isCorrect && isPartialCorrect) ? '💡' : (isCorrect ? '✔' : '❌');
             if (player.team && player.team !== '0') {
                 if (room.currentGame && !room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
                 if (room.currentGame?.teamGuesses) {
@@ -504,7 +560,7 @@ function setupSocket(io, rooms) {
             }
 
             if (room.currentGame?.settings?.syncMode && room.currentGame?.syncPlayersCompleted) {
-                if (!guessResult.isCorrect) {
+                if (!isCorrect) {
                     room.currentGame.syncPlayersCompleted.add(socket.id);
                     if (player.team && player.team !== '0') {
                         room.players.filter(p => p.team === player.team && p.id !== socket.id && !p.isAnswerSetter && !p.disconnected)
@@ -517,12 +573,12 @@ function setupSocket(io, rooms) {
             // 统一在写入本次尝试后检查“耗尽 => 死亡(💀)”
             // 若本次猜中，enforceAttemptLimit 会返回 pendingWin 并避免误判
             if (!room.currentGame?.settings?.nonstopMode) {
-                enforceAttemptLimit(room, player, io, roomId, { isCorrect: !!guessResult?.isCorrect });
+                enforceAttemptLimit(room, player, io, roomId, { isCorrect: !!isCorrect });
             }
 
             broadcastPlayers(roomId, room);
-            if (guessResult.guessData && guessResult.guessData.name) {
-                log.info(`guess ${guessResult.guessData.name} ${guessResult.isCorrect ? 'correct' : 'incorrect'}`);
+            if (guessData && guessData.name) {
+                log.info(`guess ${guessData.name} ${isCorrect ? 'correct' : 'incorrect'}`);
             }
 
             // 标准流程统一判定

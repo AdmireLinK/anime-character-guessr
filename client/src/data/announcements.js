@@ -25,6 +25,19 @@ const announcements = [
   },
 
   {
+    version: '1.6.9',
+    date: '2026-03-28',
+    content: `
+      <b>修复：</b><br/>
+      <ul>
+        <li>多人模式自动重连实际不可用</li>
+        <li>多人模式偶发猜测后被判定为死亡</li>
+        <li>多人模式偶发能看到答案</li>
+      </ul>
+    `
+  },
+
+  {
     version: '1.6.8',
     date: '2026-01-08',
     content: `

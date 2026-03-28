@@ -124,6 +124,7 @@ const Multiplayer = () => {
   const maxReconnectAttempts = 5;
   const reconnectTimerRef = useRef(null);
   const isManualDisconnectRef = useRef(false);
+  const isAutoReconnectingRef = useRef(false);
   const allSpectators = useMemo(() => {
     if (!players || players.length === 0) return false;
     return players.every(p => p.disconnected || p.team === '0');
@@ -173,8 +174,8 @@ const Multiplayer = () => {
       }
 
       // 直接从 player.guesses 字符串计算已使用的次数
-      const cleaned = String(player.guesses || '').replace(/[✌👑💀🏳️🏆]/g, '');
-      const used = Array.from(cleaned).length;
+      const marks = String(player.guesses || '').match(/(?:⏱️?|💡|✔|❌)/g);
+      const used = marks ? marks.length : 0;
       const max = gameSettingsRef.current?.maxAttempts || 10;
       const left = Math.max(0, max - used);
       setGuessesLeft(left);
@@ -309,6 +310,7 @@ const Multiplayer = () => {
     newSocket.on('connect', () => {
       console.log('[WebSocket] 连接成功');
       setConnectionStatus('connected');
+      isAutoReconnectingRef.current = false;
       reconnectAttemptsRef.current = 0;
       
       if (reconnectTimerRef.current) {
@@ -338,6 +340,7 @@ const Multiplayer = () => {
       }
       
       setConnectionStatus('reconnecting');
+      isAutoReconnectingRef.current = true;
       
       if (reason === 'io server disconnect') {
         newSocket.connect();
@@ -390,7 +393,8 @@ const Multiplayer = () => {
       
       // Calculate guesses left based on current player's guess history
       const currentPlayer = players?.find(p => p.id === newSocket.id);
-      const guessesMade = currentPlayer?.guesses?.length || 0;
+      const initialMarks = String(currentPlayer?.guesses || '').match(/(?:⏱️?|💡|✔|❌)/g);
+      const guessesMade = initialMarks ? initialMarks.length : 0;
       const remainingGuesses = Math.max(0, (settings?.maxAttempts ?? 10) - guessesMade);
       setGuessesLeft(remainingGuesses);
       
@@ -516,6 +520,23 @@ const Multiplayer = () => {
     });
 
     newSocket.on('error', ({ message }) => {
+      if (
+        isAutoReconnectingRef.current &&
+        isJoined &&
+        roomId &&
+        username &&
+        typeof message === 'string' &&
+        message.includes('换个名字吧')
+      ) {
+        const avatarId = sessionStorage.getItem('avatarId');
+        const avatarImage = sessionStorage.getItem('avatarImage');
+        const avatarPayload = avatarId !== null ? { avatarId, avatarImage } : {};
+        setTimeout(() => {
+          socketRef.current?.emit('joinRoom', { roomId, username, ...avatarPayload });
+          socketRef.current?.emit('requestGameSettings', { roomId });
+        }, 500);
+        return;
+      }
       alert(`错误: ${message}`);
       setError(message);
       // 只在特定情况下将玩家踢出房间，游戏开始相关错误不应该踢出房主
@@ -796,13 +817,6 @@ const Multiplayer = () => {
 
   const handleGameEnd = (isWin) => {
     if (gameEndedRef.current) return;
-
-    // 猜中后进入旁观模式（isObserver=true），但不加入旁观队伍（team不变）
-    if (isWin) {
-      setIsObserver(true);
-      // 猜中后属于“临时旁观者”，允许看到答案卡片
-      setCanShowSelectedAnswer(true);
-    }
 
     // 血战模式下，猜对不结束游戏，只发送 nonstopWin 事件
     if (isWin && gameSettings.nonstopMode) {
@@ -1624,7 +1638,7 @@ const Multiplayer = () => {
           {isGameStarted && !globalGameEnd && (
             // In game
             <div className="container">
-              {!isAnswerSetter && !isObserver ? (
+              {!isAnswerSetter && !isTeamObserver ? (
                 // Regular player view
                 <>
                   <SearchBar
@@ -1713,7 +1727,7 @@ const Multiplayer = () => {
               ) : (
                 // Answer setter view
                 <div className="answer-setter-view">
-                  {canShowSelectedAnswer && answerCharacter && (
+                  {canShowSelectedAnswer && answerCharacter && (isAnswerSetter || isTeamObserver) && (
                     <div className="selected-answer">
                       <Image src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
                       <div className="answer-info">
