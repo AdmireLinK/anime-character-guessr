@@ -2,6 +2,8 @@ const {
     handlePlayerTimeout,
     countAttemptMarks,
     hasEndMark,
+    stripEndMarks,
+    enforceAttemptLimit,
     getSyncAndNonstopState,
     calculateWinnerScore,
     applySetterObservers,
@@ -20,6 +22,14 @@ const { createLogger } = require('./logger');
 function setupSocket(io, rooms) {
     io.on('connection', (socket) => {
         const log = createLogger('socket', socket.id);
+
+        const isSocketStillInRoom = (socketId, roomId) => {
+            if (!socketId || !roomId) return false;
+            const targetSocket = io.sockets.sockets.get(socketId);
+            if (!targetSocket) return false;
+            const roomSet = io.sockets.adapter.rooms.get(roomId);
+            return !!roomSet && roomSet.has(socketId);
+        };
 
         const emitError = (code, message) => {
             log.warn(`${code}: ${message}`);
@@ -109,6 +119,11 @@ function setupSocket(io, rooms) {
         const emitGameSnapshot = ({ roomId, room, targetSocket, playerContext, broadcastState: shouldBroadcastState = false }) => {
             if (!room?.currentGame || !room.currentGame.character || !targetSocket) return;
             const isAnswerSetter = playerContext ? !!playerContext.isAnswerSetter : false;
+            targetSocket.emit('updatePlayers', {
+                players: room.players,
+                isPublic: room.isPublic,
+                answerSetterId: room.answerSetterId
+            });
             targetSocket.emit('gameStart', {
                 character: room.currentGame.character,
                 settings: room.currentGame?.settings,
@@ -118,16 +133,18 @@ function setupSocket(io, rooms) {
                 isAnswerSetter
             });
             if (room.currentGame) {
-                targetSocket.emit('guessHistoryUpdate', {
-                    guesses: room.currentGame.guesses,
-                    teamGuesses: room.currentGame.teamGuesses
-                });
+                targetSocket.emit('guessHistoryUpdate', buildGuessHistoryPayload(room.currentGame));
             }
             targetSocket.emit('tagBanStateUpdate', {
                 tagBanState: Array.isArray(room.currentGame.tagBanState) ? room.currentGame.tagBanState : []
             });
             if (shouldBroadcastState) broadcastState(roomId, room);
         };
+
+        const buildGuessHistoryPayload = (currentGame) => ({
+            guesses: Array.isArray(currentGame?.guesses) ? currentGame.guesses : [],
+            teamGuesses: currentGame?.teamGuesses || {}
+        });
 
         /**
          * 统一的标准流程入口，自动在未结算时补充玩家广播。
@@ -261,13 +278,44 @@ function setupSocket(io, rooms) {
                     }
 
                     socket.join(roomId);
-                    broadcastPlayers(roomId, room);
+                    broadcastPlayers(roomId, room, { forceImmediate: true });
                     socket.emit('roomNameUpdated', { roomName: room.roomName || '' });
 
                     if (room.currentGame && room.currentGame.character) {
                         emitGameSnapshot({ roomId, room, targetSocket: socket, playerContext: existingPlayer, broadcastState: true });
                     }
                     log.info(`${username} reconnected to room ${roomId}`);
+                    return;
+                }
+                const staleSocket = !isSocketStillInRoom(existingPlayer.id, roomId);
+                if (staleSocket) {
+                    log.warn(`stale socket detected for ${username}; forcing reconnect bind`);
+                    existingPlayer.disconnected = true;
+                    const previousSocketId = existingPlayer.id;
+                    existingPlayer.id = socket.id;
+                    existingPlayer.disconnected = false;
+                    if (avatarId !== undefined) existingPlayer.avatarId = avatarId;
+                    if (avatarImage !== undefined) existingPlayer.avatarImage = avatarImage;
+
+                    const replaceRevealerId = (list) => {
+                        if (!Array.isArray(list) || !previousSocketId) return;
+                        list.forEach(entry => {
+                            if (!entry || !Array.isArray(entry.revealer)) return;
+                            entry.revealer = Array.from(new Set(entry.revealer.map(id => id === previousSocketId ? socket.id : id)));
+                        });
+                    };
+                    if (room.currentGame) {
+                        replaceRevealerId(room.currentGame.tagBanState);
+                        replaceRevealerId(room.currentGame.tagBanStatePending);
+                    }
+
+                    socket.join(roomId);
+                    broadcastPlayers(roomId, room, { forceImmediate: true });
+                    socket.emit('roomNameUpdated', { roomName: room.roomName || '' });
+                    if (room.currentGame && room.currentGame.character) {
+                        emitGameSnapshot({ roomId, room, targetSocket: socket, playerContext: existingPlayer, broadcastState: true });
+                    }
+                    log.info(`${username} rebound to room ${roomId} from stale socket`);
                     return;
                 }
                 return emitError('joinRoom', '换个名字吧');
@@ -445,42 +493,23 @@ function setupSocket(io, rooms) {
             if (player.team === '0' || player._tempObserver) return emitError('playerGuess', '观战中不能猜测');
             if (hasEnded) return;
 
-            // 统一在写入猜测前检查次数上限（个人/团队/同步模式均适用）
+            const guessData = guessResult?.guessData;
+            if (!guessData || guessData.id === undefined || guessData.id === null) {
+                return emitError('playerGuess', '猜测数据无效');
+            }
+            const isCorrect = !!guessResult?.isCorrect;
+            const isPartialCorrect = !isCorrect && !!guessResult?.isPartialCorrect;
+
             const settings = room.currentGame.settings || {};
-            const maxAttempts = settings.maxAttempts || 10;
-            const countSource = player.team && player.team !== '0'
-                ? String(room.currentGame?.teamGuesses?.[player.team] || '')
-                : String(player.guesses || '');
-            const attemptCount = countAttemptMarks(countSource);
-            if (attemptCount >= maxAttempts) {
-                const alreadyEnded = hasEndMark(countSource);
 
-                // 如果尚未标记结束，为其补充死亡标记，确保下一局不会遗留“未结束但次数已用尽”的状态
-                if (!alreadyEnded) {
-                    if (player.team && player.team !== '0') {
-                        if (room.currentGame && !room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
-                        room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '💀';
-                        room.players
-                            .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
-                            .forEach(teammate => {
-                                if (!['💀','✌','👑','🏳️','🏆'].some(m => teammate.guesses.includes(m))) {
-                                    teammate.guesses += '💀';
-                                }
-                                if (room.currentGame?.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
-                                    room.currentGame.syncPlayersCompleted.add(teammate.id);
-                                }
-                            });
-                    } else {
-                        if (!['💀','✌','👑','🏳️','🏆'].some(m => player.guesses.includes(m))) {
-                            player.guesses += '💀';
-                        }
-                        if (room.currentGame?.settings?.syncMode && room.currentGame.syncPlayersCompleted) {
-                            room.currentGame.syncPlayersCompleted.add(player.id);
-                        }
-                    }
-                }
-
-                // 推送最新状态并阻止本次猜测
+            // 统一在写入猜测前检查次数上限（个人/团队/同步模式均适用）
+            const preLimit = enforceAttemptLimit(room, player, io, roomId, { isCorrect: false });
+            if (preLimit.exhausted) {
+                socket.emit('updatePlayers', {
+                    players: room.players,
+                    isPublic: room.isPublic,
+                    answerSetterId: room.answerSetterId
+                });
                 io.to(roomId).emit('guessHistoryUpdate', {
                     guesses: room.currentGame?.guesses,
                     teamGuesses: room.currentGame?.teamGuesses
@@ -490,17 +519,17 @@ function setupSocket(io, rooms) {
                 return emitError('playerGuess', '已用尽可用次数');
             }
 
-            if (settings.globalPick && !settings.syncMode && guessResult.guessData) {
-                const characterId = guessResult.guessData.id;
+            if (settings.globalPick && !settings.syncMode && guessData) {
+                const characterId = guessData.id;
                 const already = room.currentGame.guesses.some(pg => pg.username !== player.username && Array.isArray(pg.guesses) && pg.guesses.some(g => g?.guessData?.id === characterId));
-                if (already && (!settings.nonstopMode || !guessResult.isCorrect)) {
+                if (already && (!settings.nonstopMode || !isCorrect)) {
                     return emitError('playerGuess', '【全局BP】该角色已经被其他玩家猜过了');
                 }
             }
 
             const playerGuesses = room.currentGame.guesses.find(g => g.username === player.username);
             if (playerGuesses) {
-                const entry = { playerId: socket.id, playerName: player.username, ...guessResult };
+                const entry = { playerId: socket.id, playerName: player.username, isCorrect, isPartialCorrect, guessData };
                 playerGuesses.guesses.push(entry);
                 room.players.forEach(target => {
                     if (target.id === socket.id || target.isAnswerSetter || target.team === '0' || target.team === player.team || target._tempObserver) {
@@ -509,15 +538,15 @@ function setupSocket(io, rooms) {
                 });
             }
 
-            if (guessResult.guessData) {
-                const serialized = { ...guessResult.guessData };
+            if (guessData) {
+                const serialized = { ...guessData };
                 if (serialized.rawTags instanceof Map) serialized.rawTags = Array.from(serialized.rawTags.entries());
                 room.players.filter(p => p.id !== socket.id && ((p.team !== null && p.team === player.team && !p.isAnswerSetter) || p.team === '0' || p.isAnswerSetter)).forEach(recipient => {
                     io.to(recipient.id).emit('boardcastTeamGuess', { guessData: { ...serialized, guessrName: player.username }, playerId: socket.id, playerName: player.username });
                 });
             }
 
-            const mark = (!guessResult.isCorrect && guessResult.isPartialCorrect) ? '💡' : (guessResult.isCorrect ? '✔' : '❌');
+            const mark = (!isCorrect && isPartialCorrect) ? '💡' : (isCorrect ? '✔' : '❌');
             if (player.team && player.team !== '0') {
                 if (room.currentGame && !room.currentGame.teamGuesses) room.currentGame.teamGuesses = {};
                 if (room.currentGame?.teamGuesses) {
@@ -526,25 +555,12 @@ function setupSocket(io, rooms) {
                         teammate.guesses = room.currentGame.teamGuesses[player.team];
                     });
                 }
-
-                if (room.currentGame?.settings?.syncMode) {
-                    const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
-                    const teamAttemptCount = countAttemptMarks(room.currentGame?.teamGuesses?.[player.team] || '');
-                    if (teamAttemptCount >= maxAttempts) {
-                        room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected).forEach(teammate => {
-                            const ended = ['✌','👑','🏆','💀','🏳️'].some(mark => teammate.guesses.includes(mark));
-                            if (!ended) teammate.guesses += '💀';
-                            room.currentGame.syncPlayersCompleted?.add(teammate.id);
-                        });
-                        updateSyncProgress(room, roomId, io);
-                    }
-                }
             } else {
                 player.guesses += mark;
             }
 
             if (room.currentGame?.settings?.syncMode && room.currentGame?.syncPlayersCompleted) {
-                if (!guessResult.isCorrect) {
+                if (!isCorrect) {
                     room.currentGame.syncPlayersCompleted.add(socket.id);
                     if (player.team && player.team !== '0') {
                         room.players.filter(p => p.team === player.team && p.id !== socket.id && !p.isAnswerSetter && !p.disconnected)
@@ -554,40 +570,15 @@ function setupSocket(io, rooms) {
                 updateSyncProgress(room, roomId, io);
             }
 
-            if (!room.currentGame?.settings?.syncMode && !room.currentGame?.settings?.nonstopMode) {
-                const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
-                const countStr = player.team && player.team !== '0'
-                    ? room.currentGame?.teamGuesses?.[player.team] || ''
-                    : player.guesses;
-                const guessCount = countAttemptMarks(countStr);
-
-                // 团队模式下，若已用尽次数则整队死亡，避免继续尝试导致下局残留观战/死亡视角
-                if (player.team && player.team !== '0') {
-                    // 注意：猜对后会由客户端发送 gameEnd(win/bigwin) 结束；这里避免把“最后一发猜中”误判为死亡
-                    if (guessCount >= maxAttempts && !guessResult?.isCorrect) {
-                        const teamGuessStr = room.currentGame.teamGuesses[player.team] || '';
-                        room.currentGame.teamGuesses[player.team] = teamGuessStr + '💀';
-                        room.players
-                            .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
-                            .forEach(teammate => {
-                                if (!['💀','✌','👑','🏳️','🏆'].some(m => teammate.guesses.includes(m))) {
-                                    teammate.guesses += '💀';
-                                }
-                            });
-                        log.info(`auto mark team dead due to attempts team=${player.team}`);
-                    }
-                } else {
-                    // 同上：避免“最后一次猜中”在 gameEnd 到达前被自动判死
-                    if (!guessResult?.isCorrect && guessCount >= maxAttempts && !['💀','✌','👑','🏳️','🏆'].some(m => player.guesses.includes(m))) {
-                        player.guesses += '💀';
-                        log.info(`auto mark dead due to attempts ${player.username}`);
-                    }
-                }
+            // 统一在写入本次尝试后检查“耗尽 => 死亡(💀)”
+            // 若本次猜中，enforceAttemptLimit 会返回 pendingWin 并避免误判
+            if (!room.currentGame?.settings?.nonstopMode) {
+                enforceAttemptLimit(room, player, io, roomId, { isCorrect: !!isCorrect });
             }
 
             broadcastPlayers(roomId, room);
-            if (guessResult.guessData && guessResult.guessData.name) {
-                log.info(`guess ${guessResult.guessData.name} ${guessResult.isCorrect ? 'correct' : 'incorrect'}`);
+            if (guessData && guessData.name) {
+                log.info(`guess ${guessData.name} ${isCorrect ? 'correct' : 'incorrect'}`);
             }
 
             // 标准流程统一判定
@@ -706,6 +697,13 @@ function setupSocket(io, rooms) {
 
             const rawGuessCount = countAttemptMarks(player.guesses);
             const finalResult = (result === 'win' && rawGuessCount === 1 && !player.guesses.includes('👑')) ? 'bigwin' : result;
+
+            // gameEnd 结果是最终裁决：先清理冲突的结束标记，避免出现“💀 + ✌”这类状态
+            player.guesses = stripEndMarks(player.guesses);
+            if (player.team && player.team !== '0' && room.currentGame) {
+                room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+                room.currentGame.teamGuesses[player.team] = stripEndMarks(room.currentGame.teamGuesses[player.team] || '');
+            }
 
             switch (finalResult) {
                 case 'surrender':
@@ -849,10 +847,7 @@ function setupSocket(io, rooms) {
             }
 
             // 广播猜测历史更新，让客户端重新计算剩余次数
-            io.to(roomId).emit('guessHistoryUpdate', {
-                guesses: room.currentGame.guesses,
-                teamGuesses: room.currentGame.teamGuesses
-            });
+            io.to(roomId).emit('guessHistoryUpdate', buildGuessHistoryPayload(room.currentGame));
 
             broadcastPlayers(roomId, room);
             runFlowAndRefresh(roomId, room);
@@ -1032,7 +1027,7 @@ function setupSocket(io, rooms) {
             room.waitingForAnswer = false;
             room.answerSetterId = null;
             if (room.currentGame) {
-                socket.emit('guessHistoryUpdate', { guesses: room.currentGame.guesses, teamGuesses: room.currentGame.teamGuesses });
+                socket.emit('guessHistoryUpdate', buildGuessHistoryPayload(room.currentGame));
             }
             broadcastState(roomId, room);
             broadcastPlayers(roomId, room, { answerSetterId: null });

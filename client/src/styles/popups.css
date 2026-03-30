@@ -461,19 +461,19 @@
 /* GameEndPopup 简介富文本：mask/url */
 .summary-mask {
   display: inline-block;
-  background: #0f172a;
+  background: #1e293b;
   color: transparent;
   border-radius: 4px;
   padding: 0 6px;
   margin: 0 2px;
   cursor: help;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition: background-color 300ms ease-in-out, color 300ms ease-in-out;
 }
 
 .summary-mask:hover,
 .summary-mask:focus {
   color: inherit;
-  background: rgba(15, 23, 42, 0.08);
+  background: transparent;
   outline: none;
 }
 

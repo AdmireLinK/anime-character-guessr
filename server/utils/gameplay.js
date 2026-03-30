@@ -1,8 +1,9 @@
 // ===== Guess mark helpers (shared by socket/gameplay) =====
 // Attempt marks: count towards maxAttempts
-const ATTEMPT_MARK_RE = /(?:⏱️|💡|✔|❌)/g;
+const ATTEMPT_MARK_RE = /(?:⏱️?|💡|✔|❌)/g;
 // End marks: indicate the player/team has ended the round
 const END_MARKS = ['✌', '👑', '💀', '🏆', '🏳️'];
+const END_MARK_RE = /[✌👑💀🏆🏳️]/g;
 
 function countAttemptMarks(marks) {
     const s = String(marks || '');
@@ -13,6 +14,74 @@ function countAttemptMarks(marks) {
 function hasEndMark(marks) {
     const s = String(marks || '');
     return END_MARKS.some(mark => s.includes(mark));
+}
+
+function stripEndMarks(marks) {
+    return String(marks || '').replace(END_MARK_RE, '');
+}
+
+function appendEndMarkOnce(marks, endMark) {
+    // Ensure we don't accumulate conflicting end marks (e.g. 💀 + ✌)
+    return stripEndMarks(marks) + endMark;
+}
+
+/**
+ * 在服务端统一强制执行“次数耗尽 => 结束(💀)”规则。
+ * - 只统计尝试标记（⏱️/💡/✔/❌）
+ * - 若已存在结束标记（✌/👑/💀/🏆/🏳️），不重复处理
+ * - 若 isCorrect=true，则不自动判死（等待客户端 gameEnd(win/bigwin)）
+ */
+function enforceAttemptLimit(room, player, io, roomId, { isCorrect = false } = {}) {
+    if (!room?.currentGame || !player) return { exhausted: false };
+
+    // 出题人/旁观者/临时观战者不参与次数判定
+    if (player.isAnswerSetter || player.team === '0' || player._tempObserver) {
+        return { exhausted: false };
+    }
+
+    const settings = room.currentGame.settings || {};
+    const maxAttempts = settings.maxAttempts || 10;
+    const isTeamMode = player.team && player.team !== '0';
+    const source = isTeamMode
+        ? String(room.currentGame?.teamGuesses?.[player.team] || '')
+        : String(player.guesses || '');
+
+    const attemptCount = countAttemptMarks(source);
+    if (attemptCount < maxAttempts) {
+        return { exhausted: false, attemptCount, maxAttempts };
+    }
+
+    // 已结束则不再追加
+    if (hasEndMark(source)) {
+        return { exhausted: true, alreadyEnded: true, attemptCount, maxAttempts };
+    }
+
+    // 最后一发猜中：不要在 gameEnd 之前误判死亡
+    if (isCorrect) {
+        return { exhausted: true, pendingWin: true, attemptCount, maxAttempts };
+    }
+
+    if (isTeamMode) {
+        room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+        room.currentGame.teamGuesses[player.team] = appendEndMarkOnce(room.currentGame.teamGuesses[player.team] || '', '💀');
+        const updated = room.currentGame.teamGuesses[player.team];
+
+        room.players
+            .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
+            .forEach(teammate => {
+                teammate.guesses = updated;
+                if (room.currentGame?.settings?.syncMode && room.currentGame?.syncPlayersCompleted) {
+                    room.currentGame.syncPlayersCompleted.add(teammate.id);
+                }
+            });
+    } else {
+        player.guesses = appendEndMarkOnce(player.guesses || '', '💀');
+        if (room.currentGame?.settings?.syncMode && room.currentGame?.syncPlayersCompleted) {
+            room.currentGame.syncPlayersCompleted.add(player.id);
+        }
+    }
+
+    return { exhausted: true, appliedDeath: true, attemptCount, maxAttempts };
 }
 
 /**
@@ -29,71 +98,48 @@ function handlePlayerTimeout(room, player, io, roomId) {
         return { needsSyncUpdate: false, affectedPlayers: [] };
     }
 
-    const timeoutMark = '⏱️';
-    const maxAttempts = room.currentGame?.settings?.maxAttempts || 10;
-    const affectedPlayers = [];
-
-    // 添加超时标记
-    player.guesses += timeoutMark;
-    affectedPlayers.push(player);
-
-    // 队伍模式处理
-    if (player.team && player.team !== '0') {
-        if (room.currentGame && !room.currentGame.teamGuesses) {
-            room.currentGame.teamGuesses = {};
-        }
-        if (room.currentGame && room.currentGame.teamGuesses) {
-            room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + timeoutMark;
-            
-            // 同步队友的猜测记录
-            const teammates = room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected);
-            teammates.forEach(teammate => {
-                teammate.guesses = room.currentGame.teamGuesses[player.team];
-                affectedPlayers.push(teammate);
-                io.to(teammate.id).emit('resetTimer');
-            });
-        
-        // 计算队伍的有效猜测次数（仅统计尝试标记）
-        const teamAttemptCount = countAttemptMarks(room.currentGame?.teamGuesses?.[player.team] || '');
-
-        // 检查队伍次数是否耗尽
-        if (teamAttemptCount >= maxAttempts) {
-            // 在 teamGuesses 中追加死亡标记，保证后续统计与客户端表现一致
-            room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + '💀';
-
-            teammates.forEach(teammate => {
-                const ended = ['✌','👑','🏆','💀','🏳️'].some(mark => teammate.guesses.includes(mark));
-                if (!ended) {
-                    teammate.guesses += '💀';
-                }
-                // 同步模式下标记完成
-                if (room.currentGame?.settings?.syncMode && room.currentGame?.syncPlayersCompleted) {
-                    room.currentGame.syncPlayersCompleted.add(teammate.id);
-                }
-            });
-        }
-    } else if (player.team === null || player.team === undefined || player.team === '') {
-        // 个人模式处理
-        const personalAttemptCount = countAttemptMarks(player.guesses || '');
-        
-        // 检查个人次数是否耗尽
-        if (personalAttemptCount >= maxAttempts) {
-            const ended = ['✌','👑','🏆','💀','🏳️'].some(mark => player.guesses.includes(mark));
-            if (!ended) {
-                player.guesses += '💀';
-            }
-        }
+    // 出题人/旁观者不处理超时
+    if (player.isAnswerSetter || player.team === '0' || player._tempObserver) {
+        return { needsSyncUpdate: false, affectedPlayers: [] };
     }
-}
 
-    // 同步模式进度更新
+    const timeoutMark = '⏱️';
+    const affectedPlayers = [];
+    const isTeamMode = player.team && player.team !== '0';
+
+    // 已结束则忽略（避免重复 timeout 污染次数）
+    const current = isTeamMode
+        ? String(room.currentGame?.teamGuesses?.[player.team] || '')
+        : String(player.guesses || '');
+    if (hasEndMark(current)) {
+        return { needsSyncUpdate: false, affectedPlayers: [] };
+    }
+
+    if (isTeamMode) {
+        room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
+        room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + timeoutMark;
+        const updated = room.currentGame.teamGuesses[player.team];
+
+        const teammates = room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected);
+        teammates.forEach(teammate => {
+            teammate.guesses = updated;
+            affectedPlayers.push(teammate);
+            io.to(teammate.id).emit('resetTimer');
+        });
+    } else {
+        player.guesses += timeoutMark;
+        affectedPlayers.push(player);
+    }
+
+    // 超时后统一执行次数耗尽判定
+    enforceAttemptLimit(room, player, io, roomId, { isCorrect: false });
+
+    // 同步模式：超时视为本轮完成
     let needsSyncUpdate = false;
     if (room.currentGame?.settings?.syncMode && room.currentGame?.syncPlayersCompleted) {
-        if (!['✌','👑','💀','🏳️','🏆'].some(m => player.guesses.includes(m))) {
-            room.currentGame.syncPlayersCompleted.add(player.id);
-            player.syncCompletedRound = room.currentGame.syncRound;
-            needsSyncUpdate = true;
-        }
+        room.currentGame.syncPlayersCompleted.add(player.id);
+        player.syncCompletedRound = room.currentGame.syncRound;
+        needsSyncUpdate = true;
     }
 
     return { needsSyncUpdate, affectedPlayers };
@@ -1144,6 +1190,8 @@ module.exports = {
     handlePlayerTimeout,
     countAttemptMarks,
     hasEndMark,
+    stripEndMarks,
+    enforceAttemptLimit,
     getSyncAndNonstopState,
     calculateWinnerScore,
     calculateSetterScore,
