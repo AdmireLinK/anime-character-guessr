@@ -25,6 +25,16 @@ const announcements = [
   },
 
   {
+    version: '6657',
+    date: '2026-04-01',
+    content: `
+      愚人节快乐！我能在乱码的情况下通关猜猜呗吗？<br/>
+      Tips：如果不想在乱码的情况下通关猜猜呗请尝试<a href="https://anime-character-guessr.netlify.app" target="_blank">切换线路</a>
+    `,
+    disableGarbler: true
+  },
+
+  {
     version: '1.6.9',
     date: '2026-03-28',
     content: `
