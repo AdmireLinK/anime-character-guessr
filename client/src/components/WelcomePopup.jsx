@@ -9,7 +9,7 @@ function WelcomePopup({ onClose }) {
         <button className="popup-close" onClick={onClose}><i className="fas fa-xmark"></i></button>
         <div className="popup-header welcome-header">
           <div className="welcome-header-inner">
-            <div className="title-container" data-no-garble="true">
+            <div className="title-container">
               <div className="title-line title-line-main" data-text="二刺猿笑傳">二刺猿笑傳</div>
               <div className="title-line title-line-separator" data-text="A N I M E &nbsp; C H A R A C T E R &nbsp; G U E S S R &nbsp;">A N I M E &nbsp; C H A R A C T E R &nbsp; G U E S S R &nbsp;</div>
               <div className="title-line title-line-sub" data-text="猜猜唄">猜猜唄</div>

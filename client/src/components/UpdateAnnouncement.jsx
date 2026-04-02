@@ -4,7 +4,7 @@ import '../styles/UpdateAnnouncement.css';
 /**
  * 更新公告组件
  * @param {Object} props
- * @param {Array} props.announcements - 公告数组，每个元素包含 version, date, content, disableGarbler(可选) 属性
+ * @param {Array} props.announcements - 公告数组，每个元素包含 version, date, content 属性
  * @param {boolean} props.defaultExpanded - 是否默认展开（否则折叠）
  * @param {number} props.initialVisibleCount - 默认显示的公告数量
  */
@@ -36,11 +36,7 @@ const UpdateAnnouncement = ({
       
       <div className="announcement-content">
         {(isExpanded ? announcements : announcements.slice(1, initialVisibleCount+1)).map((announcement, index) => (
-          <div
-            key={index}
-            className="announcement-item"
-            data-no-garble={announcement.disableGarbler ? 'true' : undefined}
-          >
+          <div key={index} className="announcement-item">
             {announcement.version && (
               <div className="announcement-version">
                 <span className="version-tag">v{announcement.version}</span>
