@@ -4,14 +4,46 @@ import axios from 'axios';
 
 const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
 
-const Roulette = ({ defaultExpanded = false }) => {
+const ROULETTE_TEXT = {
+  zh: {
+    title: '莫名其妙的抽卡',
+    description: '可以挑一个头像（当然也可以直接进游戏）',
+    loading: '加载中...',
+    alreadyPicked: '你已经抽过了……',
+    cancel: '取消选择',
+    redeemPlaceholder: '头像兑换码',
+    redeeming: '兑换中...',
+    redeem: '兑换',
+    enterCode: '请输入兑换码',
+    redeemSuccess: '兑换成功！',
+    invalidCode: '兑换码无效或已过期',
+    redeemFailed: '兑换失败，请稍后重试'
+  },
+  en: {
+    title: 'Avatar Draw',
+    description: 'Pick an avatar, or just enter the game.',
+    loading: 'Loading...',
+    alreadyPicked: 'You already picked one...',
+    cancel: 'Clear selection',
+    redeemPlaceholder: 'Avatar redeem code',
+    redeeming: 'Redeeming...',
+    redeem: 'Redeem',
+    enterCode: 'Please enter a redeem code',
+    redeemSuccess: 'Redeemed successfully.',
+    invalidCode: 'The redeem code is invalid or expired',
+    redeemFailed: 'Redeem failed. Please try again later.'
+  }
+};
+
+const Roulette = ({ defaultExpanded = false, locale = 'zh' }) => {
+  const text = ROULETTE_TEXT[locale] || ROULETTE_TEXT.zh;
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [flipped, setFlipped] = useState(Array(10).fill(false));
   const [selected, setSelected] = useState(null);
   const [rouletteData, setRouletteData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [initialAvatarId, setInitialAvatarId] = useState(() => {
+  const [initialAvatarId] = useState(() => {
     return sessionStorage.getItem('avatarId') !== null;
   });
   const [redeemCode, setRedeemCode] = useState('');
@@ -36,29 +68,28 @@ const Roulette = ({ defaultExpanded = false }) => {
 
   const handleRedeem = async () => {
     if (!redeemCode.trim()) {
-      alert('请输入兑换码');
+      alert(text.enterCode);
       return;
     }
 
     setRedeeming(true);
     try {
       const response = await axios.get(`${serverUrl}/redeem?code=${encodeURIComponent(redeemCode.trim())}`);
-      
+
       if (response.data.avatarId && response.data.avatarImage) {
         sessionStorage.setItem('avatarId', response.data.avatarId);
         sessionStorage.setItem('avatarImage', response.data.avatarImage);
-        
-        // Reset states
+
         setSelected(null);
         setRedeemCode('');
-        
-        alert('兑换成功！');
+
+        alert(text.redeemSuccess);
       }
     } catch (error) {
       if (error.response?.status === 404) {
-        alert('兑换码无效或已过期');
+        alert(text.invalidCode);
       } else {
-        alert('兑换失败，请稍后重试');
+        alert(text.redeemFailed);
       }
       console.error('Redeem error:', error);
     } finally {
@@ -68,7 +99,6 @@ const Roulette = ({ defaultExpanded = false }) => {
 
   const handleCardClick = (idx) => {
     if (!flipped[idx]) {
-      // Flip the card if not already flipped
       setSelected(idx);
       if (rouletteData[idx] && rouletteData[idx].id !== undefined) {
         sessionStorage.setItem('avatarId', rouletteData[idx].id);
@@ -80,7 +110,6 @@ const Roulette = ({ defaultExpanded = false }) => {
         return next;
       });
     } else {
-      // Select the card if already flipped
       setSelected(idx);
       if (rouletteData[idx] && rouletteData[idx].id !== undefined) {
         sessionStorage.setItem('avatarId', rouletteData[idx].id);
@@ -92,24 +121,24 @@ const Roulette = ({ defaultExpanded = false }) => {
   return (
     <div className="roulette-container">
       <div className="roulette-header" onClick={toggleExpand}>
-        <h3>莫名其妙的抽卡</h3>
+        <h3>{text.title}</h3>
         <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>{isExpanded ? '▼' : '▶'}</span>
       </div>
       {isExpanded && (
         <div className="roulette-content">
           <div className="roulette-textfield">
-            可以挑一个头像（当然也可以直接进游戏）
+            {text.description}
           </div>
           {loading ? (
-            <div>加载中...</div>
+            <div>{text.loading}</div>
           ) : error ? (
             <div style={{ color: 'red' }}>{error}</div>
           ) : (
             initialAvatarId && selected === null ? (
               <div className="roulette-textfield">
-                你已经抽过了……
+                {text.alreadyPicked}
               </div>
-            ) : 
+            ) :
             (
               <div className="roulette-card-grid">
                 {rouletteData.map((char, idx) => {
@@ -129,7 +158,6 @@ const Roulette = ({ defaultExpanded = false }) => {
                           />
                         </div>
                       </div>
-                      {/* Bottom corners for selected style */}
                       {selected === idx && (
                         <>
                           <div className="corner bl" />
@@ -147,25 +175,25 @@ const Roulette = ({ defaultExpanded = false }) => {
               setSelected(null);
               sessionStorage.setItem('avatarId', 0);
             }}>
-              取消选择
+              {text.cancel}
             </button>
           )}
           <div className="roulette-exchange-section">
-            <input 
-              type="text" 
-              placeholder="头像兑换码" 
+            <input
+              type="text"
+              placeholder={text.redeemPlaceholder}
               className="roulette-exchange-input"
               value={redeemCode}
               onChange={(e) => setRedeemCode(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleRedeem()}
+              onKeyDown={(e) => e.key === 'Enter' && handleRedeem()}
               disabled={redeeming}
             />
-            <button 
+            <button
               className="roulette-exchange-btn"
               onClick={handleRedeem}
               disabled={redeeming}
             >
-              {redeeming ? '兑换中...' : '兑换'}
+              {redeeming ? text.redeeming : text.redeem}
             </button>
           </div>
         </div>
@@ -175,4 +203,3 @@ const Roulette = ({ defaultExpanded = false }) => {
 };
 
 export default Roulette;
-

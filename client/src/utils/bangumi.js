@@ -53,7 +53,8 @@ async function getSubjectDetails(subjectId) {
     }
 
     return {
-      name: response.data.name_cn || response.data.name,
+      name: response.data.name,
+      nameCn: response.data.name_cn || response.data.name,
       year,
       tags,
       raw_tags: response.data.tags,
@@ -212,6 +213,7 @@ async function getCharacterAppearances(characterId, gameSettings) {
           return {
             id: appearance.id,
             name: details.name,
+            nameCn: details.nameCn,
             rating_count: details.rating_count
           };
 
@@ -271,12 +273,14 @@ async function getCharacterAppearances(characterId, gameSettings) {
     }
 
     const appearanceNames = [];
+    const appearanceNamesCn = [];
     const appearanceIds = [];
     
     appearances.filter(appearance => appearance !== null)
       .sort((a, b) => b.rating_count - a.rating_count)
       .forEach(appearance => {
         appearanceNames.push(appearance.name);
+        appearanceNamesCn.push(appearance.nameCn || appearance.name);
         appearanceIds.push(appearance.id);
       });
 
@@ -296,6 +300,7 @@ async function getCharacterAppearances(characterId, gameSettings) {
     }
     return {
       appearances: appearanceNames,
+      appearancesCn: appearanceNamesCn,
       appearanceIds: appearanceIds,
       latestAppearance,
       earliestAppearance,
@@ -638,9 +643,15 @@ function generateFeedback(guess, answerCharacter, gameSettings) {
   };
 
   const sharedAppearances = guess.appearances.filter(appearance => answerCharacter.appearances.includes(appearance));
+  const answerAppearanceIdSet = new Set(answerCharacter.appearanceIds || []);
+  const sharedAppearanceIndexes = (guess.appearanceIds || [])
+    .map((id, index) => ({ id, index }))
+    .filter(({ id }) => answerAppearanceIdSet.has(id));
   result.shared_appearances = {
     first: sharedAppearances[0] || '',
-    count: sharedAppearances.length
+    firstOriginal: sharedAppearanceIndexes.length > 0 ? guess.appearances[sharedAppearanceIndexes[0].index] : '',
+    firstCn: sharedAppearanceIndexes.length > 0 ? (guess.appearancesCn?.[sharedAppearanceIndexes[0].index] || guess.appearances[sharedAppearanceIndexes[0].index]) : '',
+    count: sharedAppearanceIndexes.length || sharedAppearances.length
   };
 
   // Compare total number of appearances

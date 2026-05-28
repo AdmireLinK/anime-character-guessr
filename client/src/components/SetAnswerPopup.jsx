@@ -5,7 +5,35 @@ import '../styles/SetAnswerPopup.css';
 import { designateCharacter } from '../utils/bangumi';
 import { submitAnswerCharacterCount } from '../utils/db';
 
-const SetAnswerPopup = ({ onSetAnswer, gameSettings }) => {
+const SET_ANSWER_TEXT = {
+  zh: {
+    fetchFailed: '获取角色详情失败，请重试',
+    title: '请选择答案角色',
+    addHints: '添加提示',
+    disabled: '（未启用）',
+    hint: '提示',
+    hintAt: '在剩余',
+    hintAtSuffix: '次时出现',
+    hintPlaceholder: (index) => `输入第${index}条提示`,
+    submitting: '提交中...',
+    confirm: '确认'
+  },
+  en: {
+    fetchFailed: 'Failed to load character details. Please try again.',
+    title: 'Select a Character as Answer',
+    addHints: 'Add Hints',
+    disabled: ' (disabled)',
+    hint: 'Hint',
+    hintAt: 'shown at',
+    hintAtSuffix: 'guesses left',
+    hintPlaceholder: (index) => `Enter hint ${index}`,
+    submitting: 'Submitting...',
+    confirm: 'Confirm'
+  }
+};
+
+const SetAnswerPopup = ({ onSetAnswer, gameSettings, locale = 'zh' }) => {
+  const text = SET_ANSWER_TEXT[locale] || SET_ANSWER_TEXT.zh;
   const [selectedCharacter, setSelectedCharacter] = useState(null);
   const [hints, setHints] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,7 +66,7 @@ const SetAnswerPopup = ({ onSetAnswer, gameSettings }) => {
         });
       } catch (error) {
         console.error('Failed to get character details:', error);
-        alert('获取角色详情失败，请重试');
+        alert(text.fetchFailed);
       } finally {
         setIsSubmitting(false);
       }
@@ -48,34 +76,35 @@ const SetAnswerPopup = ({ onSetAnswer, gameSettings }) => {
   return (
     <div className="set-answer-popup-overlay">
       <div className="set-answer-popup">
-        <h2>请选择答案角色</h2>
+        <h2>{text.title}</h2>
         <div className="search-container">
           <SearchBar
             onCharacterSelect={handleCharacterSelect}
             isGuessing={false}
             gameEnd={false}
             subjectSearch={true}
+            locale={locale}
           />
         </div>
         {selectedCharacter && (
           <div className="selected-character">
             <Image src={selectedCharacter.image} alt={selectedCharacter.name} />
             <div className="character-info">
-              <div>{selectedCharacter.name}</div>
-              <div>{selectedCharacter.nameCn}</div>
+              <div translate="no">{selectedCharacter.name}</div>
+              <div>{locale === 'en' ? (selectedCharacter.nameEn || selectedCharacter.nameCn) : selectedCharacter.nameCn}</div>
             </div>
           </div>
         )}
         <div className="hints-container">
-          <h3>添加提示{Array.isArray(gameSettings.useHints) && gameSettings.useHints.length === 0 && '（未启用）'}</h3>
+          <h3>{text.addHints}{Array.isArray(gameSettings.useHints) && gameSettings.useHints.length === 0 && text.disabled}</h3>
           {Array.isArray(gameSettings.useHints) && gameSettings.useHints.length > 0 && gameSettings.useHints.map((val, idx) => (
             <div className="hint-input-group" key={idx}>
-              <label>提示{idx+1} (在剩余{val}次时出现):</label>
+              <label>{text.hint}{idx+1} ({text.hintAt} {val} {text.hintAtSuffix}):</label>
               <input
                 type="text"
                 value={hints[idx] || ''}
                 onChange={e => handleHintChange(idx, e.target.value)}
-                placeholder={`输入第${idx+1}条提示`}
+                placeholder={text.hintPlaceholder(idx + 1)}
                 maxLength={30}
               />
             </div>
@@ -86,7 +115,7 @@ const SetAnswerPopup = ({ onSetAnswer, gameSettings }) => {
           className="submit-button"
           disabled={!selectedCharacter || isSubmitting}
         >
-          {isSubmitting ? '提交中...' : '确认'}
+          {isSubmitting ? text.submitting : text.confirm}
         </button>
       </div>
     </div>

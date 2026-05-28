@@ -1,6 +1,19 @@
 import { useState } from 'react';
 import '../styles/UpdateAnnouncement.css';
 
+const UPDATE_ANNOUNCEMENT_TEXT = {
+  zh: {
+    title: '更新公告',
+    collapse: '收起 ▼',
+    expand: '展开 ▶'
+  },
+  en: {
+    title: 'Updates',
+    collapse: 'Collapse ▼',
+    expand: 'Expand ▶'
+  }
+};
+
 /**
  * 更新公告组件
  * @param {Object} props
@@ -11,8 +24,10 @@ import '../styles/UpdateAnnouncement.css';
 const UpdateAnnouncement = ({ 
   announcements, 
   defaultExpanded = false,
-  initialVisibleCount = 1
+  initialVisibleCount = 1,
+  locale = 'zh'
 }) => {
+  const text = UPDATE_ANNOUNCEMENT_TEXT[locale] || UPDATE_ANNOUNCEMENT_TEXT.zh;
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   // 如果没有公告，则不显示组件
@@ -28,9 +43,9 @@ const UpdateAnnouncement = ({
   return (
     <div className="update-announcement">
       <div className="update-header" onClick={toggleExpand}>
-        <h3>更新公告</h3>
+        <h3>{text.title}</h3>
         <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
-          {isExpanded ? '收起 ▼' : '展开 ▶'}
+          {isExpanded ? text.collapse : text.expand}
         </span>
       </div>
       

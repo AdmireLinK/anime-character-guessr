@@ -4,7 +4,30 @@ import { fetchLeaderboardCharacters } from '../data/leaderboard_characters';
 import { fetchLeaderboardGuesses, fetchLeaderboardWeekly } from '../data/leaderboard_guesses';
 import Image from './Image';
 
-const Leaderboard = ({ defaultExpanded = false }) => {
+const LEADERBOARD_TEXT = {
+  zh: {
+    guessesTitle: '大家都在猜（每周一4：00清空周榜）',
+    charactersTitle: '热门出题角色',
+    loading: '加载中...',
+    empty: '暂无数据',
+    total: '总计',
+    thisWeek: '本周',
+    times: '次'
+  },
+  en: {
+    guessesTitle: 'Most Guessed Characters',
+    charactersTitle: 'Most Set Answers',
+    loading: 'Loading...',
+    empty: 'No data',
+    total: 'Total',
+    thisWeek: 'This week',
+    times: ''
+  }
+};
+
+const Leaderboard = ({ defaultExpanded = false, locale = 'zh' }) => {
+  const text = LEADERBOARD_TEXT[locale] || LEADERBOARD_TEXT.zh;
+  const isEnglish = locale === 'en';
   const [isExpanded1, setIsExpanded1] = useState(defaultExpanded);
   const [isExpanded2, setIsExpanded2] = useState(defaultExpanded);
   const [characters1, setCharacters1] = useState([]);
@@ -19,7 +42,6 @@ const Leaderboard = ({ defaultExpanded = false }) => {
       fetchLeaderboardWeekly(30)
     ]).then(([guesses, characters, weekly]) => {
       if (mounted) {
-        // 将周榜数据合并到总榜中，通过link匹配
         const weeklyMap = new Map(weekly.map(w => [w.link, w.count]));
         const guessesWithWeekly = guesses.map(char => ({
           ...char,
@@ -35,26 +57,48 @@ const Leaderboard = ({ defaultExpanded = false }) => {
     return () => { mounted = false; };
   }, []);
 
-  // Podium: 2nd, 1st, 3rd (left, center, right)
+  const getCharacterDisplayName = (char) => {
+    return isEnglish ? (char.name || char.nameCn) : (char.nameCn || char.name);
+  };
+
+  const formatCount = (count, label = '') => {
+    if (isEnglish) {
+      return label ? `${label} ${count}` : `${count}`;
+    }
+    return label ? `${label} ${count}${text.times}` : `${count}${text.times}`;
+  };
+
   const podiumOrder1 = characters1.length >= 3 ? [characters1[1], characters1[0], characters1[2]] : [];
   const podiumOrder2 = characters2.length >= 3 ? [characters2[1], characters2[0], characters2[2]] : [];
 
   const toggleExpand1 = () => setIsExpanded1((prev) => !prev);
   const toggleExpand2 = () => setIsExpanded2((prev) => !prev);
 
+  const renderCharacterLink = (char, className) => (
+    <a
+      href={char.link}
+      className={`${className} podium-link`}
+      target="_blank"
+      rel="noopener noreferrer"
+      translate={isEnglish ? 'no' : undefined}
+    >
+      {getCharacterDisplayName(char)}
+    </a>
+  );
+
   return (
     <>
       <div className="leaderboard-container">
         <div className="leaderboard-header" onClick={toggleExpand1}>
-          <h3>大家都在猜（每周一4：00清空周榜）</h3>
+          <h3>{text.guessesTitle}</h3>
           <span className={`expand-icon ${isExpanded1 ? 'expanded' : ''}`}>{isExpanded1 ? '▼' : '▶'}</span>
         </div>
         {isExpanded1 && (
           <div className="leaderboard-content">
             {loading ? (
-              <div className="leaderboard-loading">加载中...</div>
+              <div className="leaderboard-loading">{text.loading}</div>
             ) : podiumOrder1.length === 0 ? (
-              <div className="leaderboard-empty">暂无数据</div>
+              <div className="leaderboard-empty">{text.empty}</div>
             ) : (
               <>
                 <div className="leaderboard-podium">
@@ -69,17 +113,10 @@ const Leaderboard = ({ defaultExpanded = false }) => {
                         className={`podium-image${char.rank === 1 ? ' podium-image-center' : ''}`}
                       />
                       <div className="podium-rank">#{char.rank}</div>
-                      <a
-                        href={char.link}
-                        className="podium-name podium-link"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {char.nameCn || char.name}
-                      </a>
+                      {renderCharacterLink(char, 'podium-name')}
                       <div className="podium-count">
-                        <span className="count-total">总计 {char.count}次</span>
-                        {char.weeklyCount > 0 && <span className="count-weekly">本周 {char.weeklyCount}次</span>}
+                        <span className="count-total">{formatCount(char.count, text.total)}</span>
+                        {char.weeklyCount > 0 && <span className="count-weekly">{formatCount(char.weeklyCount, text.thisWeek)}</span>}
                       </div>
                     </div>
                   ))}
@@ -89,16 +126,9 @@ const Leaderboard = ({ defaultExpanded = false }) => {
                     <div className="leaderboard-list-item" key={char.link || idx}>
                       <div className="list-rank">#{char.rank}</div>
                       <Image src={char.image} alt={char.name} className="list-image" />
-                      <a
-                        href={char.link}
-                        className="list-name podium-link"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {char.nameCn || char.name}
-                      </a>
+                      {renderCharacterLink(char, 'list-name')}
                       <div className="list-count">
-                        <span className="count-total">{char.count}次</span>
+                        <span className="count-total">{formatCount(char.count)}</span>
                         {char.weeklyCount > 0 && <span className="count-weekly">+{char.weeklyCount}</span>}
                       </div>
                     </div>
@@ -111,15 +141,15 @@ const Leaderboard = ({ defaultExpanded = false }) => {
       </div>
       <div className="leaderboard-container">
         <div className="leaderboard-header" onClick={toggleExpand2}>
-          <h3>热门出题角色</h3>
+          <h3>{text.charactersTitle}</h3>
           <span className={`expand-icon ${isExpanded2 ? 'expanded' : ''}`}>{isExpanded2 ? '▼' : '▶'}</span>
         </div>
         {isExpanded2 && (
           <div className="leaderboard-content">
             {loading ? (
-              <div className="leaderboard-loading">加载中...</div>
+              <div className="leaderboard-loading">{text.loading}</div>
             ) : podiumOrder2.length === 0 ? (
-              <div className="leaderboard-empty">暂无数据</div>
+              <div className="leaderboard-empty">{text.empty}</div>
             ) : (
               <>
                 <div className="leaderboard-podium">
@@ -134,15 +164,8 @@ const Leaderboard = ({ defaultExpanded = false }) => {
                         className={`podium-image${char.rank === 1 ? ' podium-image-center' : ''}`}
                       />
                       <div className="podium-rank">#{char.rank}</div>
-                      <a
-                        href={char.link}
-                        className="podium-name podium-link"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {char.nameCn || char.name}
-                      </a>
-                      <div className="podium-count">{char.count}次</div>
+                      {renderCharacterLink(char, 'podium-name')}
+                      <div className="podium-count">{formatCount(char.count)}</div>
                     </div>
                   ))}
                 </div>
@@ -151,15 +174,8 @@ const Leaderboard = ({ defaultExpanded = false }) => {
                     <div className="leaderboard-list-item" key={char.link || idx}>
                       <div className="list-rank">#{char.rank}</div>
                       <Image src={char.image} alt={char.name} className="list-image" />
-                      <a
-                        href={char.link}
-                        className="list-name podium-link"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {char.nameCn || char.name}
-                      </a>
-                      <div className="list-count">{char.count}次</div>
+                      {renderCharacterLink(char, 'list-name')}
+                      <div className="list-count">{formatCount(char.count)}</div>
                     </div>
                   ))}
                 </div>
@@ -172,4 +188,4 @@ const Leaderboard = ({ defaultExpanded = false }) => {
   );
 };
 
-export default Leaderboard; 
+export default Leaderboard;

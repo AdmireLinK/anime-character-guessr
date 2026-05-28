@@ -6,7 +6,55 @@ import { submitGuessCharacterCount } from '../utils/db';
 
 const API_BASE_URL = import.meta.env.VITE_BGM_API_URL || 'https://api.bgm.tv';
 
-function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, finishInit = true }) {
+const SEARCH_TEXT = {
+  zh: {
+    searchCharacters: '搜索想猜的角色...',
+    searchSubjects: '搜索想猜的作品...',
+    searching: '搜索中...',
+    loadingCharacters: '加载角色中...',
+    noImage: '无图片',
+    back: '返回',
+    loadingMore: '加载中...',
+    more: '更多',
+    searchingButton: '在搜了...',
+    guessingButton: '在猜了...',
+    characterButton: '搜角色',
+    subjectButton: '搜作品'
+  },
+  en: {
+    searchCharacters: 'Search characters...',
+    searchSubjects: 'Search works...',
+    searching: 'Searching...',
+    loadingCharacters: 'Loading characters...',
+    noImage: 'No image',
+    back: 'Back',
+    loadingMore: 'Loading...',
+    more: 'More',
+    searchingButton: 'Searching...',
+    guessingButton: 'Guessing...',
+    characterButton: 'Char',
+    subjectButton: 'Work'
+  }
+};
+
+const SUBJECT_TYPE_LABELS = {
+  en: {
+    动漫: 'Anime',
+    游戏: 'Game',
+    书籍: 'Novel',
+    三次元: 'Media'
+  },
+  zh: {
+    动漫: '动漫',
+    游戏: '游戏',
+    书籍: '书籍',
+    三次元: '三次元'
+  }
+};
+
+function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, finishInit = true, locale = 'zh' }) {
+  const text = SEARCH_TEXT[locale] || SEARCH_TEXT.zh;
+  const getSubjectTypeLabel = (type) => SUBJECT_TYPE_LABELS[locale]?.[type] || type;
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -264,6 +312,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
           image: character.images?.grid,
           name: character.name,
           nameCn: details.nameCn,
+          nameEn: details.nameEn,
           gender: details.gender,
           popularity: details.popularity
         };
@@ -302,7 +351,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
       return (
         <div className="search-dropdown" ref={searchDropdownRef}>
           {isSearching ? (
-            <div className="search-loading">搜索中...</div>
+            <div className="search-loading">{text.searching}</div>
           ) : (
             searchResults.map((subject, index) => (
               <div
@@ -319,13 +368,15 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
                   />
                 ) : (
                   <div className="result-character-icon no-image">
-                    无图片
+                    {text.noImage}
                   </div>
                 )}
                 <div className="result-character-info">
                   <div className="result-character-name">{subject.name}</div>
-                  <div className="result-character-name-cn">{subject.name_cn}</div>
-                  <div className="result-subject-type">{subject.type}</div>
+                  {locale !== 'en' && (
+                    <div className="result-character-name-cn">{subject.name_cn}</div>
+                  )}
+                  <div className="result-subject-type">{getSubjectTypeLabel(subject.type)}</div>
                 </div>
               </div>
             ))
@@ -338,7 +389,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
       <div className="search-dropdown" ref={searchDropdownRef}>
         {selectedSubject && (
           <div className="selected-subject-header">
-            <span>{selectedSubject.name_cn || selectedSubject.name}</span>
+            <span>{locale === 'en' ? selectedSubject.name : (selectedSubject.name_cn || selectedSubject.name)}</span>
             <button 
               className="back-to-subjects"
               onClick={() => {
@@ -346,12 +397,12 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
                 handleSubjectSearch();
               }}
             >
-              返回
+              {text.back}
             </button>
           </div>
         )}
         {isSearching ? (
-          <div className="search-loading">加载角色中...</div>
+          <div className="search-loading">{text.loadingCharacters}</div>
         ) : (
           <>
             {searchResults.map((character, index) => (
@@ -369,12 +420,17 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
                   />
                 ) : (
                   <div className="result-character-icon no-image">
-                    无图片
+                    {text.noImage}
                   </div>
                 )}
                 <div className="result-character-info">
-                  <div className="result-character-name">{character.name}</div>
-                  <div className="result-character-name-cn">{character.nameCn}</div>
+                  <div className="result-character-name" translate="no">{character.name}</div>
+                  <div
+                    className="result-character-name-cn"
+                    translate={locale === 'en' && character.nameEn && character.nameEn !== character.nameCn ? 'no' : undefined}
+                  >
+                    {locale === 'en' ? (character.nameEn || character.nameCn) : character.nameCn}
+                  </div>
                 </div>
               </div>
             ))}
@@ -384,7 +440,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
                 onClick={handleLoadMore}
                 ref={selectedItemIndex === searchResults.length ? selectedItemRef : null}
               >
-                {isLoadingMore ? '加载中...' : '更多'}
+                {isLoadingMore ? text.loadingMore : text.more}
               </div>
             )}
           </>
@@ -403,7 +459,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             disabled={isGuessing || gameEnd || !finishInit}
-            placeholder={searchMode === 'character' ? "搜索想猜的角色..." : "搜索想猜的作品..."}
+            placeholder={searchMode === 'character' ? text.searchCharacters : text.searchSubjects}
             ref={searchInputRef}
           />
           {renderSearchResults()}
@@ -416,7 +472,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
           }}
           disabled={!searchQuery.trim() || isSearching || isGuessing || gameEnd || !finishInit}
         >
-          {isSearching && searchMode === 'character' ? '在搜了...' : isGuessing ? '在猜了...' : '搜角色'}
+          {isSearching && searchMode === 'character' ? text.searchingButton : isGuessing ? text.guessingButton : text.characterButton}
         </button>
         {subjectSearch && (
           <button 
@@ -427,7 +483,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
             }}
             disabled={!searchQuery.trim() || isSearching || isGuessing || gameEnd || !finishInit}
           >
-            {isSearching && searchMode === 'subject' ? '在搜了...' : '搜作品'}
+            {isSearching && searchMode === 'subject' ? text.searchingButton : text.subjectButton}
           </button>
         )}
       </div>

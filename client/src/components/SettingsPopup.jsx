@@ -23,7 +23,254 @@ const ToggleSwitch = ({ checked, onChange, disabled }) => (
   </div>
 );
 
-function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hideRestart = false, isMultiplayer = false }) {
+const PRESET_KEYS = ['入门', '冻鳗高手', '老番享受者', '瓶子严选', '木柜子痴', '二游高手', '米哈游高手', 'MOBA糕手'];
+
+const CATEGORY_OPTIONS = [
+  { value: '全部', zh: '全部分类', en: 'All categories' },
+  { value: '游戏', zh: '游戏', en: 'Games' },
+  { value: '书籍', zh: '书籍', en: 'Books' },
+  { value: '三次元', zh: '三次元', en: 'Live action' },
+  { value: '', zh: '全部动画', en: 'All anime' },
+  { value: 'TV', zh: 'TV', en: 'TV' },
+  { value: 'Galgame', zh: 'Galgame', en: 'Galgame' },
+  { value: 'WEB', zh: 'WEB', en: 'WEB' },
+  { value: 'OVA', zh: 'OVA', en: 'OVA' },
+  { value: '剧场版', zh: '剧场版', en: 'Movie' },
+  { value: '动态漫画', zh: '动态漫画', en: 'Motion comic' },
+  { value: '其他', zh: '其他', en: 'Other' }
+];
+
+const SOURCE_OPTIONS = [
+  { value: '', zh: '全部来源', en: 'All sources' },
+  { value: '原创', zh: '原创', en: 'Original' },
+  { value: '漫画改', zh: '漫画改', en: 'Manga adaptation' },
+  { value: '游戏改', zh: '游戏改', en: 'Game adaptation' },
+  { value: '小说改', zh: '小说改', en: 'Novel adaptation' }
+];
+
+const GENRE_OPTIONS = [
+  { value: '', zh: '全部类型', en: 'All genres' },
+  { value: '科幻', zh: '科幻', en: 'Sci-fi' },
+  { value: '喜剧', zh: '喜剧', en: 'Comedy' },
+  { value: '百合', zh: '百合', en: 'Yuri' },
+  { value: '校园', zh: '校园', en: 'School' },
+  { value: '惊悚', zh: '惊悚', en: 'Thriller' },
+  { value: '后宫', zh: '后宫', en: 'Harem' },
+  { value: '机战', zh: '机战', en: 'Mecha' },
+  { value: '悬疑', zh: '悬疑', en: 'Mystery' },
+  { value: '恋爱', zh: '恋爱', en: 'Romance' },
+  { value: '奇幻', zh: '奇幻', en: 'Fantasy' },
+  { value: '推理', zh: '推理', en: 'Detective' },
+  { value: '运动', zh: '运动', en: 'Sports' },
+  { value: '耽美', zh: '耽美', en: 'BL' },
+  { value: '音乐', zh: '音乐', en: 'Music' },
+  { value: '战斗', zh: '战斗', en: 'Action' },
+  { value: '冒险', zh: '冒险', en: 'Adventure' },
+  { value: '萌系', zh: '萌系', en: 'Moe' },
+  { value: '穿越', zh: '穿越', en: 'Isekai' },
+  { value: '玄幻', zh: '玄幻', en: 'Xuanhuan' },
+  { value: '乙女', zh: '乙女', en: 'Otome' },
+  { value: '恐怖', zh: '恐怖', en: 'Horror' },
+  { value: '历史', zh: '历史', en: 'History' },
+  { value: '日常', zh: '日常', en: 'Slice of life' },
+  { value: '剧情', zh: '剧情', en: 'Drama' },
+  { value: '武侠', zh: '武侠', en: 'Wuxia' },
+  { value: '美食', zh: '美食', en: 'Food' },
+  { value: '职场', zh: '职场', en: 'Workplace' }
+];
+
+const SUBJECT_TYPE_LABELS = {
+  en: {
+    动漫: 'Anime',
+    游戏: 'Game',
+    书籍: 'Novel',
+    三次元: 'Media'
+  },
+  zh: {
+    动漫: '动漫',
+    游戏: '游戏',
+    书籍: '书籍',
+    三次元: '三次元'
+  }
+};
+
+const SETTINGS_TEXT = {
+  zh: {
+    title: '设置',
+    subtitle: '将鼠标移到各设置的标签上可以看到提示，移到输入框上可以看到数值范围',
+    clearCache: '清空缓存',
+    close: '关闭',
+    confirm: '确认修改',
+    cacheCleared: '缓存已清空！',
+    indexRequired: '请输入目录ID',
+    indexNotFound: '目录不存在或者FIFA了',
+    importFailed: '导入失败，请稍后重试',
+    settingsImported: '设置已导入！',
+    invalidJson: '导入失败无效的JSON文件',
+    multiplayerTitle: '多人模式',
+    multiplayerSubtitle: '这些模式可以自由组合出2⁴=16种模式',
+    globalPickTitle: '角色全局BP',
+    globalPickDesc: '角色只能被猜一次',
+    tagBanTitle: '标签全局BP',
+    tagBanDesc: '命中的标签会对别的玩家隐藏',
+    syncModeTitle: '同步模式',
+    syncModeDesc: '全员猜完才进下一轮',
+    nonstopModeTitle: '血战模式',
+    nonstopModeDesc: '直到最后一人猜对或次数耗尽',
+    presetTitle: '预设配置',
+    presetSubtitle: '我们准备了一些开箱即用的难度配置，您可以直接选用',
+    exportConfig: '导出配置',
+    importConfig: '导入配置',
+    guessTitle: '猜测设置',
+    guessSubtitle: '影响和玩家猜测有关的内容',
+    subjectSearch: '搜索作品',
+    subjectSearchTitle: '开启后，猜测时可以搜索一个作品中所有人物并从中选择',
+    maxAttempts: '猜测次数（次）',
+    maxAttemptsTitle: '一名玩家一局游戏能猜测的次数',
+    timeLimit: '时间限制（秒/轮）',
+    timeLimitTitle: '每轮猜测的限制时间，设为0或留空时关闭',
+    range: '数值范围',
+    textHints: '文本提示（剩x轮）',
+    textHintsTitle: '剩余x轮时显示一次文本提示，从左到右填入从大到小的数值，留空或为0时关闭',
+    imageHint: '图片提示（剩x轮）',
+    imageHintTitle: '剩余x轮时显示图片提示，留空或为0时关闭。',
+    answerTitle: '答案设置',
+    answerSubtitle: '影响和答案角色有关的内容',
+    subjectFilter: '作品筛选',
+    subjectFilterTitle: "这行选项同时会影响登场作品的信息\n比如不想让剧场版计入登场数据，可以只勾选'TV'。\n当'使用目录'生效时，这行选项不会影响正确答案的抽取，只会影响表格内显示的信息。",
+    yearRange: '年份范围',
+    unavailableWithIndex: '开启目录时不可用',
+    popularityRange: '热度范围',
+    popularityTitle: '使用年榜时会先抽取某一年份，再从中抽取作品。\n削弱了新番热度的影响。\n利好老二次元！\n开启目录时不可用',
+    totalRank: '总榜',
+    yearlyRank: '年榜',
+    disabledByIndex: '使用目录时不可切换',
+    topN: '前N部',
+    worksUnit: '部',
+    characterCount: '角色数量',
+    characterCountTitle: '作品中至少有多少名角色，设为0或留空时仅包含主角',
+    characterCountPlaceholder: '角色数量',
+    mainOnly: '仅主角',
+    tagCount: '标签数量',
+    tagCountTitle: '猜测时显示的来自作品和角色的标签数量',
+    character: '角色',
+    subject: '作品',
+    useIndex: '使用目录',
+    useIndexTitle: '勾选时，正确答案只会从目录（+额外作品）中抽取。\n目录id为bangumi.tv/index/目录id',
+    indexId: '目录ID',
+    import: '导入',
+    extraSubjects: '额外作品',
+    searchSubjects: '搜索作品...',
+    searching: '搜索中...',
+    totalWorks: (count) => `共 ${count} 部作品`,
+    removeIndex: '移除目录',
+    footerHint: '*设置改动点了才会生效！否则下一把生效',
+    presetMessages: {
+      二游高手: '那很有生活了😅',
+      MOBA糕手: '风暴要火'
+    },
+    presets: {
+      入门: '入门',
+      冻鳗高手: '冻鳗高手',
+      老番享受者: '老番享受者',
+      瓶子严选: '瓶子严选',
+      木柜子痴: '木柜子痴',
+      二游高手: '二游高手',
+      米哈游高手: '米哈游高高手',
+      MOBA糕手: 'MOBA糕手'
+    }
+  },
+  en: {
+    title: 'Settings',
+    subtitle: 'Hover over labels for details and over inputs for valid ranges',
+    clearCache: 'Clear cache',
+    close: 'Close',
+    confirm: 'Apply changes',
+    cacheCleared: 'Cache cleared.',
+    indexRequired: 'Please enter an index ID.',
+    indexNotFound: 'Index not found or unavailable.',
+    importFailed: 'Import failed. Please try again later.',
+    settingsImported: 'Settings imported.',
+    invalidJson: 'Import failed: invalid JSON file.',
+    multiplayerTitle: 'Multiplayer Modes',
+    multiplayerSubtitle: 'These modes can be freely combined into 16 variants',
+    globalPickTitle: 'Global Character Ban',
+    globalPickDesc: 'Each character can only be guessed once',
+    tagBanTitle: 'Global Tag Ban',
+    tagBanDesc: 'Matched tags are hidden from other players',
+    syncModeTitle: 'Sync Mode',
+    syncModeDesc: 'Next round starts after everyone makes their guess',
+    nonstopModeTitle: 'Endless Mode',
+    nonstopModeDesc: 'Continue until the last player finishes',
+    presetTitle: 'Presets',
+    presetSubtitle: 'Expand tabs below to check details.',
+    exportConfig: 'Export Config',
+    importConfig: 'Import Config',
+    guessTitle: 'Guess Settings',
+    guessSubtitle: 'Controls related to player guesses',
+    subjectSearch: 'Allow Work Search',
+    subjectSearchTitle: 'When enabled, you can search a work then choose one of its characters',
+    maxAttempts: 'Attempts',
+    maxAttemptsTitle: 'How many guesses a player gets in one game',
+    timeLimit: 'Time Limit (sec/round)',
+    timeLimitTitle: 'Per-round time limit. Use 0 or leave blank to disable',
+    range: 'Range',
+    textHints: 'Text Hints (at x left)',
+    textHintsTitle: 'Show a text hint when x guesses remain. Fill from left to right in descending order; blank or 0 disables.',
+    imageHint: 'Image Hint (at x left)',
+    imageHintTitle: 'Show an image hint when x guesses remain. Blank or 0 disables.',
+    answerTitle: 'Answer Settings',
+    answerSubtitle: 'Controls related to answer characters',
+    subjectFilter: 'Subject Filter',
+    subjectFilterTitle: "These options also affect appearance data.\nFor example, select only 'TV' if you do not want movies counted in appearance data.\nWhen 'Use Index' is enabled, this does not affect answer selection, only table data.",
+    yearRange: 'Year Range',
+    unavailableWithIndex: 'Unavailable when using an index',
+    popularityRange: 'Subject Pool Size',
+    popularityTitle: 'Yearly ranking first picks a year, then picks works from that year.\nThis reduces the influence of newer seasonal anime.\nUnavailable when using an index.',
+    totalRank: 'All-time',
+    yearlyRank: 'Per-year',
+    disabledByIndex: 'Cannot switch while using an index',
+    topN: 'Top N works',
+    worksUnit: 'works',
+    characterCount: 'Character Count',
+    characterCountTitle: 'Minimum number of characters in a work. Use 0 or blank to include only main characters.',
+    characterCountPlaceholder: 'Characters',
+    mainOnly: 'Main characters only',
+    tagCount: 'Tag Count',
+    tagCountTitle: 'Number of work and character tags shown for each guess',
+    character: 'Character',
+    subject: 'Subject',
+    useIndex: 'Use Index',
+    useIndexTitle: 'When enabled, the correct answer is drawn only from the index plus extra works.\nIndex ID comes from bangumi.tv/index/{id}',
+    indexId: 'Index ID',
+    import: 'Import',
+    extraSubjects: 'Extra Subjects',
+    searchSubjects: 'Search subjects...',
+    searching: 'Searching...',
+    totalWorks: (count) => `${count} subjects`,
+    removeIndex: 'Remove index',
+    footerHint: '*Changes only take effect after applying settings; otherwise they apply next game',
+    presetMessages: {
+      二游高手: 'That is quite a lifestyle.',
+      MOBA糕手: 'The storm is coming.'
+    },
+    presets: {
+      入门: 'Beginner',
+      冻鳗高手: 'Anime Expert',
+      老番享受者: 'Classic Anime',
+      瓶子严选: 'Niu\'s Picks',
+      木柜子痴: 'Girls Bands',
+      二游高手: 'Gacha Game Lover',
+      米哈游高手: 'HoYoverse Fan',
+      MOBA糕手: 'MOBA Expert'
+    }
+  }
+};
+
+function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hideRestart = false, isMultiplayer = false, locale = 'zh' }) {
+  const text = SETTINGS_TEXT[locale] || SETTINGS_TEXT.zh;
+  const optionLabel = (option) => option[locale] || option.zh;
+  const getSubjectTypeLabel = (type) => SUBJECT_TYPE_LABELS[locale]?.[type] || type;
   const [indexInputValue, setIndexInputValue] = useState('');
   const [indexInfo, setIndexInfo] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,9 +360,9 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
     } catch (error) {
       console.error('Failed to fetch index info:', error);
       if (error.message === 'Index not found') {
-        alert('目录不存在或者FIFA了');
+        alert(text.indexNotFound);
       } else {
-        alert('导入失败，请稍后重试');
+        alert(text.importFailed);
       }
       // Reset index settings on error
       onSettingsChange('useIndex', false);
@@ -127,7 +374,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
 
   const handleImport = async () => {
     if (!indexInputValue) {
-      alert('请输入目录ID');
+      alert(text.indexRequired);
       return;
     }
     try {
@@ -139,9 +386,9 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
     } catch (error) {
       console.error('Failed to fetch index info:', error);
       if (error.message === 'Index not found') {
-        alert('目录不存在或者FIFA了');
+        alert(text.indexNotFound);
       } else {
-        alert('导入失败，请稍后重试');
+        alert(text.importFailed);
       }
       // Reset index settings on error
       onSettingsChange('useIndex', false);
@@ -191,7 +438,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
 
   const handleClearCache = () => {
     axiosCache.clearCache();
-    alert('缓存已清空！');
+    alert(text.cacheCleared);
   }
 
   const applyPresetConfig = async (presetName) => {
@@ -224,7 +471,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
     if (isMultiplayer) {
       const keysToCommit = ['globalPick', 'tagBan', 'syncMode', 'nonstopMode'];
       keysToCommit.forEach((key) => {
-        if (localSettings.hasOwnProperty(key)) onSettingsChange(key, localSettings[key]);
+        if (Object.prototype.hasOwnProperty.call(localSettings, key)) onSettingsChange(key, localSettings[key]);
       });
     }
     // 在确认时触发重启（如果提供），并关闭弹窗
@@ -237,17 +484,17 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
       <div className="popup-content settings-popup">
         <div className="popup-header group-header" style={{ justifyContent: 'space-between', borderBottom: '1px solid #e5e7eb' }}>
           <div style={{ display: 'flex'}}>
-            <h2 style={{ margin: 0 }}>设置</h2>
-            <div className="header-subtitle" style={{ alignSelf: 'flex-end' }}>将鼠标移到各设置的标签上可以看到提示，移到输入框上可以看到数值范围</div>
+            <h2 style={{ margin: 0 }}>{text.title}</h2>
+            <div className="header-subtitle" style={{ alignSelf: 'flex-end' }}>{text.subtitle}</div>
           </div>
             <div className="header-actions">
-            <button className="header-btn clear" onClick={handleClearCache} title="清空缓存">
+            <button className="header-btn clear" onClick={handleClearCache} title={text.clearCache}>
               <i className="fas fa-trash"></i>
             </button>
-            <button className="header-btn close" onClick={handleClose} title="关闭">
+            <button className="header-btn close" onClick={handleClose} title={text.close}>
               <i className="fas fa-xmark"></i>
             </button>
-            <button className="header-btn confirm" onClick={handleConfirm} title="确认修改">
+            <button className="header-btn confirm" onClick={handleConfirm} title={text.confirm}>
               <i className="fas fa-check"></i>
             </button>
             </div>
@@ -259,8 +506,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
             {isMultiplayer && (
               <div className="settings-group multiplayer-modes-group">
                 <div className="group-header">
-                    <h3 className="group-title">多人模式</h3>
-                    <div className="group-subtitle">这些模式可以自由组合出2⁴=16种模式</div>
+                    <h3 className="group-title">{text.multiplayerTitle}</h3>
+                    <div className="group-subtitle">{text.multiplayerSubtitle}</div>
                   </div>
                 <div className="multiplayer-modes-grid">
                   {/* 角色全局BP */}
@@ -268,8 +515,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                     className={`mode-card ${localSettings.globalPick ? 'active mode-red' : ''}`}
                     onClick={() => setLocalSettings(s => ({ ...s, globalPick: !s.globalPick }))}
                   >
-                    <span className="mode-title">角色全局BP</span>
-                    <p className="mode-desc">角色只能被猜一次</p>
+                    <span className="mode-title">{text.globalPickTitle}</span>
+                    <p className="mode-desc">{text.globalPickDesc}</p>
                   </div>
 
                   {/* 标签全局BP */}
@@ -277,8 +524,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                     className={`mode-card ${localSettings.tagBan ? 'active mode-orange' : ''}`}
                     onClick={() => setLocalSettings(s => ({ ...s, tagBan: !s.tagBan }))}
                   >
-                    <span className="mode-title">标签全局BP</span>
-                    <p className="mode-desc">命中的标签会对别的玩家隐藏</p>
+                    <span className="mode-title">{text.tagBanTitle}</span>
+                    <p className="mode-desc">{text.tagBanDesc}</p>
                   </div>
 
                   {/* 同步模式 */}
@@ -286,8 +533,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                     className={`mode-card ${localSettings.syncMode ? 'active mode-cyan' : ''}`}
                     onClick={() => setLocalSettings(s => ({ ...s, syncMode: !s.syncMode }))}
                   >
-                    <span className="mode-title">同步模式</span>
-                    <p className="mode-desc">全员猜完才进下一轮</p>
+                    <span className="mode-title">{text.syncModeTitle}</span>
+                    <p className="mode-desc">{text.syncModeDesc}</p>
                   </div>
 
                   {/* 血战模式 */}
@@ -295,8 +542,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                     className={`mode-card ${localSettings.nonstopMode ? 'active mode-pink' : ''}`}
                     onClick={() => setLocalSettings(s => ({ ...s, nonstopMode: !s.nonstopMode }))}
                   >
-                    <span className="mode-title">血战模式</span>
-                    <p className="mode-desc">直到最后一人猜对或次数耗尽</p>
+                    <span className="mode-title">{text.nonstopModeTitle}</span>
+                    <p className="mode-desc">{text.nonstopModeDesc}</p>
                   </div>
                 </div>
               </div>
@@ -305,8 +552,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
             {/* Group 1: Presets */}
             <div className="settings-group">
               <div className="group-header">
-                <h3 className="group-title">预设配置</h3>
-                <div className="group-subtitle">我们准备了一些开箱即用的难度配置，您可以直接选用</div>
+                <h3 className="group-title">{text.presetTitle}</h3>
+                <div className="group-subtitle">{text.presetSubtitle}</div>
                 <div className="group-header-actions">
                     <button
                     className="action-btn"
@@ -320,7 +567,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                         document.body.removeChild(dlAnchorElem);
                     }}
                     >
-                    <i className="fas fa-download"></i> 导出配置
+                    <i className="fas fa-download"></i> {text.exportConfig}
                     </button>
                     <button
                     className="action-btn"
@@ -338,9 +585,9 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                             Object.entries(imported).forEach(([key, value]) => {
                                 onSettingsChange(key, value);
                             });
-                            alert('设置已导入！');
+                            alert(text.settingsImported);
                             } catch (err) {
-                            alert('导入失败无效的JSON文件');
+                            alert(text.invalidJson);
                             }
                         };
                         reader.readAsText(file);
@@ -348,23 +595,22 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                         input.click();
                     }}
                     >
-                    <i className="fas fa-upload"></i> 导入配置
+                    <i className="fas fa-upload"></i> {text.importConfig}
                     </button>
                 </div>
               </div>
               <div className="presets-grid">
-                {['入门', '冻鳗高手', '老番享受者', '瓶子严选', '木柜子痴', '二游高手', '米哈游高手', 'MOBA糕手'].map(preset => (
+                {PRESET_KEYS.map(preset => (
                    <button 
                     key={preset}
                     className="preset-card"
                     onClick={() => {
                         if (preset === '木柜子痴') alert('😅');
-                        if (preset === '二游高手') alert('那很有生活了😅');
-                        if (preset === 'MOBA糕手') alert('风暴要火');
+                        if (text.presetMessages[preset]) alert(text.presetMessages[preset]);
                         applyPresetConfig(preset === '米哈游高手' ? '米哈游高手' : preset);
                     }}
                   >
-                    {preset === '米哈游高手' ? '米哈游高高手' : preset}
+                    {text.presets[preset] || preset}
                   </button>
                 ))}
               </div>
@@ -385,8 +631,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                    <h3 className="group-title">猜测设置</h3>
-                    <div className="group-subtitle">影响和玩家猜测有关的内容</div>
+                    <h3 className="group-title">{text.guessTitle}</h3>
+                    <div className="group-subtitle">{text.guessSubtitle}</div>
                 </div>
                 <i 
                     className="fas fa-chevron-down" 
@@ -402,7 +648,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
               {/* Row 1: Search, Rounds, Time */}
               <div className="settings-row compact-row">
                 <div className="setting-item-compact">
-                    <label className="settings-label" title="开启后，猜测时可以搜索一个作品中所有人物并从中选择">搜索作品</label>
+                    <label className="settings-label" title={text.subjectSearchTitle}>{text.subjectSearch}</label>
                     <ToggleSwitch 
                       checked={gameSettings.subjectSearch}
                       onChange={(val) => onSettingsChange('subjectSearch', val)}
@@ -410,8 +656,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                 </div>
 
                 <div className="setting-item-compact">
-                    <label className="settings-label" title="一名玩家一局游戏能猜测的次数"  style={{ marginLeft: "58.5px" }}>猜测次数（次）</label>
-                    <div className="compact-input-container" title="数值范围 1-15">
+                    <label className="settings-label" title={text.maxAttemptsTitle}  style={{ marginLeft: "58.5px" }}>{text.maxAttempts}</label>
+                    <div className="compact-input-container" title={`${text.range} 1-15`}>
                         <input 
                             className="compact-input"
                             type="number"
@@ -433,8 +679,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                 </div>
 
                 <div className="setting-item-compact">
-                    <label className="settings-label" title="每轮猜测的限制时间，设为0或留空时关闭" style={{ marginLeft: "1px" }}>时间限制（秒/轮）</label>
-                    <div className="compact-input-container" title="数值范围 0, 15-120" style={{ marginLeft: "1px" }}>
+                    <label className="settings-label" title={text.timeLimitTitle} style={{ marginLeft: "1px" }}>{text.timeLimit}</label>
+                    <div className="compact-input-container" title={`${text.range} 0, 15-120`} style={{ marginLeft: "1px" }}>
                         <input 
                             className={`compact-input ${!gameSettings.timeLimit ? 'is-disabled' : ''}`}
                             type="text"
@@ -466,9 +712,9 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
               {/* Row 2: Hints */}
               <div className="settings-row compact-row">
                 <div className="setting-item-compact">
-                    <label className="settings-label" title="剩余x轮时显示一次文本提示，从左到右填入从大到小的数值，留空或为0时关闭" style={{ marginLeft: "1px" }}>文本提示（剩x轮）</label>
+                    <label className="settings-label" title={text.textHintsTitle} style={{ marginLeft: "1px" }}>{text.textHints}</label>
                     {[0, 1, 2].map((idx) => (
-                        <div key={idx} className="compact-input-container" title={`数值范围 1-${gameSettings.maxAttempts || 15}`}>
+                        <div key={idx} className="compact-input-container" title={`${text.range} 1-${gameSettings.maxAttempts || 15}`}>
                             <input
                                 className={`compact-input ${(!hintInputs[idx] || hintInputs[idx] === '0') ? 'is-disabled' : ''}`}
                                 type="text"
@@ -513,8 +759,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                 </div>
 
                 <div className="setting-item-compact">
-                  <label className="settings-label" title={`剩余x轮时显示图片提示，留空或为0时关闭。数值范围 0-${gameSettings.maxAttempts || 15}`}>图片提示（剩x轮）</label>
-                  <div className="compact-input-container" title={`数值范围 0-${gameSettings.maxAttempts || 15}`}>
+                  <label className="settings-label" title={`${text.imageHintTitle} ${text.range} 0-${gameSettings.maxAttempts || 15}`}>{text.imageHint}</label>
+                  <div className="compact-input-container" title={`${text.range} 0-${gameSettings.maxAttempts || 15}`}>
                     <input 
                       className={`compact-input ${!gameSettings.useImageHint ? 'is-disabled' : ''}`}
                       type="number"
@@ -556,8 +802,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                    <h3 className="group-title">答案设置</h3>
-                    <div className="group-subtitle">影响和答案角色有关的内容</div>
+                    <h3 className="group-title">{text.answerTitle}</h3>
+                    <div className="group-subtitle">{text.answerSubtitle}</div>
                 </div>
                 <i 
                     className="fas fa-chevron-down" 
@@ -573,7 +819,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
               {/* Row 1: Subject Filter & Related Games */}
               <div className="settings-row compact-row">
                 <div className="setting-item-compact" style={{ gap: '16px' }}>
-                    <label className="settings-label" style={{ marginBottom: 0, whiteSpace: 'nowrap'}} title="这行选项同时会影响登场作品的信息&#10;比如不想让剧场版计入登场数据，可以只勾选'TV'。&#10;当'使用目录'生效时，这行选项不会影响正确答案的抽取，只会影响表格内显示的信息。">作品筛选</label>
+                    <label className="settings-label" style={{ marginBottom: 0, whiteSpace: 'nowrap'}} title={text.subjectFilterTitle}>{text.subjectFilter}</label>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <select 
                           className="settings-select"
@@ -589,18 +835,9 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                             onSettingsChange('metaTags', newMetaTags);
                           }}
                         >
-                          <option value="全部">全部分类</option>
-                          <option value="游戏">游戏</option>
-                          <option value="书籍">书籍</option>
-                          <option value="三次元">三次元</option>
-                          <option value="">全部动画</option>
-                          <option value="TV">TV</option>
-                          <option value="Galgame">Galgame</option>
-                          <option value="WEB">WEB</option>
-                          <option value="OVA">OVA</option>
-                          <option value="剧场版">剧场版</option>
-                          <option value="动态漫画">动态漫画</option>
-                          <option value="其他">其他</option>
+                          {CATEGORY_OPTIONS.map(option => (
+                            <option key={option.value || 'anime'} value={option.value}>{optionLabel(option)}</option>
+                          ))}
                         </select>
 
                         <select 
@@ -613,11 +850,9 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                             onSettingsChange('metaTags', newMetaTags);
                           }}
                         >
-                          <option value="">全部来源</option>
-                          <option value="原创">原创</option>
-                          <option value="漫画改">漫画改</option>
-                          <option value="游戏改">游戏改</option>
-                          <option value="小说改">小说改</option>
+                          {SOURCE_OPTIONS.map(option => (
+                            <option key={option.value || 'all-source'} value={option.value}>{optionLabel(option)}</option>
+                          ))}
                         </select>
 
                         <select 
@@ -630,53 +865,20 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                             onSettingsChange('metaTags', newMetaTags);
                           }}
                         >
-                          <option value="">全部类型</option>
-                          <option value="科幻">科幻</option>
-                          <option value="喜剧">喜剧</option>
-                          <option value="百合">百合</option>
-                          <option value="校园">校园</option>
-                          <option value="惊悚">惊悚</option>
-                          <option value="后宫">后宫</option>
-                          <option value="机战">机战</option>
-                          <option value="悬疑">悬疑</option>
-                          <option value="恋爱">恋爱</option>
-                          <option value="奇幻">奇幻</option>
-                          <option value="推理">推理</option>
-                          <option value="运动">运动</option>
-                          <option value="耽美">耽美</option>
-                          <option value="音乐">音乐</option>
-                          <option value="战斗">战斗</option>
-                          <option value="冒险">冒险</option>
-                          <option value="萌系">萌系</option>
-                          <option value="穿越">穿越</option>
-                          <option value="玄幻">玄幻</option>
-                          <option value="乙女">乙女</option>
-                          <option value="恐怖">恐怖</option>
-                          <option value="历史">历史</option>
-                          <option value="日常">日常</option>
-                          <option value="剧情">剧情</option>
-                          <option value="武侠">武侠</option>
-                          <option value="美食">美食</option>
-                          <option value="职场">职场</option>
+                          {GENRE_OPTIONS.map(option => (
+                            <option key={option.value || 'all-genre'} value={option.value}>{optionLabel(option)}</option>
+                          ))}
                         </select>
                     </div>
                 </div>
-
-                {/* <div className="setting-item-compact" style={{gap: '8px' }}>
-                    <label className="settings-label" title="计算登场作品（年份、分数）时会包括游戏。&#10;但是，答案角色还是只会从动画中选取，因为游戏的热度榜有bug。&#10;如果想要猜游戏角色，可以自创一个目录或者添加额外作品。">包含游戏作品数据</label>
-                    <ToggleSwitch 
-                        checked={gameSettings.includeGame}
-                        onChange={(val) => onSettingsChange('includeGame', val)}
-                    />
-                </div> */}
               </div>
 
-              {/* Row 2: Year Range & Popularity Range */}
+              {/* Row 2: Year Range */}
               <div className="settings-row compact-row">
                 <div className="setting-item-compact" style={{ gap: '16px' }}>
-                    <label className="settings-label" title="开启目录时不可用">年份范围</label>
+                    <label className="settings-label" title={text.unavailableWithIndex}>{text.yearRange}</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <div className="compact-input-container" style={{ width: '78px' }} title="数值范围1800-2038">
+                        <div className="compact-input-container" style={{ width: '78px' }} title={`${text.range} 1800-2038`}>
                             <input 
                               className="compact-input"
                               type="number" 
@@ -697,7 +899,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                             />
                         </div>
                         <span>-</span>
-                        <div className="compact-input-container" style={{ width: '78px' }} title="数值范围1900-2038">
+                        <div className="compact-input-container" style={{ width: '78px' }} title={`${text.range} 1900-2038`}>
                             <input 
                               className="compact-input"
                               type="number" 
@@ -719,26 +921,29 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                         </div>
                     </div>
                 </div>
+              </div>
 
-                <div className="setting-item-compact offset-md" style={{ gap: '16px' }}>
-                    <label className="settings-label" title="使用年榜时会先抽取某一年份，再从中抽取作品。&#10;削弱了新番热度的影响。&#10;利好老二次元！&#10;开启目录时不可用">热度范围</label>
+              {/* Row 3: Popularity Range */}
+              <div className="settings-row compact-row">
+                <div className="setting-item-compact" style={{ gap: '16px' }}>
+                    <label className="settings-label" title={text.popularityTitle}>{text.popularityRange}</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div className="toggle-text-switch">
                             <span 
                                 className={!gameSettings.useSubjectPerYear ? 'active' : ''} 
                                 onClick={() => !gameSettings.useIndex && onSettingsChange('useSubjectPerYear', false)}
                                 style={gameSettings.useIndex ? { cursor: 'not-allowed', color: '#bdbdbd' } : { cursor: 'pointer' }}
-                                title={gameSettings.useIndex ? '使用目录时不可切换' : ''}
-                            >总榜</span>
+                                title={gameSettings.useIndex ? text.disabledByIndex : ''}
+                            >{text.totalRank}</span>
                             <span 
                                 className={gameSettings.useSubjectPerYear ? 'active' : ''} 
                                 onClick={() => !gameSettings.useIndex && onSettingsChange('useSubjectPerYear', true)}
                                 style={gameSettings.useIndex ? { cursor: 'not-allowed', color: '#bdbdbd' } : { cursor: 'pointer' }}
-                                title={gameSettings.useIndex ? '使用目录时不可切换' : ''}
-                            >年榜</span>
+                                title={gameSettings.useIndex ? text.disabledByIndex : ''}
+                            >{text.yearlyRank}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div className="compact-input-container" style={{ width: '60px' }} title="前N部">
+                            <div className="compact-input-container" style={{ width: '60px' }} title={text.topN}>
                                 <input 
                                     className="compact-input"
                                     type="number" 
@@ -752,22 +957,22 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                                     disabled={gameSettings.useIndex}
                                 />
                             </div>
-                            <span style={{ fontSize: '13px', marginLeft: '8px' }}>部</span>
+                            <span style={{ fontSize: '13px', marginLeft: '8px' }}>{text.worksUnit}</span>
                         </div>
                     </div>
                 </div>
               </div>
 
-              {/* Row 3: Character Count, Tag Count */}
+              {/* Row 4: Character Count */}
               <div className="settings-row compact-row">
                 <div className="setting-item-compact" style={{ gap: '10px', alignItems: 'center' }}>
-                    <label className="settings-label"  title="作品中至少有多少名角色，设为0或留空时仅包含主角">角色数量</label>
-                    <div className="compact-input-container" title="数值范围 >=0" style={{ minWidth: '90px' }}>
+                    <label className="settings-label"  title={text.characterCountTitle}>{text.characterCount}</label>
+                    <div className="compact-input-container" title={`${text.range} >=0`} style={{ minWidth: '90px' }}>
                         <input 
                             className="compact-input"
                             type="number"
                             value={gameSettings.characterNum ?? ''}
-                            placeholder="角色数量"
+                            placeholder={text.characterCountPlaceholder}
                             onChange={(e) => {
                                 const val = e.target.value;
                                 if (val === '' || val === '0') {
@@ -778,7 +983,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                             }}
                         />
                     </div>
-                    <span style={{ fontSize: '13px', color: '#4b5563' }}>仅主角</span>
+                    <span style={{ fontSize: '13px', color: '#4b5563' }}>{text.mainOnly}</span>
                     <ToggleSwitch 
                         checked={gameSettings.mainCharacterOnly}
                         onChange={(val) => {
@@ -786,14 +991,16 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                         }}
                     />
                 </div>
-              {/* </div>
-              <div className="settings-row compact-row"> */}
-                <div className="setting-item-compact offset-sm" style={{ gap: '16px' }}>
-                    <label className="settings-label" title="猜测时显示的来自作品和角色的标签数量">标签数量</label>
+              </div>
+
+              {/* Row 5: Tag Count */}
+              <div className="settings-row compact-row">
+                <div className="setting-item-compact" style={{ gap: '16px' }}>
+                    <label className="settings-label" title={text.tagCountTitle}>{text.tagCount}</label>
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <span style={{ fontSize: '13px', color: '#4b5563' }}>角色</span>
-                            <div className="compact-input-container" style={{ width: '50px' }} title="数值范围1-10">
+                            <span style={{ fontSize: '13px', color: '#4b5563' }}>{text.character}</span>
+                            <div className="compact-input-container" style={{ width: '50px' }} title={`${text.range} 1-10`}>
                                 <input 
                                     className="compact-input"
                                     type="number"
@@ -803,8 +1010,8 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                             </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <span style={{ fontSize: '13px', color: '#4b5563' }}>作品</span>
-                            <div className="compact-input-container" style={{ width: '50px' }} title="数值范围1-10">
+                            <span style={{ fontSize: '13px', color: '#4b5563' }}>{text.subject}</span>
+                            <div className="compact-input-container" style={{ width: '50px' }} title={`${text.range} 1-10`}>
                                 <input 
                                     className="compact-input"
                                     type="number"
@@ -817,41 +1024,42 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                 </div>
               </div>
 
-              {/* Row 4: Catalog & Extra Subjects */}
+              {/* Row 6: Catalog & Extra Subjects */}
               <div className="settings-row compact-row" style={{ alignItems: 'center' }}>
                 <div className="setting-item-compact" style={{ gap: '16px' }}>
-                    <label className="settings-label"  title="勾选时，正确答案只会从目录（+额外作品）中抽取。&#10;目录id为bangumi.tv/index/目录id">使用目录</label>
+                    <label className="settings-label"  title={text.useIndexTitle}>{text.useIndex}</label>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'left' }}>
                         <div className="compact-input-container">
                             <input 
                                 className="compact-input"
                                 type="text"
                                 value={indexInputValue}
-                                placeholder="目录ID"
+                                placeholder={text.indexId}
                                 onChange={(e) => setIndexInputValue(e.target.value)}
                             />
                         </div>
-                        <button className="action-btn" onClick={handleImport} style={{ padding: '6px 12px', height: '32px' }}>导入</button>
+                        <button className="action-btn" onClick={handleImport} style={{ padding: '6px 12px', height: '32px' }}>{text.import}</button>
                     </div>
                 </div>
 
                 <div className="setting-item-compact offset-lg" style={{ flex: 1, gap: '16px' }}>
-                    <label className="settings-label" style={{ whiteSpace: 'nowrap' }}>额外作品</label>
+                    <label className="settings-label" style={{ whiteSpace: 'nowrap' }}>{text.extraSubjects}</label>
                     <div className="search-container-compact" ref={searchContainerRef} >
                             <input 
                                 className="large-input"
                                 type="text"
                                 style={{ width: '214px' }}
-                                placeholder="搜索作品..."
+                                placeholder={text.searchSubjects}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') handleSearch();
                                 }}
                             />
-                        {searchResults.length > 0 && (
+                        {(isSearching || searchResults.length > 0) && (
                             <div className="search-results-list">
-                                {searchResults.map((subject) => (
+                                {isSearching && <div className="search-result-item">{text.searching}</div>}
+                                {!isSearching && searchResults.map((subject) => (
                                 <div 
                                     key={subject.id} 
                                     className="search-result-item"
@@ -862,7 +1070,11 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                                     }}
                                 >
                                     <span className="result-title">{subject.name}</span>
-                                    <span className="result-meta">{subject.name_cn || ''} ({subject.type})</span>
+                                    <span className="result-meta">
+                                      {locale === 'en'
+                                        ? getSubjectTypeLabel(subject.type)
+                                        : `${subject.name_cn || ''} (${getSubjectTypeLabel(subject.type)})`}
+                                    </span>
                                 </div>
                                 ))}
                             </div>
@@ -884,10 +1096,10 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
                             >
                               {indexInfo.title}
                             </a>
-                            <span style={{ color: '#888' }}>共 {indexInfo.total} 部作品</span>
+                            <span style={{ color: '#888' }}>{text.totalWorks(indexInfo.total)}</span>
                             <button
                               className="tag-remove-btn"
-                              title="移除目录"
+                              title={text.removeIndex}
                               onClick={() => { onSettingsChange('useIndex', false); onSettingsChange('indexId', ''); }}
                             >×</button>
                           </div>
@@ -920,7 +1132,7 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
         {isMultiplayer && !hideRestart && (
           <div className="popup-footer-new">
               <div className="footer-left">
-                <span className="footer-hint">*设置改动点了才会生效！否则下一把生效</span>
+                <span className="footer-hint">{text.footerHint}</span>
               </div>
           </div>
         )}

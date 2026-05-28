@@ -3,7 +3,27 @@ import '../styles/GuessesTable.css';
 import axios from 'axios';
 import { subjectsWithExtraTags } from '../data/extra_tag_subjects';
 
-function ModifiedTagDisplay({ guessCharacter, answerCharacter }) {
+const MODIFIED_TAG_TEXT = {
+  zh: {
+    loading: '加载中……',
+    error: (message) => `出错了: ${message}`,
+    emptyBeforeLink: '没有标签……',
+    emptyHintPrefix: '（可以在',
+    emptyHintLink: '这里',
+    emptyHintSuffix: '提醒作者添加）'
+  },
+  en: {
+    loading: 'Loading...',
+    error: (message) => `Error: ${message}`,
+    emptyBeforeLink: 'No tags yet...',
+    emptyHintPrefix: '(',
+    emptyHintLink: 'Remind author',
+    emptyHintSuffix: ')'
+  }
+};
+
+function ModifiedTagDisplay({ guessCharacter, answerCharacter, locale = 'zh' }) {
+  const text = MODIFIED_TAG_TEXT[locale] || MODIFIED_TAG_TEXT.zh;
   const [guessTagData, setGuessTagData] = useState(null);
   const [answerTagData, setAnswerTagData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -45,28 +65,28 @@ function ModifiedTagDisplay({ guessCharacter, answerCharacter }) {
   }, [guessCharacter, answerCharacter]);
 
   if (loading) {
-    return <div className="modified-tag-display loading">加载中……</div>;
+    return <div className="modified-tag-display loading">{text.loading}</div>;
   }
 
   if (error) {
-    return <div className="modified-tag-display error">出错了: {error}</div>;
+    return <div className="modified-tag-display error">{text.error(error)}</div>;
   }
 
   if (!guessTagData) {
     return (
       <div className="modified-tag-display empty">
         <div>
-          没有标签……
+          {text.emptyBeforeLink}
           <br />
-          （可以在
+          {text.emptyHintPrefix}
           <a
             href="https://github.com/kennylimz/anime-character-guessr/issues/new"
             target="_blank"
             rel="noopener noreferrer"
           >
-            这里
+            {text.emptyHintLink}
           </a>
-          提醒作者添加）
+          {text.emptyHintSuffix}
         </div>
       </div>
     );
