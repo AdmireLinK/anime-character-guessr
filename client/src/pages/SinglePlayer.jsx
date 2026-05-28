@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { getRandomCharacter, getCharacterAppearances, generateFeedback } from '../utils/bangumi';
 import SearchBar from '../components/SearchBar';
 import GuessesTable from '../components/GuessesTable';
@@ -17,7 +17,32 @@ import '../styles/social.css';
 import axios from 'axios';
 import { useLocalStorage } from 'usehooks-ts';
 
+const SINGLE_PLAYER_TEXT = {
+  zh: {
+    initFailed: '游戏初始化失败，请刷新页面重试，或在设置里清理缓存',
+    interesting: '有点意思',
+    winTagContribution: '熟悉这个角色吗？欢迎贡献标签',
+    loseTagContribution: '认识这个角色吗？欢迎贡献标签',
+    guessFailed: '出错了，请重试',
+    surrendered: '已投降！查看角色详情',
+    feedbackTitle: 'Bug/标签反馈'
+  },
+  en: {
+    initFailed: 'Failed to initialize the game. Refresh the page or clear cache in settings.',
+    interesting: 'Interesting.',
+    winTagContribution: 'Tag contributions are welcome.',
+    loseTagContribution: 'Tag contributions are welcome.',
+    guessFailed: 'Something went wrong. Please try again.',
+    surrendered: 'Surrendered. Check the answer details.',
+    feedbackTitle: 'Bug / tag feedback'
+  }
+};
+
 function SinglePlayer() {
+  const location = useLocation();
+  const locale = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'zh';
+  const isEnglish = locale === 'en';
+  const text = SINGLE_PLAYER_TEXT[locale] || SINGLE_PLAYER_TEXT.zh;
   const [guesses, setGuesses] = useState([]);
   const [guessesLeft, setGuessesLeft] = useState(10);
   const [isGuessing, setIsGuessing] = useState(false);
@@ -34,7 +59,6 @@ function SinglePlayer() {
   const [useImageHint, setUseImageHint] = useState(0);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
   const [isGameRestarting, setIsGameRestarting] = useState(false); // 防止重复点击"再玩一次"
-  const navigate = useNavigate();
   const [gameSettings, setGameSettings] = useLocalStorage('singleplayer-game-settings', {
     startYear: new Date().getFullYear()-10,
     endYear: new Date().getFullYear(),
@@ -52,8 +76,8 @@ function SinglePlayer() {
     includeGame: false,
     timeLimit: null,
     subjectSearch: true,
-    characterTagNum: 6,
-    subjectTagNum: 6,
+    characterTagNum: 4,
+    subjectTagNum: 4,
     commonTags: true
   });
   const [currentGameSettings, setCurrentGameSettings] = useState(gameSettings);
@@ -103,7 +127,7 @@ function SinglePlayer() {
       } catch (error) {
         console.error('Failed to initialize game:', error);
         if (isMounted) {
-          const message = error?.response?.data?.message || error?.message || '游戏初始化失败，请刷新页面重试，或在设置里清理缓存';
+          const message = error?.response?.data?.message || error?.message || text.initFailed;
           alert(message);
           setInitFailed(true);
         }
@@ -123,7 +147,7 @@ function SinglePlayer() {
     setIsGuessing(true);
     setShouldResetTimer(true);
     if (character.id === 56822 || character.id === 56823) {
-      alert('有点意思');
+      alert(text.interesting);
     }
 
     try {
@@ -158,8 +182,12 @@ function SinglePlayer() {
           popularity: guessData.popularity,
           popularityFeedback: '=',
           appearanceIds: guessData.appearanceIds,
+          appearances: guessData.appearances,
+          appearancesCn: guessData.appearancesCn,
           sharedAppearances: {
             first: appearances.appearances[0] || '',
+            firstOriginal: appearances.appearances[0] || '',
+            firstCn: appearances.appearancesCn?.[0] || appearances.appearances[0] || '',
             count: appearances.appearances.length
           },
           metaTags: guessData.metaTags,
@@ -168,7 +196,7 @@ function SinglePlayer() {
         }]);
 
         setGameEnd(true);
-        alert('熟悉这个角色吗？欢迎贡献标签');
+        alert(text.winTagContribution);
         setGameEndPopup({
           result: 'win',
           answer: answerCharacter
@@ -195,6 +223,8 @@ function SinglePlayer() {
           popularity: guessData.popularity,
           popularityFeedback: feedback.popularity.feedback,
           appearanceIds: guessData.appearanceIds,
+          appearances: guessData.appearances,
+          appearancesCn: guessData.appearancesCn,
           sharedAppearances: feedback.shared_appearances,
           metaTags: feedback.metaTags.guess,
           sharedMetaTags: feedback.metaTags.shared,
@@ -202,7 +232,7 @@ function SinglePlayer() {
         }]);
 
         setGameEnd(true);
-        alert('认识这个角色吗？欢迎贡献标签');
+        alert(text.loseTagContribution);
         setGameEndPopup({
           result: 'lose',
           answer: answerCharacter
@@ -229,6 +259,8 @@ function SinglePlayer() {
           popularity: guessData.popularity,
           popularityFeedback: feedback.popularity.feedback,
           appearanceIds: guessData.appearanceIds,
+          appearances: guessData.appearances,
+          appearancesCn: guessData.appearancesCn,
           sharedAppearances: feedback.shared_appearances,
           metaTags: feedback.metaTags.guess,
           sharedMetaTags: feedback.metaTags.shared,
@@ -237,7 +269,7 @@ function SinglePlayer() {
       }
     } catch (error) {
       console.error('Error processing guess:', error);
-      alert('出错了，请重试');
+      alert(text.guessFailed);
     } finally {
       setIsGuessing(false);
       setShouldResetTimer(false);
@@ -304,7 +336,7 @@ function SinglePlayer() {
         setInitFailed(false);
       } catch (error) {
         console.error('Failed to initialize new game:', error);
-        const message = error?.response?.data?.message || error?.message || '游戏初始化失败，请刷新页面重试，或在设置里清理缓存';
+        const message = error?.response?.data?.message || error?.message || text.initFailed;
         alert(message);
         setInitFailed(true);
       }
@@ -345,7 +377,7 @@ function SinglePlayer() {
       result: 'lose',
       answer: answerCharacter
     });
-    alert('已投降！查看角色详情');
+    alert(text.surrendered);
   };
 
   const handleFeedbackSubmit = async ({ type, description, includeLogs }) => {
@@ -365,11 +397,11 @@ function SinglePlayer() {
   };
 
   return (
-    <div className="single-player-container">
+    <div className="single-player-container" lang={isEnglish ? 'en' : 'zh-CN'}>
       <button
         type="button"
         className="social-link floating-feedback-button"
-        title="Bug/标签反馈"
+        title={text.feedbackTitle}
         onClick={() => setShowFeedbackPopup(true)}
       >
         🐞
@@ -380,6 +412,7 @@ function SinglePlayer() {
         onHelpClick={() => setHelpPopup(true)}
         onFeedbackClick={() => setShowFeedbackPopup(true)}
         showFeedbackInline={true}
+        locale={locale}
       />
 
       <div className="search-bar">
@@ -389,6 +422,7 @@ function SinglePlayer() {
           gameEnd={gameEnd}
           subjectSearch={currentGameSettings.subjectSearch}
           finishInit={finishInit}
+          locale={locale}
         />
       </div>
 
@@ -414,12 +448,14 @@ function SinglePlayer() {
         useHints={currentGameSettings.useHints}
         onSurrender={handleSurrender}
         isRestarting={isGameRestarting}
+        locale={locale}
       />
 
       <GuessesTable
         guesses={guesses}
         gameSettings={currentGameSettings}
         answerCharacter={answerCharacter}
+        locale={locale}
       />
 
       {settingsPopup && (
@@ -428,11 +464,12 @@ function SinglePlayer() {
           onSettingsChange={handleSettingsChange}
           onClose={() => setSettingsPopup(false)}
           onRestart={handleRestartWithSettings}
+          locale={locale}
         />
       )}
 
       {helpPopup && (
-        <HelpPopup onClose={() => setHelpPopup(false)} />
+        <HelpPopup onClose={() => setHelpPopup(false)} locale={locale} />
       )}
 
       {gameEndPopup && (
@@ -440,6 +477,7 @@ function SinglePlayer() {
           result={gameEndPopup.result}
           answer={gameEndPopup.answer}
           onClose={() => setGameEndPopup(null)}
+          locale={locale}
         />
       )}
 
@@ -447,6 +485,7 @@ function SinglePlayer() {
         <FeedbackPopup
           onClose={() => setShowFeedbackPopup(false)}
           onSubmit={handleFeedbackSubmit}
+          locale={locale}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { io } from 'socket.io-client';
 import { getRandomCharacter, getCharacterAppearances, generateFeedback } from '../utils/bangumi';
@@ -23,9 +23,203 @@ import axios from 'axios';
 const secret = import.meta.env.VITE_AES_SECRET || 'My-Secret-Key';
 const SOCKET_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
 
+const MULTIPLAYER_TEXT = {
+  zh: {
+    lobbyTitle: '多人游戏大厅',
+    lobbySubtitle: '选择一个公开房间加入，或创建新房间。',
+    joinOrCreate: '加入或创建',
+    username: '用户名',
+    usernamePlaceholder: '请输入用户名',
+    createNewRoom: '创建新房间',
+    quickJoinPublic: '快速加入公开房间',
+    publicRooms: '公开房间',
+    refreshHint: '展开列表以刷新（每 5 秒自动刷新）',
+    refresh: '刷新',
+    loadingRooms: '正在加载房间列表...',
+    loading: '加载中...',
+    noPublicRooms: '暂无公开房间',
+    unnamedRoom: '未命名房间',
+    hostRoomName: (hostName, displayRoomName) => displayRoomName || `${hostName}的房间`,
+    unknown: '未知',
+    host: '房主',
+    players: '人数',
+    join: '加入',
+    spectate: '观战',
+    previousPage: '上一页',
+    nextPage: '下一页',
+    reconnecting: '连接断开，正在重连...',
+    connectionFailed: '连接失败，请刷新页面重试',
+    disconnected: '连接已断开',
+    feedbackTitle: 'Bug/标签反馈',
+    backTitle: '返回',
+    inGame: '游戏中',
+    createRoom: '创建房间',
+    joinRoom: '加入房间',
+    quickJoin: '快速加入',
+    inputUsername: '输入用户名',
+    create: '创建',
+    anonymousInfo: <>匿名模式？点表头"名"切换。<br/>沟通玩法？点自己名字编辑短信息。<br/>有Bug/缺标签？到<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" rel="noopener noreferrer">Github Issues</a>反馈或加入下方QQ群。<br/>想找猜猜呗同好？QQ群：<a href="https://qm.qq.com/q/2sWbSsCwBu" target="_blank" rel="noopener noreferrer">467740403</a>。</>,
+    roomNamePlaceholder: '房间名（可选）',
+    copy: '复制',
+    settings: '设置',
+    public: '🔓公开',
+    private: '🔒私密',
+    starting: '正在启动...',
+    start: '开始',
+    manualMode: '有人想出题？',
+    syncMode: '同步模式',
+    nonstopMode: '血战模式',
+    globalPick: '角色全局BP',
+    tagBan: '标签全局BP',
+    normalMode: '普通模式',
+    round: '第',
+    roundSuffix: '轮',
+    player: '玩家',
+    remainingPlayers: '剩余',
+    guessesLeft: '剩余猜测次数',
+    surrender: '投降 🏳️',
+    hint: '提示',
+    simple: '简单',
+    detailed: '详细',
+    observer: '旁观',
+    mine: '我的',
+    showLatest3: '只显示最新3条',
+    answerIs: '答案是',
+    setter: '，出题人',
+    scoreDetails: '，得分详情：',
+    points: '分',
+    team: '队伍',
+    member: '成员',
+    base: '基础',
+    bigWin: '大赢家',
+    quickGuess: '好快的猜',
+    partial: '作品分',
+    enterUsername: '请输入用户名',
+    noAvailableRooms: '没有可用的公开房间',
+    quickJoinFailed: '快速加入失败，请重试',
+    copyDone: '已复制',
+    gameStartingFailed: '游戏初始化失败，请重试',
+    errorRetry: '出错了，请重试',
+    onlyHostKick: '只有房主可以踢出玩家',
+    hostCannotKickSelf: '房主不能踢出自己',
+    confirmKick: '确定要踢出该玩家吗？',
+    kickFailed: '踢出玩家失败，请重试',
+    confirmTransfer: '确定要将房主权限转移给该玩家吗？',
+    needNonObserver: '至少需要一名非旁观者才能开始游戏',
+    waitSync: '【同步模式】请等待其他玩家完成本轮猜测',
+    globalPickUsed: '【全局BP】已经被别人猜过了！请尝试其他角色',
+    roomClosedMessage: '房主已断开连接，房间已关闭。',
+    roomClosedError: '房间已关闭',
+    socketError: (message) => `错误: ${message}`,
+    hostDisconnectedPromoted: '原房主已断开连接，你已成为新房主！',
+    hostTransferredToYou: (oldHostName) => `房主 ${oldHostName} 已将房主权限转移给你！`,
+    hostTransferred: (oldHostName, newHostName) => `房主权限已从 ${oldHostName} 转移给 ${newHostName}`,
+    kickedSelf: '你已被房主踢出房间',
+    kickedPlayer: (username) => `玩家 ${username} 已被踢出房间`
+  },
+  en: {
+    lobbyTitle: 'Multiplayer Lobby',
+    lobbySubtitle: 'Join a public room or create a new one.',
+    joinOrCreate: 'Join or Create',
+    username: 'Username',
+    usernamePlaceholder: 'Enter username',
+    createNewRoom: 'Create New Room',
+    quickJoinPublic: 'Quick Join Public Room',
+    publicRooms: 'Public Rooms',
+    refreshHint: 'Expand the list to refresh automatically every 5 seconds',
+    refresh: 'Refresh',
+    loadingRooms: 'Loading room list...',
+    loading: 'Loading...',
+    noPublicRooms: 'No public rooms',
+    unnamedRoom: 'Unnamed room',
+    hostRoomName: (hostName) => `${hostName}'s room`,
+    unknown: 'Unknown',
+    host: 'Host',
+    players: 'Players',
+    join: 'Join',
+    spectate: 'Spectate',
+    previousPage: 'Previous',
+    nextPage: 'Next',
+    reconnecting: 'Connection lost. Reconnecting...',
+    connectionFailed: 'Connection failed. Please refresh.',
+    disconnected: 'Disconnected',
+    feedbackTitle: 'Bug / tag feedback',
+    backTitle: 'Back',
+    inGame: 'In game',
+    createRoom: 'Create Room',
+    joinRoom: 'Join Room',
+    quickJoin: 'Quick Join',
+    inputUsername: 'Enter username',
+    create: 'Create',
+    anonymousInfo: <>Anonymous mode? Click the "Name" header to toggle.<br/>Want to chat? Click your own name to edit a short message.<br/>Found a bug or missing tag? Report it on <a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" rel="noopener noreferrer">GitHub Issues</a>.</>,
+    roomNamePlaceholder: 'Room name (optional)',
+    copy: 'Copy',
+    settings: 'Settings',
+    public: '🔓 Public',
+    private: '🔒 Private',
+    starting: 'Starting...',
+    start: 'Start',
+    manualMode: 'Answer Setter?',
+    syncMode: 'Sync Mode',
+    nonstopMode: 'Endless Mode',
+    globalPick: 'Global Character Ban',
+    tagBan: 'Global Tag Ban',
+    normalMode: 'Normal Mode',
+    round: 'Round',
+    roundSuffix: '',
+    player: 'Player',
+    remainingPlayers: 'Remaining',
+    guessesLeft: 'Guesses left',
+    surrender: 'Surrender 🏳️',
+    hint: 'Hint',
+    simple: 'Simple',
+    detailed: 'Detailed',
+    observer: 'Spectate',
+    mine: 'Mine',
+    showLatest3: 'Show latest 3 only',
+    answerIs: 'Answer:',
+    setter: ', setter',
+    scoreDetails: ', score details:',
+    points: ' pts',
+    team: 'Team',
+    member: 'Member',
+    base: 'Base',
+    bigWin: 'Big win',
+    quickGuess: 'Fast guess',
+    partial: 'Work match',
+    enterUsername: 'Please enter a username',
+    noAvailableRooms: 'No public rooms available',
+    quickJoinFailed: 'Quick join failed. Please try again.',
+    copyDone: 'Copied',
+    gameStartingFailed: 'Failed to initialize the game. Please try again.',
+    errorRetry: 'Something went wrong. Please try again.',
+    onlyHostKick: 'Only the host can kick players',
+    hostCannotKickSelf: 'The host cannot kick themselves',
+    confirmKick: 'Kick this player?',
+    kickFailed: 'Failed to kick player. Please try again.',
+    confirmTransfer: 'Transfer host permissions to this player?',
+    needNonObserver: 'At least one non-spectator is required to start',
+    waitSync: '[Sync Mode] Please wait for the other players to finish this round',
+    globalPickUsed: '[Global Character Ban] Someone already guessed this character. Try another one.',
+    roomClosedMessage: 'The host disconnected and the room was closed.',
+    roomClosedError: 'Room closed',
+    socketError: (message) => `Error: ${message}`,
+    hostDisconnectedPromoted: 'The previous host disconnected. You are now the host.',
+    hostTransferredToYou: (oldHostName) => `${oldHostName} transferred host permissions to you.`,
+    hostTransferred: (oldHostName, newHostName) => `Host permissions transferred from ${oldHostName} to ${newHostName}.`,
+    kickedSelf: 'The host kicked you from the room',
+    kickedPlayer: (username) => `${username} was kicked from the room`
+  }
+};
+
 const Multiplayer = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { roomId } = useParams();
+  const locale = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'zh';
+  const isEnglish = locale === 'en';
+  const text = MULTIPLAYER_TEXT[locale] || MULTIPLAYER_TEXT.zh;
+  const langQuery = isEnglish ? '?lang=en' : '';
   const [isHost, setIsHost] = useState(false);
   const [players, setPlayers] = useState([]);
   const [roomUrl, setRoomUrl] = useState('');
@@ -69,8 +263,8 @@ const Multiplayer = () => {
     includeGame: false, // 包含游戏作品
     timeLimit: 60, // 时间限制
     subjectSearch: true, // 启用作品搜索
-    characterTagNum: 6, // 角色标签数量
-    subjectTagNum: 6, // 作品标签数量
+    characterTagNum: 4, // 角色标签数量
+    subjectTagNum: 4, // 作品标签数量
     commonTags: true, // 共同标签优先
     useHints: [], // 提示出现次数
     useImageHint: 0, // 图片提示时机
@@ -135,7 +329,6 @@ const Multiplayer = () => {
     const statusList = syncStatus?.syncStatus || [];
     return statusList.filter((entry) => {
       const player = players.find(p => p.id === entry.id);
-      const guesses = player?.guesses || '';
       const isDisconnected = !!player?.disconnected;
       // 保留已完成的赢家在当前轮展示，下一轮已被服务器移出列表；仅隐藏断线玩家
       return !(entry.completed && isDisconnected);
@@ -359,8 +552,8 @@ const Multiplayer = () => {
         }, 3000);
       } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
         setConnectionStatus('failed');
-        alert('连接已断开，多次重试失败，请刷新页面或稍后再试');
-        setError('连接失败，请刷新页面重试');
+        alert(text.connectionFailed);
+        setError(text.connectionFailed);
       }
     });
 
@@ -489,7 +682,7 @@ const Multiplayer = () => {
       setShowSetAnswerPopup(false);
     });
 
-    newSocket.on('guessHistoryUpdate', ({ guesses, teamGuesses }) => {
+    newSocket.on('guessHistoryUpdate', ({ guesses }) => {
       setGuessesHistory(guesses);
 
       // 使用统一的辅助函数更新剩余次数
@@ -500,9 +693,9 @@ const Multiplayer = () => {
     });
 
     newSocket.on('roomClosed', ({ message }) => {
-      alert(message || '房主已断开连接，房间已关闭。');
-      setError('房间已关闭');
-      navigate('/multiplayer/');
+      alert(message || text.roomClosedMessage);
+      setError(text.roomClosedError);
+      navigate(`/multiplayer${langQuery}`);
     });
 
     newSocket.on('hostTransferred', ({ oldHostName, newHostId, newHostName }) => {
@@ -510,12 +703,12 @@ const Multiplayer = () => {
       if (newHostId === newSocket.id) {
         setIsHost(true);
         if (oldHostName === newHostName) {
-          showKickNotification(`原房主已断开连接，你已成为新房主！`, 'host');
+          showKickNotification(text.hostDisconnectedPromoted, 'host');
         } else {
-          showKickNotification(`房主 ${oldHostName} 已将房主权限转移给你！`, 'host');
+          showKickNotification(text.hostTransferredToYou(oldHostName), 'host');
         }
       } else {
-        showKickNotification(`房主权限已从 ${oldHostName} 转移给 ${newHostName}`, 'host');
+        showKickNotification(text.hostTransferred(oldHostName, newHostName), 'host');
       }
     });
 
@@ -537,14 +730,14 @@ const Multiplayer = () => {
         }, 500);
         return;
       }
-      alert(`错误: ${message}`);
+      alert(text.socketError(message));
       setError(message);
       // 只在特定情况下将玩家踢出房间，游戏开始相关错误不应该踢出房主
       if (message && message.includes('头像被用了😭😭😭')) {
         sessionStorage.removeItem('avatarId');
         sessionStorage.removeItem('avatarImage');
         setIsJoined(false);
-        navigate('/multiplayer/');
+        navigate(`/multiplayer${langQuery}`);
       }
     });
 
@@ -553,7 +746,7 @@ const Multiplayer = () => {
       setError(message);
       setIsJoined(false);
       setGameEnd(true);
-      navigate('/multiplayer/');
+      navigate(`/multiplayer${langQuery}`);
     });
 
     newSocket.on('updateGameSettings', ({ settings }) => {
@@ -588,14 +781,14 @@ const Multiplayer = () => {
       
       if (playerId === newSocket.id) {
         // 如果当前玩家被踢出，显示通知并返回主页
-        showKickNotification('你已被房主踢出房间', 'kick');
+        showKickNotification(text.kickedSelf, 'kick');
         setIsJoined(false); 
         setGameEnd(true); 
         setTimeout(() => {
-          navigate('/multiplayer/');
+          navigate(`/multiplayer${langQuery}`);
         }, 100); // 延长延迟时间确保通知显示后再跳转
       } else {
-        showKickNotification(`玩家 ${username} 已被踢出房间`, 'kick');
+        showKickNotification(text.kickedPlayer(username), 'kick');
         setPlayers(prevPlayers => prevPlayers.filter(p => p.id !== playerId));
       }
     });
@@ -629,6 +822,8 @@ const Multiplayer = () => {
         popularity: guessData.popularity,
         popularityFeedback: isCorrect ? '=' : feedback.popularity.feedback,
         appearanceIds: guessData.appearanceIds,
+        appearances: guessData.appearances,
+        appearancesCn: guessData.appearancesCn,
         sharedAppearances: feedback.shared_appearances,
         metaTags: feedback.metaTags.guess,
         sharedMetaTags: feedback.metaTags.shared,
@@ -713,7 +908,7 @@ const Multiplayer = () => {
       // Create new room if no roomId in URL
       const newRoomId = uuidv4();
       setIsHost(true);
-      navigate(`/multiplayer/${newRoomId}`);
+      navigate(`/multiplayer/${newRoomId}${langQuery}`);
     } else {
       // Set room URL for sharing
       setRoomUrl(window.location.href);
@@ -775,10 +970,16 @@ const Multiplayer = () => {
     return () => clearInterval(intervalId);
   }, [roomListExpanded, isJoined]);
 
+  useEffect(() => {
+    if (!isJoined && roomId) {
+      fetchRoomList();
+    }
+  }, [isJoined, roomId]);
+
   const handleJoinRoom = () => {
     if (!username.trim()) {
-      alert('请输入用户名');
-      setError('请输入用户名');
+      alert(text.enterUsername);
+      setError(text.enterUsername);
       return;
     }
 
@@ -859,7 +1060,7 @@ const Multiplayer = () => {
 
     // 同步模式：等待其他玩家时不能猜测
     if (waitingForSync) {
-      alert('【同步模式】请等待其他玩家完成本轮猜测');
+      alert(text.waitSync);
       return;
     }
 
@@ -878,7 +1079,7 @@ const Multiplayer = () => {
         } else if (gameSettings.nonstopMode && isCorrectAnswer) {
           // 血战模式下允许多人猜正确答案
         } else {
-          alert('【全局BP】已经被别人猜过了！请尝试其他角色');
+          alert(text.globalPickUsed);
           return;
         }
       }
@@ -943,8 +1144,12 @@ const Multiplayer = () => {
           popularity: guessData.popularity,
           popularityFeedback: '=',
           appearanceIds: guessData.appearanceIds,
+          appearances: guessData.appearances,
+          appearancesCn: guessData.appearancesCn,
           sharedAppearances: {
             first: appearances.appearances[0] || '',
+            firstOriginal: appearances.appearances[0] || '',
+            firstCn: appearances.appearancesCn?.[0] || appearances.appearances[0] || '',
             count: appearances.appearances.length
           },
           metaTags: guessData.metaTags,
@@ -972,6 +1177,8 @@ const Multiplayer = () => {
           popularity: guessData.popularity,
           popularityFeedback: feedback.popularity.feedback,
           appearanceIds: guessData.appearanceIds,
+          appearances: guessData.appearances,
+          appearancesCn: guessData.appearancesCn,
           sharedAppearances: feedback.shared_appearances,
           metaTags: feedback.metaTags.guess,
           sharedMetaTags: feedback.metaTags.shared,
@@ -980,7 +1187,7 @@ const Multiplayer = () => {
       }
     } catch (error) {
       console.error('Error processing guess:', error);
-      alert('出错了，请重试');
+      alert(text.errorRetry);
     } finally {
       setIsGuessing(false);
       setShouldResetTimer(false);
@@ -1036,7 +1243,7 @@ const Multiplayer = () => {
 
     // 若全员为旁观者队伍，不允许开始
     if (allSpectators) {
-      alert('至少需要一名非旁观者才能开始游戏');
+      alert(text.needNonObserver);
       return;
     }
     
@@ -1095,7 +1302,7 @@ const Multiplayer = () => {
           setGuesses([]);
         } catch (error) {
           console.error('Failed to initialize game:', error);
-          alert('游戏初始化失败，请重试');
+          alert(text.gameStartingFailed);
           setIsGameStarting(false); // 重置标志以允许重试
         }
       } finally {
@@ -1167,7 +1374,7 @@ const Multiplayer = () => {
       setShowSetAnswerPopup(false);
     } catch (error) {
       console.error('Failed to set answer:', error);
-      alert('设置答案失败，请重试');
+      alert(text.errorRetry);
     }
   };
 
@@ -1177,23 +1384,23 @@ const Multiplayer = () => {
     // 确认当前玩家是房主
     const currentPlayer = players.find(p => p.id === socketRef.current.id);
     if (!currentPlayer || !currentPlayer.isHost) {
-      alert('只有房主可以踢出玩家');
+      alert(text.onlyHostKick);
       return;
     }
     
     // 防止房主踢出自己
     if (playerId === socketRef.current.id) {
-      alert('房主不能踢出自己');
+      alert(text.hostCannotKickSelf);
       return;
     }
     
     // 确认后再踢出
-    if (window.confirm('确定要踢出该玩家吗？')) {
+    if (window.confirm(text.confirmKick)) {
       try {
         socketRef.current.emit('kickPlayer', { roomId, playerId });
       } catch (error) {
         console.error('踢出玩家失败:', error);
-        alert('踢出玩家失败，请重试');
+        alert(text.kickFailed);
       }
     }
   };
@@ -1202,7 +1409,7 @@ const Multiplayer = () => {
     if (!isHost || !socketRef.current) return;
     
     // 确认后再转移房主
-    if (window.confirm('确定要将房主权限转移给该玩家吗？')) {
+    if (window.confirm(text.confirmTransfer)) {
       socketRef.current.emit('transferHost', { roomId, newHostId: playerId });
       setIsHost(false);
     }
@@ -1212,12 +1419,12 @@ const Multiplayer = () => {
   const handleQuickJoin = async () => {
     try {
       const response = await axios.get(`${SOCKET_URL}/quick-join`);
-      window.location.href = response.data.url;
+      window.location.href = `${response.data.url}${langQuery}`;
     } catch (error) {
       if (error.response && error.response.status === 404) {
-        alert(error.response.data.error || '没有可用的公开房间');
+        alert(error.response.data.error || text.noAvailableRooms);
       } else {
-        alert('快速加入失败，请重试');
+        alert(text.quickJoinFailed);
       }
     }
   };
@@ -1241,11 +1448,23 @@ const Multiplayer = () => {
     }
   };
 
+  const getDisplayRoomName = (room) => {
+    if (room.roomName && room.roomName.trim()) {
+      return room.roomName;
+    }
+
+    if (room.hostName) {
+      return text.hostRoomName(room.hostName, room.displayRoomName);
+    }
+
+    return room.displayRoomName || text.unnamedRoom;
+  };
+
   // 加入指定房间
   const handleJoinSpecificRoom = (targetRoomId) => {
     if (!username.trim()) {
-      alert('请输入用户名');
-      setError('请输入用户名');
+      alert(text.enterUsername);
+      setError(text.enterUsername);
       return;
     }
     
@@ -1254,7 +1473,7 @@ const Multiplayer = () => {
     sessionStorage.setItem('pendingRoomId', targetRoomId);
     
     // 使用完整页面刷新，确保重置所有状态和 socket 连接
-    window.location.href = `/multiplayer/${targetRoomId}`;
+    window.location.href = `/multiplayer/${targetRoomId}${langQuery}`;
   };
 
   // 创建一个函数显示踢出通知
@@ -1297,35 +1516,35 @@ const Multiplayer = () => {
 
   if (!roomId) {
     return (
-      <div className="multiplayer-container">
+      <div className="multiplayer-container" lang={isEnglish ? 'en' : 'zh-CN'}>
         <div className="top-row">
           <div className="room-info">
-            <h2>多人游戏大厅</h2>
-            <p>选择一个公开房间加入，或创建新房间。</p>
+            <h2>{text.lobbyTitle}</h2>
+            <p>{text.lobbySubtitle}</p>
           </div>
         </div>
 
         <div className="settings-and-players">
           <div className="settings-panel">
             <div className="settings-header">
-              <h3>加入或创建</h3>
+              <h3>{text.joinOrCreate}</h3>
             </div>
             <div className="form-row">
-              <label htmlFor="username">用户名</label>
+              <label htmlFor="username">{text.username}</label>
               <input
                 id="username"
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="请输入用户名"
+                placeholder={text.usernamePlaceholder}
               />
             </div>
             <div className="button-group">
-              <button className="primary-btn" onClick={() => navigate('/multiplayer', { replace: true, state: { autoCreate: true } })}>
-                创建新房间
+              <button className="primary-btn" onClick={() => navigate(`/multiplayer${langQuery}`, { replace: true, state: { autoCreate: true } })}>
+                {text.createNewRoom}
               </button>
               <button className="secondary-btn" onClick={handleQuickJoin}>
-                快速加入公开房间
+                {text.quickJoinPublic}
               </button>
             </div>
           </div>
@@ -1333,35 +1552,35 @@ const Multiplayer = () => {
           <div className="player-list">
             <div className="player-list-header">
               <div>
-                <h3>公开房间 {roomList.length > 0 && `(${roomList.length})`}</h3>
-                <small>展开列表以刷新（每 5 秒自动刷新）</small>
+                <h3>{text.publicRooms} {roomList.length > 0 && `(${roomList.length})`}</h3>
+                <small>{text.refreshHint}</small>
               </div>
               <div className="button-group">
                 <button className="secondary-btn" onClick={() => { fetchRoomList(); setRoomListExpanded(true); }}>
-                  刷新
+                  {text.refresh}
                 </button>
               </div>
             </div>
 
             {loadingRooms ? (
-              <div className="loading">正在加载房间列表...</div>
+              <div className="loading">{text.loadingRooms}</div>
             ) : roomList.length === 0 ? (
-              <div className="no-rooms">暂无公开房间</div>
+              <div className="no-rooms">{text.noPublicRooms}</div>
             ) : (
               <>
                 <ul className="players">
                   {roomList.slice(roomListPage * ROOMS_PER_PAGE, (roomListPage + 1) * ROOMS_PER_PAGE).map(room => (
                     <li key={room.id} className="player">
                       <div className="player-info">
-                        <div className="player-name">{room.name || '未命名房间'}</div>
+                        <div className="player-name">{getDisplayRoomName(room)}</div>
                         <div className="player-meta">
                           <span>ID: {room.id}</span>
-                          <span>房主: {room.hostName || '未知'}</span>
-                          <span>人数: {room.playerCount}/{room.maxPlayers || 8}</span>
+                          <span>{text.host}: {room.hostName || text.unknown}</span>
+                          <span>{text.players}: {room.playerCount}/{room.maxPlayers || 8}</span>
                         </div>
                       </div>
                       <button className="primary-btn" onClick={() => handleJoinSpecificRoom(room.id)}>
-                        加入
+                        {text.join}
                       </button>
                     </li>
                   ))}
@@ -1372,14 +1591,14 @@ const Multiplayer = () => {
                       disabled={roomListPage === 0}
                       onClick={() => setRoomListPage(p => Math.max(0, p - 1))}
                     >
-                      上一页
+                      {text.previousPage}
                     </button>
                     <span>{roomListPage + 1} / {Math.max(1, Math.ceil(roomList.length / ROOMS_PER_PAGE))}</span>
                     <button
                       disabled={(roomListPage + 1) * ROOMS_PER_PAGE >= roomList.length}
                       onClick={() => setRoomListPage(p => Math.min(Math.ceil(roomList.length / ROOMS_PER_PAGE) - 1, p + 1))}
                     >
-                      下一页
+                      {text.nextPage}
                     </button>
                   </div>
                 )}
@@ -1392,7 +1611,7 @@ const Multiplayer = () => {
   }
 
   return (
-    <div className="multiplayer-container">
+    <div className="multiplayer-container" lang={isEnglish ? 'en' : 'zh-CN'}>
       {/* 连接状态指示器 */}
       {isJoined && connectionStatus !== 'connected' && (
         <div className={`connection-status ${connectionStatus}`}>
@@ -1400,20 +1619,20 @@ const Multiplayer = () => {
             {connectionStatus === 'reconnecting' && (
               <>
                 <i className="fas fa-sync fa-spin"></i>
-                <span>连接断开，正在重连... ({reconnectAttemptsRef.current}/{maxReconnectAttempts})</span>
+                <span>{text.reconnecting} ({reconnectAttemptsRef.current}/{maxReconnectAttempts})</span>
               </>
             )}
             {connectionStatus === 'failed' && (
               <>
                 <i className="fas fa-exclamation-triangle"></i>
-                <span>连接失败，请刷新页面重试</span>
+                <span>{text.connectionFailed}</span>
               </>
             )}
             {connectionStatus === 'disconnected' && (
               <>
                 {/* 与其它同类型提醒保持一致的图标样式 */}
                 <i className="fas fa-exclamation-circle"></i>
-                <span>连接已断开</span>
+                <span>{text.disconnected}</span>
               </>
             )}
           </div>
@@ -1431,15 +1650,15 @@ const Multiplayer = () => {
       <button
         type="button"
         className="social-link floating-back-button"
-        title="Back"
-        onClick={() => navigate('/')}
+        title={text.backTitle}
+        onClick={() => navigate(isEnglish ? '/en' : '/')}
       >
         &larr;
       </button>
       <button
         type="button"
         className="social-link floating-feedback-button"
-        title="Bug/标签反馈"
+        title={text.feedbackTitle}
         onClick={() => setShowFeedbackPopup(true)}
       >
         📝
@@ -1447,20 +1666,20 @@ const Multiplayer = () => {
       {!isJoined ? (
         <>
           <div className="join-container">
-            <h2>{isHost ? '创建房间' : '加入房间'}</h2>
+            <h2>{isHost ? text.createRoom : text.joinRoom}</h2>
             {isHost && !isJoined && (
-              <button onClick={handleQuickJoin} className="join-button quick-join-btn">快速加入</button>
+              <button onClick={handleQuickJoin} className="join-button quick-join-btn">{text.quickJoin}</button>
             )}
             <input
               type="text"
-              placeholder="输入用户名"
+              placeholder={text.inputUsername}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="username-input"
               maxLength={20}
             />
             <button onClick={handleJoinRoom} className="join-button">
-              {isHost ? '创建' : '加入'}
+              {isHost ? text.create : text.join}
             </button>
             {error && <p className="error-message">{error}</p>}
           </div>
@@ -1471,19 +1690,17 @@ const Multiplayer = () => {
               const newExpanded = !roomListExpanded;
               setRoomListExpanded(newExpanded);
               roomListExpandedRef.current = newExpanded;
-              if (newExpanded) {
-                fetchRoomList();
-              }
+              fetchRoomList();
             }}>
-              <h3>公开房间 {roomList.length > 0 && `(${roomList.length})`}</h3>
+              <h3>{text.publicRooms} {roomList.length > 0 && `(${roomList.length})`}</h3>
               <span className={`expand-icon ${roomListExpanded ? 'expanded' : ''}`}>{roomListExpanded ? '▼' : '▶'}</span>
             </div>
             {roomListExpanded && (
               <div className="leaderboard-content">
                 {loadingRooms ? (
-                  <div className="leaderboard-loading">加载中...</div>
+                  <div className="leaderboard-loading">{text.loading}</div>
                 ) : roomList.length === 0 ? (
-                  <div className="leaderboard-empty">暂无公开房间</div>
+                  <div className="leaderboard-empty">{text.noPublicRooms}</div>
                 ) : (
                   <>
                     <div className="leaderboard-list">
@@ -1491,8 +1708,8 @@ const Multiplayer = () => {
                         <div key={room.id} className="leaderboard-list-item room-item">
                           <div className="room-info">
                             <span className="room-players-count">
-                              <i className="fas fa-users"></i> {room.displayRoomName || room.roomName || `${room.hostName || ''}的房间`} {room.playerCount}人
-                              {room.isGameStarted && <span className="room-status-badge">游戏中</span>}
+                              <i className="fas fa-users"></i> {getDisplayRoomName(room)} {room.playerCount} {text.players}
+                              {room.isGameStarted && <span className="room-status-badge">{text.inGame}</span>}
                             </span>
                             <span className="room-players-names">
                               {room.players.slice(0, 3).join(', ')}
@@ -1503,7 +1720,7 @@ const Multiplayer = () => {
                             className={`join-room-btn ${room.isGameStarted ? 'spectate-btn' : ''}`}
                             onClick={() => handleJoinSpecificRoom(room.id)}
                           >
-                            {room.isGameStarted ? '观战' : '加入'}
+                            {room.isGameStarted ? text.spectate : text.join}
                           </button>
                         </div>
                       ))}
@@ -1535,8 +1752,8 @@ const Multiplayer = () => {
             )}
           </div>
           
-          <Roulette />
-          <Leaderboard />
+          <Roulette locale={locale} />
+          <Leaderboard locale={locale} />
         </>
       ) : (
         <>
@@ -1554,12 +1771,10 @@ const Multiplayer = () => {
             onTransferHost={handleTransferHost}
             onMessageChange={handleMessageChange}
             onTeamChange={handleTeamChange}
+            locale={locale}
           />
           <div className="anonymous-mode-info">
-            匿名模式？点表头"名"切换。<br/>
-            沟通玩法？点自己名字编辑短信息。<br/>
-            有Bug/缺标签？到<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" rel="noopener noreferrer">Github Issues</a>反馈或加入下方QQ群。<br/>
-            想找猜猜呗同好？QQ群：<a href="https://qm.qq.com/q/2sWbSsCwBu" target="_blank" rel="noopener noreferrer">467740403</a>。
+            {text.anonymousInfo}
           </div>
 
           {!isGameStarted && !globalGameEnd && (
@@ -1571,7 +1786,7 @@ const Multiplayer = () => {
                       <input
                         type="text"
                         value={roomName}
-                        placeholder="房间名（可选）"
+                        placeholder={text.roomNamePlaceholder}
                         maxLength={15}
                         className="room-name-input"
                         onChange={handleRoomNameChange}
@@ -1585,7 +1800,7 @@ const Multiplayer = () => {
                       readOnly
                       className="room-url-input"
                     />
-                    <button onClick={copyRoomUrl} className="copy-button">复制</button>
+                    <button onClick={copyRoomUrl} className="copy-button">{text.copy}</button>
                   </div>
                 </div>
               )}
@@ -1597,27 +1812,27 @@ const Multiplayer = () => {
                         onClick={() => setShowSettings(true)}
                         className="settings-button"
                       >
-                        设置
+                        {text.settings}
                       </button>
                       <button
                         onClick={handleVisibilityToggle}
                         className="visibility-button"
                       >
-                        {isPublic ? '🔓公开' : '🔒私密'}
+                        {isPublic ? text.public : text.private}
                       </button>
                       <button
                         onClick={handleStartGame}
                         className="start-game-button"
                         disabled={isGameStarting || players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || allSpectators}
                       >
-                        {isGameStarting ? '正在启动...' : '开始'}
+                        {isGameStarting ? text.starting : text.start}
                       </button>
                       <button
                         onClick={handleManualMode}
                         className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
                         disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || allSpectators}
                       >
-                        有人想出题？
+                        {text.manualMode}
                       </button>
                     </div>
                   </div>
@@ -1629,7 +1844,7 @@ const Multiplayer = () => {
                   {/* <pre style={{ fontSize: '12px', color: '#666', padding: '5px', background: '#f5f5f5' }}>
                     {JSON.stringify({...gameSettings, __debug: '显示原始数据用于调试'}, null, 2)}
                   </pre> */}
-                  <GameSettingsDisplay settings={gameSettings} />
+                  <GameSettingsDisplay settings={gameSettings} locale={locale} />
                 </>
               )}
             </>
@@ -1647,6 +1862,7 @@ const Multiplayer = () => {
                     gameEnd={gameEnd}
                     subjectSearch={gameSettings.subjectSearch}
                     finishInit={isGameStarted}
+                    locale={locale}
                   />
                   {/* 同步模式等待提示 */}
                   {gameSettings.syncMode && (
@@ -1656,13 +1872,13 @@ const Multiplayer = () => {
                         const completed = filtered.filter(p => p.completed).length;
                         const total = filtered.length;
                         return (
-                          <span>⏳ 同步模式 - 第 {syncStatus.round || 1} 轮 ({completed}/{total})</span>
+                          <span>⏳ {text.syncMode} - {text.round} {syncStatus.round || 1} {text.roundSuffix} ({completed}/{total})</span>
                         );
                       })()}
                       <div className="sync-status">
                         {getFilteredSyncStatus().map((player, idx) => (
                           <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
-                            {showNames ? player.username : `玩家${idx + 1}`}: {player.completed ? '✓' : '...'}
+                            {showNames ? player.username : `${text.player}${idx + 1}`}: {player.completed ? '✓' : '...'}
                           </span>
                         ))}
                       </div>
@@ -1671,12 +1887,12 @@ const Multiplayer = () => {
                   {/* 血战模式进度显示 */}
                   {gameSettings.nonstopMode && (
                     <div className="nonstop-progress-banner">
-                      <span>🔥 血战模式 - 剩余 {nonstopProgress?.remainingCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length}/{nonstopProgress?.totalCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length} 人</span>
+                      <span>🔥 {text.nonstopMode} - {text.remainingPlayers} {nonstopProgress?.remainingCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length}/{nonstopProgress?.totalCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length}</span>
                           {nonstopProgress?.winners && nonstopProgress.winners.length > 0 && (
                         <div className="nonstop-winners">
                           {nonstopProgress.winners.map((winner, idx) => (
                             <span key={winner.username} className="nonstop-winner">
-                              #{winner.rank} {showNames ? winner.username : `玩家${idx + 1}`} (+{winner.score}分)
+                              #{winner.rank} {showNames ? winner.username : `${text.player}${idx + 1}`} (+{winner.score}{text.points})
                             </span>
                           ))}
                         </div>
@@ -1693,27 +1909,27 @@ const Multiplayer = () => {
                   )}
                   <div className="game-info">
                     <div className="guesses-left">
-                      <span>剩余猜测次数: {guessesLeft}</span>
+                      <span>{text.guessesLeft}: {guessesLeft}</span>
                       <button
                         className="surrender-button"
                         onClick={handleSurrender}
                         disabled={isObserver || gameEnd}
                       >
-                        投降 🏳️
+                        {text.surrender}
                       </button>
                     </div>
                     {Array.isArray(gameSettings.useHints) && gameSettings.useHints.length > 0 && hints && hints.length > 0 && (
                       <div className="hints">
                         {gameSettings.useHints.map((val, idx) => (
                           guessesLeft <= val && hints[idx] && (
-                            <div className="hint" key={idx}>提示{idx+1}: {hints[idx]}</div>
+                            <div className="hint" key={idx}>{text.hint}{idx+1}: {hints[idx]}</div>
                           )
                         ))}
                       </div>
                     )}
                     {guessesLeft <= useImageHint && imgHint &&(
                       <div className="hint-container">
-                        <Image src={imgHint} style={{height: '200px', filter: `blur(${guessesLeft}px)`}} alt="提示" />
+                        <Image src={imgHint} style={{height: '200px', filter: `blur(${guessesLeft}px)`}} alt={text.hint} />
                       </div>
                     )}
                   </div>
@@ -1722,6 +1938,7 @@ const Multiplayer = () => {
                     gameSettings={gameSettings}
                     answerCharacter={answerCharacter}
                     bannedTags={bannedSharedTags}
+                    locale={locale}
                   />
                 </>
               ) : (
@@ -1731,20 +1948,20 @@ const Multiplayer = () => {
                     <div className="selected-answer">
                       <Image src={answerCharacter.imageGrid} alt={answerCharacter.name} className="answer-image" />
                       <div className="answer-info">
-                        <div>{answerCharacter.name}</div>
-                        <div>{answerCharacter.nameCn}</div>
+                        <div translate="no">{answerCharacter.name}</div>
+                        <div>{locale === 'en' ? (answerCharacter.nameEn || answerCharacter.nameCn) : answerCharacter.nameCn}</div>
                       </div>
                     </div>
                   )}
                   {/* 血战模式进度显示（出题人视角）  */}
                   {gameSettings.nonstopMode && (
                     <div className="nonstop-progress-banner">
-                      <span>🔥 血战模式 - 剩余 {nonstopProgress?.remainingCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length}/{nonstopProgress?.totalCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length} 人</span>
+                      <span>🔥 {text.nonstopMode} - {text.remainingPlayers} {nonstopProgress?.remainingCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length}/{nonstopProgress?.totalCount ?? players.filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected).length}</span>
                       {nonstopProgress?.winners && nonstopProgress.winners.length > 0 && (
                         <div className="nonstop-winners">
                           {nonstopProgress.winners.map((winner) => (
                             <span key={winner.username} className="nonstop-winner">
-                              #{winner.rank} {winner.username} (+{winner.score}分)
+                              #{winner.rank} {winner.username} (+{winner.score}{text.points})
                             </span>
                           ))}
                         </div>
@@ -1759,13 +1976,13 @@ const Multiplayer = () => {
                         const completed = filtered.filter(p => p.completed).length;
                         const total = filtered.length;
                         return (
-                          <span>⏳ 同步模式 - 第 {syncStatus.round || 1} 轮 ({completed}/{total})</span>
+                          <span>⏳ {text.syncMode} - {text.round} {syncStatus.round || 1} {text.roundSuffix} ({completed}/{total})</span>
                         );
                       })()}
                       <div className="sync-status">
                         {getFilteredSyncStatus().map((player, idx) => (
                           <span key={player.id} className={`sync-player ${player.completed ? 'done' : 'waiting'}`}>
-                            {showNames ? player.username : `玩家${idx + 1}`}: {player.completed ? '✓' : '...'}
+                            {showNames ? player.username : `${text.player}${idx + 1}`}: {player.completed ? '✓' : '...'}
                           </span>
                         ))}
                       </div>
@@ -1778,14 +1995,14 @@ const Multiplayer = () => {
                       style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: answerViewMode === 'simple' ? '#e0e0e0' : '#fff', cursor: 'pointer', color: 'inherit' }}
                       onClick={() => setAnswerViewMode('simple')}
                     >
-                      {(isObserver && !isTeamObserver && !isAnswerSetter) ? '旁观' : '简单'}
+                      {(isObserver && !isTeamObserver && !isAnswerSetter) ? text.observer : text.simple}
                     </button>
                     <button
                       className={answerViewMode === 'detailed' ? 'active' : ''}
                       style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: answerViewMode === 'detailed' ? '#e0e0e0' : '#fff', cursor: 'pointer', color: 'inherit'}}
                       onClick={() => setAnswerViewMode('detailed')}
                     >
-                      {(isObserver && !isTeamObserver && !isAnswerSetter) ? '我的' : '详细'}
+                      {(isObserver && !isTeamObserver && !isAnswerSetter) ? text.mine : text.detailed}
                     </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px' }}>
                       <div 
@@ -1818,7 +2035,7 @@ const Multiplayer = () => {
                         />
                       </div>
                       <span style={{ fontSize: '14px', color: '#475569' }}>
-                        只显示最新3条
+                        {text.showLatest3}
                       </span>
                     </div>
                   </div>
@@ -1829,7 +2046,7 @@ const Multiplayer = () => {
                           <tr>
                             {guessesHistory.map((playerGuesses, index) => (
                               <th key={playerGuesses.username}>
-                                {showNames ? playerGuesses.username : `玩家${index + 1}`}
+                                {showNames ? playerGuesses.username : `${text.player}${index + 1}`}
                               </th>
                             ))}
                           </tr>
@@ -1854,8 +2071,12 @@ const Multiplayer = () => {
                                     {playerData.displayGuesses[rowIndex] && (
                                       <>
                                         <Image className="character-icon" src={playerData.displayGuesses[rowIndex].guessData.image} alt={playerData.displayGuesses[rowIndex].guessData.name} />
-                                        <div className="character-name">{playerData.displayGuesses[rowIndex].guessData.name}</div>
-                                        <div className="character-name-cn">{playerData.displayGuesses[rowIndex].guessData.nameCn}</div>
+                                        <div className="character-name" translate="no">{playerData.displayGuesses[rowIndex].guessData.name}</div>
+                                        <div className="character-name-cn">
+                                          {locale === 'en' && playerData.displayGuesses[rowIndex].guessData.nameEn
+                                            ? playerData.displayGuesses[rowIndex].guessData.nameEn
+                                            : playerData.displayGuesses[rowIndex].guessData.nameCn}
+                                        </div>
                                       </>
                                     )}
                                   </td>
@@ -1874,6 +2095,7 @@ const Multiplayer = () => {
                         answerCharacter={answerCharacter}
                         collapsedCount={isGuessTableCollapsed ? 3 : 0}
                         bannedTags={bannedSharedTags}
+                        locale={locale}
                       />
                     </div>
                   )}
@@ -1893,7 +2115,7 @@ const Multiplayer = () => {
                         <input
                           type="text"
                           value={roomName}
-                          placeholder="房间名（可选）"
+                          placeholder={text.roomNamePlaceholder}
                           maxLength={15}
                           className="room-name-input"
                           onChange={handleRoomNameChange}
@@ -1907,7 +2129,7 @@ const Multiplayer = () => {
                         readOnly
                         className="room-url-input"
                       />
-                      <button onClick={copyRoomUrl} className="copy-button">复制</button>
+                      <button onClick={copyRoomUrl} className="copy-button">{text.copy}</button>
                     </div>
                   </div>
                   <div className="host-game-controls">
@@ -1917,27 +2139,27 @@ const Multiplayer = () => {
                           onClick={() => setShowSettings(true)}
                           className="settings-button"
                         >
-                          设置
+                          {text.settings}
                         </button>
                         <button
                           onClick={handleVisibilityToggle}
                           className="visibility-button"
                         >
-                          {isPublic ? '🔓公开' : '🔒私密'}
+                          {isPublic ? text.public : text.private}
                         </button>
                         <button
                           onClick={handleStartGame}
                           className="start-game-button"
                           disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || allSpectators}
                         >
-                          开始
+                          {text.start}
                         </button>
                         <button
                           onClick={handleManualMode}
                           className={`manual-mode-button ${isManualMode ? 'active' : ''}`}
                           disabled={players.length < 2 || players.some(p => !p.isHost && !p.ready && !p.disconnected) || allSpectators}
                         >
-                          有人想出题？
+                          {text.manualMode}
                         </button>
                       </div>
                     </div>
@@ -1952,22 +2174,22 @@ const Multiplayer = () => {
                         <div className="game-end-header-content">
                           <div className="mode-tags">
                             {!displaySettings.nonstopMode && !displaySettings.syncMode && !displaySettings.globalPick && !displaySettings.tagBan && (
-                              <span className="mode-tag normal">普通模式</span>
+                          <span className="mode-tag normal">{text.normalMode}</span>
                             )}
                             {displaySettings.nonstopMode && (
-                              <span className="mode-tag nonstop">血战模式</span>
+                              <span className="mode-tag nonstop">{text.nonstopMode}</span>
                             )}
                             {displaySettings.syncMode && (
-                              <span className="mode-tag sync">同步模式</span>
+                              <span className="mode-tag sync">{text.syncMode}</span>
                             )}
                             {displaySettings.globalPick && (
-                              <span className="mode-tag global-bp">角色全局BP</span>
+                              <span className="mode-tag global-bp">{text.globalPick}</span>
                             )}
                             {displaySettings.tagBan && (
-                              <span className="mode-tag tag-ban">标签全局BP</span>
+                              <span className="mode-tag tag-ban">{text.tagBan}</span>
                             )}
                           </div>
-                          <span className="answer-label">答案是</span>
+                          <span className="answer-label">{text.answerIs}</span>
                           {(() => {
                             // 判断当前玩家是否猜对
                             const currentPlayer = players.find(p => p.id === socket?.id);
@@ -1992,7 +2214,7 @@ const Multiplayer = () => {
                                 className={answerButtonClass}
                                 onClick={() => setShowCharacterPopup(true)}
                               >
-                                {answerCharacter.nameCn || answerCharacter.name}
+                                {locale === 'en' ? (answerCharacter.nameEn || answerCharacter.nameCn || answerCharacter.name) : (answerCharacter.nameCn || answerCharacter.name)}
                               </button>
                             );
                           })()}
@@ -2000,12 +2222,12 @@ const Multiplayer = () => {
                           {(() => {
                             const setterInfo = scoreDetails?.find(item => item.type === 'setter');
                             if (!setterInfo) return null;
-                            const scoreText = setterInfo.score >= 0 ? `+${setterInfo.score}分` : `${setterInfo.score}分`;
+                            const scoreText = setterInfo.score >= 0 ? `+${setterInfo.score}${text.points}` : `${setterInfo.score}${text.points}`;
                             const boxClass = setterInfo.score > 0 ? 'player-score-box positive' : setterInfo.score < 0 ? 'player-score-box negative' : 'player-score-box';
                             const scoreClass = setterInfo.score > 0 ? 'positive' : setterInfo.score < 0 ? 'negative' : '';
                             return (
                               <span className="setter-info-inline">
-                                ，出题人
+                                {text.setter}
                                 <span className={boxClass}>
                                   <span className="player-name">{showNames ? setterInfo.username : '**'}</span>
                                   <span className={`score-value ${scoreClass}`}>
@@ -2017,7 +2239,7 @@ const Multiplayer = () => {
                             );
                           })()}
                           {scoreDetails && scoreDetails.length > 0 && (
-                            <span className="score-details-title">，得分详情：</span>
+                            <span className="score-details-title">{text.scoreDetails}</span>
                           )}
                         </div>
                       </th>
@@ -2043,7 +2265,7 @@ const Multiplayer = () => {
                                 const rank = idx + 1;
                                 if (item.type === 'team') {
                                   // 团队得分
-                                  const scoreText = item.teamScore >= 0 ? `+${item.teamScore}分` : `${item.teamScore}分`;
+                                  const scoreText = item.teamScore >= 0 ? `+${item.teamScore}${text.points}` : `${item.teamScore}${text.points}`;
                                   const scoreClass = item.teamScore > 0 ? 'positive' : item.teamScore < 0 ? 'negative' : '';
                                   const boxClass = item.teamScore > 0 ? 'player-score-box positive' : item.teamScore < 0 ? 'player-score-box negative' : 'player-score-box';
                                   
@@ -2051,41 +2273,41 @@ const Multiplayer = () => {
                                   const memberDetails = item.members.map((m, mIdx) => {
                                     const memberScore = m.score >= 0 ? `+${m.score}` : `${m.score}`;
                                     const reasonParts = [];
-                                    if (m.breakdown?.base) reasonParts.push(`基础${m.breakdown.base > 0 ? '+' : ''}${m.breakdown.base}`);
-                                    if (m.breakdown?.bigWin) reasonParts.push(`大赢家+${m.breakdown.bigWin}`);
-                                    if (m.breakdown?.quickGuess) reasonParts.push(`好快的猜+${m.breakdown.quickGuess}`);
-                                    if (m.breakdown?.partial) reasonParts.push(`作品分+${m.breakdown.partial}`);
+                                    if (m.breakdown?.base) reasonParts.push(`${text.base}${m.breakdown.base > 0 ? '+' : ''}${m.breakdown.base}`);
+                                    if (m.breakdown?.bigWin) reasonParts.push(`${text.bigWin}+${m.breakdown.bigWin}`);
+                                    if (m.breakdown?.quickGuess) reasonParts.push(`${text.quickGuess}+${m.breakdown.quickGuess}`);
+                                    if (m.breakdown?.partial) reasonParts.push(`${text.partial}+${m.breakdown.partial}`);
                                     const reasonText = reasonParts.length > 0 ? `(${reasonParts.join(' ')})` : '';
-                                    const displayName = showNames ? m.username : `成员${mIdx + 1}`;
+                                    const displayName = showNames ? m.username : `${text.member}${mIdx + 1}`;
                                     return `${displayName}${memberScore}${reasonText}`;
                                   }).join(' ');
                                   
                                   return (
                                     <span key={`team-${item.teamId}`} className={boxClass}>
                                       <span className="player-rank">{rank}.</span>
-                                      <span className="player-name">{showNames ? `队伍${item.teamId}` : `队伍${rank}`}</span>
+                                      <span className="player-name">{showNames ? `${text.team}${item.teamId}` : `${text.team}${rank}`}</span>
                                       <span className={`score-value ${scoreClass}`}>{scoreText}</span>
                                       {memberDetails && <span className="score-breakdown">{memberDetails}</span>}
                                     </span>
                                   );
                                 } else {
                                   // 个人得分 - 单行圆角矩形显示
-                                  const scoreText = item.score >= 0 ? `+${item.score}分` : `${item.score}分`;
+                                  const scoreText = item.score >= 0 ? `+${item.score}${text.points}` : `${item.score}${text.points}`;
                                   const scoreClass = item.score > 0 ? 'positive' : item.score < 0 ? 'negative' : '';
                                   const boxClass = item.score > 0 ? 'player-score-box positive' : item.score < 0 ? 'player-score-box negative' : 'player-score-box';
                                   
                                   // 构建得分明细
                                   const breakdownParts = [];
-                                  if (item.breakdown?.base) breakdownParts.push(`基础${item.breakdown.base > 0 ? '+' : ''}${item.breakdown.base}`);
-                                  if (item.breakdown?.bigWin) breakdownParts.push(`大赢家+${item.breakdown.bigWin}`);
-                                  if (item.breakdown?.quickGuess) breakdownParts.push(`好快的猜+${item.breakdown.quickGuess}`);
-                                  if (item.breakdown?.partial) breakdownParts.push(`作品分+${item.breakdown.partial}`);
+                                  if (item.breakdown?.base) breakdownParts.push(`${text.base}${item.breakdown.base > 0 ? '+' : ''}${item.breakdown.base}`);
+                                  if (item.breakdown?.bigWin) breakdownParts.push(`${text.bigWin}+${item.breakdown.bigWin}`);
+                                  if (item.breakdown?.quickGuess) breakdownParts.push(`${text.quickGuess}+${item.breakdown.quickGuess}`);
+                                  if (item.breakdown?.partial) breakdownParts.push(`${text.partial}+${item.breakdown.partial}`);
                                   const breakdownText = breakdownParts.length > 0 ? breakdownParts.join(' ') : '';
                                   
                                   return (
                                     <span key={item.id || idx} className={boxClass}>
                                       <span className="player-rank">{rank}.</span>
-                                      <span className="player-name">{showNames ? item.username : `玩家${rank}`}</span>
+                                      <span className="player-name">{showNames ? item.username : `${text.player}${rank}`}</span>
                                       <span className={`score-value ${scoreClass}`}>{scoreText}</span>
                                       {breakdownText && <span className="score-breakdown">{breakdownText}</span>}
                                     </span>
@@ -2107,7 +2329,7 @@ const Multiplayer = () => {
                     {/* <pre style={{ fontSize: '12px', color: '#666', padding: '5px', background: '#f5f5f5' }}>
                       {JSON.stringify({...gameSettings, __debug: '显示原始数据用于调试'}, null, 2)}
                     </pre> */}
-                    <GameSettingsDisplay settings={gameSettings} />
+                    <GameSettingsDisplay settings={gameSettings} locale={locale} />
                   </>
                 )}
                 <div className="guess-history-table">
@@ -2116,7 +2338,7 @@ const Multiplayer = () => {
                       <tr>
                         {guessesHistory.map((playerGuesses, index) => (
                           <th key={playerGuesses.username}>
-                            {showNames ? playerGuesses.username : `玩家${index + 1}`}
+                            {showNames ? playerGuesses.username : `${text.player}${index + 1}`}
                           </th>
                         ))}
                       </tr>
@@ -2129,8 +2351,12 @@ const Multiplayer = () => {
                               {playerGuesses.guesses[rowIndex] && (
                                 <>
                                   <Image className="character-icon" src={playerGuesses.guesses[rowIndex].guessData.image} alt={playerGuesses.guesses[rowIndex].guessData.name} />
-                                  <div className="character-name">{playerGuesses.guesses[rowIndex].guessData.name}</div>
-                                  <div className="character-name-cn">{playerGuesses.guesses[rowIndex].guessData.nameCn}</div>
+                                  <div className="character-name" translate="no">{playerGuesses.guesses[rowIndex].guessData.name}</div>
+                                  <div className="character-name-cn">
+                                    {locale === 'en' && playerGuesses.guesses[rowIndex].guessData.nameEn
+                                      ? playerGuesses.guesses[rowIndex].guessData.nameEn
+                                      : playerGuesses.guesses[rowIndex].guessData.nameCn}
+                                  </div>
                                 </>
                               )}
                             </td>
@@ -2151,6 +2377,7 @@ const Multiplayer = () => {
               onClose={() => setShowSettings(false)}
               hideRestart={true}
               isMultiplayer={true}
+              locale={locale}
             />
           )}
 
@@ -2159,6 +2386,7 @@ const Multiplayer = () => {
               result={guesses.some(g => g.isAnswer) ? 'win' : 'lose'}
               answer={answerCharacter}
               onClose={() => setShowCharacterPopup(false)}
+              locale={locale}
             />
           )}
 
@@ -2166,6 +2394,7 @@ const Multiplayer = () => {
             <SetAnswerPopup
               onSetAnswer={handleSetAnswer}
               gameSettings={gameSettings}
+              locale={locale}
             />
           )}
         </>
@@ -2175,6 +2404,7 @@ const Multiplayer = () => {
         <FeedbackPopup
           onClose={() => setShowFeedbackPopup(false)}
           onSubmit={handleFeedbackSubmit}
+          locale={locale}
         />
       )}
     </div>

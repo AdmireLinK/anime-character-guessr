@@ -22,8 +22,8 @@ const createBasePreset = () => ({
   useImageHint: 0,
   includeGame: false,
   subjectSearch: true,
-  subjectTagNum: 6,
-  characterTagNum: 6,
+  subjectTagNum: 3,
+  characterTagNum: 4,
   commonTags: true,
 });
 

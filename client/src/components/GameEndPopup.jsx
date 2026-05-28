@@ -4,7 +4,7 @@ import { useState } from 'react';
 import TagContributionPopup from './TagContributionPopup';
 import { idToTags } from '../data/id_tags';
 
-function renderSummaryWithTags(summary) {
+function renderSummaryWithTags(summary, text) {
   if (!summary || typeof summary !== 'string') return summary;
 
   const nodes = [];
@@ -46,8 +46,8 @@ function renderSummaryWithTags(summary) {
           key={`m-${key++}`}
           className="summary-mask"
           tabIndex={0}
-          aria-label="隐藏内容，悬停或聚焦以显示"
-          title="悬停显示"
+          aria-label={text.maskAriaLabel}
+          title={text.maskTitle}
         >
           {inner}
         </span>
@@ -99,13 +99,42 @@ function renderSummaryWithTags(summary) {
   return nodes;
 }
 
-function GameEndPopup({ result, answer, onClose }) {
+const GAME_END_TEXT = {
+  zh: {
+    win: '🎉 给你猜对了，有点东西',
+    lose: '😢 已经结束咧',
+    contributeTags: '贡献标签',
+    reportBug: '反馈Bug',
+    appearances: '出演作品：',
+    moreWorks: (count) => `...等 ${count} 部作品`,
+    tags: '角色标签：',
+    summary: '角色简介：',
+    maskAriaLabel: '隐藏内容，悬停或聚焦以显示',
+    maskTitle: '悬停显示'
+  },
+  en: {
+    win: '🎉 Correct. Good job.',
+    lose: '😢 Game over.',
+    contributeTags: 'Contribute Tags',
+    reportBug: 'Report Bug',
+    appearances: 'Appearances:',
+    moreWorks: (count) => `... (${count} subjects total)`,
+    tags: 'Tags:',
+    summary: 'Intro:',
+    maskAriaLabel: 'Hidden content. Hover or focus to reveal.',
+    maskTitle: 'Hover to reveal'
+  }
+};
+
+function GameEndPopup({ result, answer, onClose, locale = 'zh' }) {
+  const text = GAME_END_TEXT[locale] || GAME_END_TEXT.zh;
   const [showTagPopup, setShowTagPopup] = useState(false);
 
   if (showTagPopup) {
     return (
       <TagContributionPopup
         character={answer}
+        locale={locale}
         onClose={() => {
           setShowTagPopup(false);
           onClose();
@@ -119,7 +148,7 @@ function GameEndPopup({ result, answer, onClose }) {
       <div className="popup-content">
         <button className="popup-close" onClick={onClose}><i class="fas fa-xmark"></i></button>
         <div className="popup-header">
-          <h2>{result === 'win' ? '🎉 给你猜对了，有点东西' : '😢 已经结束咧'}</h2>
+          <h2>{result === 'win' ? text.win : text.lose}</h2>
         </div>
         <div className="popup-body">
           <div className="answer-character">
@@ -137,8 +166,14 @@ function GameEndPopup({ result, answer, onClose }) {
                   className="character-link"
                   style={{ display: 'block', textAlign: 'left' }}
                 >
-                  <div className="answer-character-name" style={{ textAlign: 'left' }}>{answer.name}</div>
-                  <div className="answer-character-name-cn" style={{ textAlign: 'left' }}>{answer.nameCn}</div>
+                  <div className="answer-character-name" style={{ textAlign: 'left' }} translate="no">{answer.name}</div>
+                  <div className={locale === 'en' ? 'answer-character-name-en' : 'answer-character-name-cn'} style={{ textAlign: 'left' }}>
+                    {locale === 'en' && answer.nameEn && answer.nameEn !== answer.nameCn ? (
+                      <span translate="no">{answer.nameEn}</span>
+                    ) : (
+                      <span>{locale === 'en' ? (answer.nameEn || answer.nameCn) : answer.nameCn}</span>
+                    )}
+                  </div>
                 </a>
                 <div className="button-container">
                   <div className="button-group-vertical">
@@ -146,13 +181,13 @@ function GameEndPopup({ result, answer, onClose }) {
                       className="contribute-tag-btn"
                       onClick={() => setShowTagPopup(true)}
                     >
-                      贡献标签
+                      {text.contributeTags}
                     </button>
                     <button
                       className="contribute-tag-btn"
                       onClick={() => window.open('https://github.com/kennylimz/anime-character-guessr/issues/new', '_blank', 'noopener,noreferrer')}
                     >
-                      反馈Bug
+                      {text.reportBug}
                     </button>
                   </div>
                   <img src={subaruIcon} alt="" className="button-icon" />
@@ -162,13 +197,13 @@ function GameEndPopup({ result, answer, onClose }) {
               {/* 角色出演作品 */}
               {answer.appearances && answer.appearances.length > 0 && (
                 <div className="answer-appearances">
-                  <h3>出演作品：</h3>
+                  <h3>{text.appearances}</h3>
                   <ul className="appearances-list">
                     {answer.appearances.slice(0, 3).map((appearance, index) => (
                       <li key={index}>{appearance}</li>
                     ))}
                     {answer.appearances.length > 3 && (
-                      <li>...等 {answer.appearances.length} 部作品</li>
+                      <li>{text.moreWorks(answer.appearances.length)}</li>
                     )}
                   </ul>
                 </div>
@@ -177,8 +212,8 @@ function GameEndPopup({ result, answer, onClose }) {
               {/* 角色标签 */}
               {idToTags[answer.id] && idToTags[answer.id].length > 0 && (
                 <div className="answer-tags">
-                  <h3>角色标签：</h3>
-                  <div className="tags-container">
+                  <h3>{text.tags}</h3>
+                  <div className="tags-container" lang={locale === 'en' ? 'zh-CN' : undefined} translate={locale === 'en' ? 'yes' : undefined}>
                     {idToTags[answer.id].map((tag, index) => (
                       <span key={index} className="character-tag">{tag}</span>
                     ))}
@@ -189,8 +224,8 @@ function GameEndPopup({ result, answer, onClose }) {
               {/* 角色简介 */}
               {answer.summary && (
                 <div className="answer-summary">
-                  <h3>角色简介：</h3>
-                  <div className="summary-content">{renderSummaryWithTags(answer.summary)}</div>
+                  <h3>{text.summary}</h3>
+                  <div className="summary-content">{renderSummaryWithTags(answer.summary, text)}</div>
                 </div>
               )}
             </div>

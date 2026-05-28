@@ -1,9 +1,45 @@
 import '../styles/popups.css';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { submitCharacterTags, proposeCustomTags, submitFeedbackTags } from '../utils/db';
 import { idToTags } from '../data/id_tags.js';
 
-function TagContributionPopup({ character, onClose }) {
+const TAG_CONTRIBUTION_TEXT = {
+  zh: {
+    title: (name) => `为 ${name} 贡献标签`,
+    existingTags: '现有标签',
+    noTags: '暂无',
+    customTags: '自定义标签',
+    customPlaceholder: '添加自定义标签（最多8字符）',
+    add: '添加',
+    submitting: '提交中...',
+    submitTags: (count, max) => `提交标签 (${count}/${max})`,
+    emptyTag: '标签不能为空',
+    tagTooLong: '标签最多8个字符',
+    duplicateTag: '标签已存在',
+    tooManyTags: (max) => `最多只能添加${max}个标签`,
+    thanks: '感谢您的贡献！',
+    submitFailed: '提交失败，请稍后重试'
+  },
+  en: {
+    title: (name) => `Contribute Tags for ${name}`,
+    existingTags: 'Existing Tags',
+    noTags: 'None',
+    customTags: 'Custom Tags',
+    customPlaceholder: 'Add custom tag (8 chars max)',
+    add: 'Add',
+    submitting: 'Submitting...',
+    submitTags: (count, max) => `Submit Tags (${count}/${max})`,
+    emptyTag: 'Tag cannot be empty',
+    tagTooLong: 'Tag must be 8 characters or fewer',
+    duplicateTag: 'Tag already exists',
+    tooManyTags: (max) => `You can add up to ${max} tags`,
+    thanks: 'Thanks for contributing.',
+    submitFailed: 'Submit failed. Please try again later.'
+  }
+};
+
+function TagContributionPopup({ character, onClose, locale = 'zh' }) {
+  const text = TAG_CONTRIBUTION_TEXT[locale] || TAG_CONTRIBUTION_TEXT.zh;
   const [selectedTags, setSelectedTags] = useState([]);
   const [customTags, setCustomTags] = useState([]);
   const [customTagInput, setCustomTagInput] = useState('');
@@ -77,19 +113,19 @@ function TagContributionPopup({ character, onClose }) {
   const handleCustomTagAdd = () => {
     const trimmedTag = customTagInput.trim();
     if (!trimmedTag) {
-      setInputError('标签不能为空');
+      setInputError(text.emptyTag);
       return;
     }
     if (trimmedTag.length > 8) {
-      setInputError('标签最多8个字符');
+      setInputError(text.tagTooLong);
       return;
     }
     if (customTags.includes(trimmedTag)) {
-      setInputError('标签已存在');
+      setInputError(text.duplicateTag);
       return;
     }
     if (totalTags >= MAX_TAGS) {
-      setInputError(`最多只能添加${MAX_TAGS}个标签`);
+      setInputError(text.tooManyTags(MAX_TAGS));
       return;
     }
     setCustomTags(prev => [...prev, trimmedTag]);
@@ -130,11 +166,11 @@ function TagContributionPopup({ character, onClose }) {
       
       await Promise.all(submitPromises);
       
-      alert('感谢您的贡献！');
+      alert(text.thanks);
       onClose();
     } catch (error) {
       console.error('Error submitting tags:', error);
-      alert('提交失败，请稍后重试');
+      alert(text.submitFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -161,7 +197,7 @@ function TagContributionPopup({ character, onClose }) {
       <div className="popup-content">
         <button className="popup-close" onClick={onClose}><i class="fas fa-xmark"></i></button>
         <div className="popup-header">
-          <h2>为 {character.nameCn} 贡献标签</h2>
+          <h2>{text.title(locale === 'en' ? (character.nameEn || character.nameCn) : character.nameCn)}</h2>
         </div>
         <div className="popup-body">
           <div className="tag-contribution-container">
@@ -176,7 +212,7 @@ function TagContributionPopup({ character, onClose }) {
                 <div className="character-preview-name-cn">{character.nameCn}</div>
               </div>
               <div className="existing-tags">
-                <h4>现有标签</h4>
+                <h4>{text.existingTags}</h4>
                 <div className="existing-tags-list">
                   {idToTags[character.id]?.map(tag => (
                     <div key={tag} className="existing-tag-container">
@@ -194,7 +230,7 @@ function TagContributionPopup({ character, onClose }) {
                         </div>
                       )}
                     </div>
-                  )) || <span className="no-tags">暂无</span>}
+                  )) || <span className="no-tags">{text.noTags}</span>}
                 </div>
               </div>
             </div>
@@ -218,14 +254,14 @@ function TagContributionPopup({ character, onClose }) {
                   </div>
                 ))}
                 <div className="tag-group">
-                  <h4 className="tag-group-title">自定义标签</h4>
+                  <h4 className="tag-group-title">{text.customTags}</h4>
                   <div className="custom-tag-input">
                     <input
                       type="text"
                       value={customTagInput}
                       onChange={(e) => setCustomTagInput(e.target.value)}
                       onKeyPress={handleKeyPress}
-                      placeholder="添加自定义标签（最多8字符）"
+                      placeholder={text.customPlaceholder}
                       maxLength={8}
                       className={inputError ? 'has-error' : ''}
                       disabled={totalTags >= MAX_TAGS}
@@ -238,7 +274,7 @@ function TagContributionPopup({ character, onClose }) {
                       onClick={handleCustomTagAdd}
                       disabled={totalTags >= MAX_TAGS}
                     >
-                      添加
+                      {text.add}
                     </button>
                   </div>
                   {inputError && <div className="input-error">{inputError}</div>}
@@ -263,7 +299,7 @@ function TagContributionPopup({ character, onClose }) {
             disabled={(totalTags === 0 && upvotedTags.size === 0 && downvotedTags.size === 0) || isSubmitting}
             onClick={handleSubmit}
           >
-            {isSubmitting ? '提交中...' : `提交标签 (${totalTags}/${MAX_TAGS})`}
+            {isSubmitting ? text.submitting : text.submitTags(totalTags, MAX_TAGS)}
           </button>
         </div>
       </div>

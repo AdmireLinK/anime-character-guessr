@@ -1,7 +1,55 @@
 import React, { useState, useEffect } from 'react';
 import Image from './Image';
 
-const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnonymousModeChange, isManualMode, isHost, answerSetterId, onSetAnswerSetter, onKickPlayer, onTransferHost, onMessageChange, onTeamChange }) => {
+const PLAYER_LIST_TEXT = {
+  zh: {
+    none: '无',
+    spectate: '旁观',
+    host: '房主',
+    disconnected: '已断开',
+    settingAnswer: '出题中',
+    ready: '已准备',
+    choose: '选择',
+    cancelReady: '取消准备',
+    readyButton: '准备',
+    notReady: '未准备',
+    team: '队',
+    name: '名',
+    anonymousName: '无名',
+    score: '分',
+    guesses: '猜',
+    actions: '操作',
+    messagePlaceholder: '请友好交流（比心）',
+    answerSetter: '出题者',
+    kick: '踢出',
+    transferHost: '转移房主'
+  },
+  en: {
+    none: 'None',
+    spectate: 'Spectator',
+    host: 'Host',
+    disconnected: 'Disconnected',
+    settingAnswer: 'Setting Answer',
+    ready: 'Ready',
+    choose: 'Select',
+    cancelReady: 'Cancel',
+    readyButton: 'Ready',
+    notReady: 'Unready',
+    team: 'Team',
+    name: 'Name',
+    anonymousName: 'Anon',
+    score: 'Score',
+    guesses: 'Guesses',
+    actions: 'Actions',
+    messagePlaceholder: 'Say something nice :)',
+    answerSetter: 'AnswerSetter',
+    kick: 'Kick',
+    transferHost: 'Transfer Host'
+  }
+};
+
+const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnonymousModeChange, isManualMode, isHost, answerSetterId, onSetAnswerSetter, onKickPlayer, onTransferHost, onMessageChange, onTeamChange, locale = 'zh' }) => {
+  const text = PLAYER_LIST_TEXT[locale] || PLAYER_LIST_TEXT.zh;
   const [showNames, setShowNames] = useState(true);
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
   const [activeMenu, setActiveMenu] = useState(null);
@@ -9,8 +57,8 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
   const [messageDraft, setMessageDraft] = useState("");
 
   const teamOptions = [
-    { value: '', label: '无' },
-    { value: '0', label: '旁观' },
+    { value: '', label: text.none },
+    { value: '0', label: text.spectate },
     ...Array.from({ length: 8 }, (_, i) => ({ value: (i + 1).toString(), label: (i + 1).toString() }))
   ];
 
@@ -51,28 +99,28 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
   };
 
   const getStatusDisplay = (player) => {
-    const host = <span><i className={`fas fa-crown`}></i>房主</span>
+    const host = <span><i className={`fas fa-crown`}></i>{text.host}</span>
     if (player.disconnected) {
-      return renderStyledSpan('已断开','red');
+      return renderStyledSpan(text.disconnected,'red');
     }
 
     // Use answerSetterId prop as the primary source of truth for "waiting for answer" state
     // This ensures late joiners or refreshed clients see the correct status
     if ((waitingForAnswer || answerSetterId) && !isGameStarted) {
       if (player.id === answerSetterId) {
-        return renderStyledSpan('出题中','orange');
+        return renderStyledSpan(text.settingAnswer,'orange');
       }
       if (player.isHost) {
         return host;
       }
-      return renderStyledSpan('已准备','green');
+      return renderStyledSpan(text.ready,'green');
     }
 
     if (isManualMode && !isGameStarted && isHost) {
       if (player.id === answerSetterId) {
-        return <button className="ready-button ready">出题中</button>;
+        return <button className="ready-button ready">{text.settingAnswer}</button>;
       }
-      return <button className="ready-button">选择</button>;
+      return <button className="ready-button">{text.choose}</button>;
     }
 
     if (player.isHost) {
@@ -85,12 +133,12 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
           onClick={handleReadyToggle}
           className={`ready-button ${player.ready ? 'ready' : ''}`}
         >
-          {player.ready ? '取消准备' : '准备'}
+          {player.ready ? text.cancelReady : text.readyButton}
         </button>
       );
     }
 
-    return player.ready ? renderStyledSpan('已准备','green') : renderStyledSpan('未准备');
+    return player.ready ? renderStyledSpan(text.ready,'green') : renderStyledSpan(text.notReady);
   };
 
   const renderStyledSpan = (text, color = "inherit") => (
@@ -129,17 +177,17 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
         <thead>
           <tr>
             <th></th>
-            <th>队</th>
+            <th>{text.team}</th>
             <th></th>
             <th>
               <button className='table-head-name-button'
                 onClick={handleShowNamesToggle}>
-                {showNames ? '名' : '无名' }
+                {showNames ? text.name : text.anonymousName}
               </button>
             </th>
-            <th>分</th>
-            <th>猜</th>
-            {isHost && <th><span style={{ width: "100px",display:"block" }}>操作</span></th>}
+            <th>{text.score}</th>
+            <th>{text.guesses}</th>
+            {isHost && <th><span style={{ width: "100px",display:"block" }}>{text.actions}</span></th>}
           </tr>
         </thead>
         <tbody>
@@ -166,7 +214,7 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
                     ))}
                   </select>
                 ) : (
-                  <span>{player.team === '0' ? '旁观' : (player.team ? player.team : '无')}</span>
+                  <span>{player.team === '0' ? text.spectate : (player.team ? player.team : text.none)}</span>
                 )}
               </td>
               <td>
@@ -182,7 +230,7 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
                   <input
                     type="text"
                     value={messageDraft}
-                    placeholder='请友好交流（比心）'
+                    placeholder={text.messagePlaceholder}
                     autoFocus
                     maxLength={15}
                     style={{ width: '90%' }}
@@ -223,7 +271,7 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
                 )}
               </td>
               <td>{player.score}</td>
-              <td>{isGameStarted && player.isAnswerSetter ? '出题者' : player.guesses || ''}</td>
+              <td>{isGameStarted && player.isAnswerSetter ? text.answerSetter : player.guesses || ''}</td>
               {isHost && player.id !== socket?.id && (
                 <td>
                   <div className="player-actions" style={{ position: 'relative' }}>
@@ -235,7 +283,7 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
                         setActiveMenu(activeMenu === player.id ? null : player.id);
                       }}
                     >
-                      ⚙️ 操作
+                      ⚙️ {text.actions}
                     </button>
                     
                     {activeMenu === player.id && (
@@ -247,7 +295,7 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
                             setActiveMenu(null);
                           }}
                           >
-                          <span>❌</span> 踢出
+                          <span>❌</span> {text.kick}
                         </button>
                         
                         {!player.disconnected && (
@@ -259,7 +307,7 @@ const PlayerList = ({ players, socket, isGameStarted, handleReadyToggle, onAnony
                             }}
                             style={{ color: '#007bff' , borderBottom: '0px' }}
                             >
-                            <span>👑</span> 转移房主
+                            <span>👑</span> {text.transferHost}
                           </button>
                         )}
                       </div>

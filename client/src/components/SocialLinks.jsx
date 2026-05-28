@@ -1,16 +1,32 @@
 import '../styles/social.css';
 
-function SocialLinks({ onSettingsClick, onHelpClick, onFeedbackClick, showFeedbackInline = false }) {
+const SOCIAL_TEXT = {
+  zh: {
+    difficultyHint: '太难了？调下难度',
+    feedbackTitle: 'Bug/标签反馈',
+    homeTitle: 'Home'
+  },
+  en: {
+    difficultyHint: 'Too hard? Adjust difficulty',
+    feedbackTitle: 'Feedback',
+    homeTitle: 'Home'
+  }
+};
+
+function SocialLinks({ onSettingsClick, onHelpClick, onFeedbackClick, showFeedbackInline = false, locale = 'zh' }) {
+  const text = SOCIAL_TEXT[locale] || SOCIAL_TEXT.zh;
+  const homeHref = locale === 'en' ? '/en' : '/';
+
   return (
     <div className="social-links">
       <div className="difficulty-hint">
-        <span>太难了？调下难度</span>
+        <span>{text.difficultyHint}</span>
         <div className="arrow"></div>
       </div>
       <button className="social-link settings-button" onClick={onSettingsClick}>
         <i className="fas fa-cog"></i>
       </button>
-      <a href="/" className="social-link" title="Home">
+      <a href={homeHref} className="social-link" title={text.homeTitle}>
           <i className="fas fa-home"></i>
       </a>
       <button className="social-link help-button" onClick={onHelpClick}>
@@ -21,7 +37,7 @@ function SocialLinks({ onSettingsClick, onHelpClick, onFeedbackClick, showFeedba
       {showFeedbackInline && (
         <button
           className="social-link inline-feedback-button"
-          title="Bug/标签反馈"
+          title={text.feedbackTitle}
           onClick={onFeedbackClick}
         >
           🐞
