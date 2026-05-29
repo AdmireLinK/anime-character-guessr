@@ -8,13 +8,12 @@ const WELCOME_TEXT = {
     titleSub: '猜猜唄',
     qqTitle: '加入QQ群',
     qqAlt: 'QQ群',
-    intro: <>猜猜呗终于<del>和Faze一起</del>地狱归来了！这段时间我们对多人模式进行了大量更新：</>,
+    intro: <><b>由于不可抗力因素，猜猜呗的运营正在变得更加艰难，可能在不远的将来停止对中国大陆地区访问的优化。</b></>,
     updates: [
-      <><b>血战模式</b>：第一个猜对的玩家不会立即结束游戏，所有玩家继续猜测，直到最后一人猜对或次数耗尽</>,
-      <><b>同步模式</b>：所有玩家需要等待其他玩家完成当前轮猜测后才能进行下一轮</>,
-      <><b>角色全局BP</b>：开启后一名角色只能被猜一次（除答案）</>,
-      <><b>标签全局BP</b>：开启后一个标签只能被首个猜到的玩家获取</>,
-      <>此外，还有<b>大量UIUX优化和Bug修复</b></>
+      <>近期，由于Bangumi在中国大陆遭到访问阻断，导致本站点在中国大陆游玩体验收到影响。<br></br>
+      经过不懈努力，我们已找到临时解决办法，且目前已经上线。然而，此方法仍然不能完美、一劳永逸地解决此问题，且也存在被不可抗力因素阻断的可能性，因此<b>不再对中国大陆可用性做保证，如有持续游玩需求建议优化网络环境</b>。</>,
+      <>如果您目前正在使用<a href="https://anime-character-guessr.netlify.app/" target="_blank" rel="noopener noreferrer">anime-character-guessr.netlify.app</a>游玩且位于中国大陆，发现无法游玩时可尝试更换至<a href="https://ccb.baka.website/" target="_blank" rel="noopener noreferrer">ccb.baka.website</a>进行游玩</>,
+      <>另外，反馈角色标签问题请在游戏结算后的角色卡片处反馈<br></br>反馈其它游戏Bug可加入<a href="https://qm.qq.com/q/2sWbSsCwBu" target="_blank" rel="noopener noreferrer">QQ群</a>或<a href="https://github.com/kennylimz/anime-character-guessr/issues/new" target="_blank" rel="noopener noreferrer">提交Issue</a></>
     ],
     thanks: (
       <>

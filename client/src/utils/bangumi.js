@@ -1,6 +1,7 @@
 import axios from './cached-axios.js';
 import { idToTags } from '../data/id_tags.js';
 import { subjectsWithExtraTags } from '../data/extra_tag_subjects.js';
+import { fixImageUrl } from './imageUrl.js';
 
 const API_BASE_URL = import.meta.env.VITE_BGM_API_URL || 'https://api.bgm.tv';
 
@@ -359,8 +360,8 @@ async function getCharacterDetails(characterId) {
       nameCn: nameCn,
       nameEn: nameEn,
       gender,
-      image: response.data.images.medium,
-      imageGrid: response.data.images.grid,
+      image: fixImageUrl(response.data.images.medium),
+      imageGrid: fixImageUrl(response.data.images.grid),
       summary: response.data.summary,
       popularity: response.data.stat.collects+response.data.stat.comments
     };
@@ -798,7 +799,7 @@ async function searchSubjects(keyword) {
       id: subject.id,
       name: subject.name,
       name_cn: subject.name_cn,
-      image: subject.images?.grid || subject.images?.medium || '',
+      image: fixImageUrl(subject.images?.grid || subject.images?.medium || ''),
       date: subject.date,
       type: subject.type==2 ? '动漫' : '游戏'
     }));

@@ -25,6 +25,28 @@ const announcements = [
   },
 
   {
+    version: '1.7.0',
+    date: '2026-05-29',
+    content: `
+      <b>新功能：</b><br/>
+      <ul>
+        <li>将多人模式部分判定移动到服务器进行以减少网络问题导致的多人模式Bug</li>
+      </ul>
+      <b>调整：</b><br/>
+      <ul>
+        <li>移除“线路选择”</li>
+      </ul>
+      <b>修复：</b><br/>
+      <ul>
+        <li>由于Bangumi在大陆地区被阻断导致的无法游玩问题</li>
+        <li>投降后仍能猜测的问题</li>
+        <li>同步模式+全局BP模式的bug</li>
+        <li>多人模式错误的路由</li>
+      </ul>
+    `
+  },
+
+  {
     version: '1.6.9',
     date: '2026-03-28',
     content: `

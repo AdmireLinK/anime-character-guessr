@@ -466,17 +466,22 @@ function SettingsPopup({ gameSettings, onSettingsChange, onClose, onRestart, hid
     onClose();
   };
 
-  // 确认时只同步多人模式相关设置到全局（避免覆盖其他即时生效的设置）
+  // 确认时把多人模式卡片的本地改动合并进最终设置，避免父组件读到旧状态。
   const handleConfirm = () => {
+    let nextSettings = gameSettings;
     if (isMultiplayer) {
       const keysToCommit = ['globalPick', 'tagBan', 'syncMode', 'nonstopMode'];
+      nextSettings = { ...gameSettings };
       keysToCommit.forEach((key) => {
-        if (Object.prototype.hasOwnProperty.call(localSettings, key)) onSettingsChange(key, localSettings[key]);
+        if (Object.prototype.hasOwnProperty.call(localSettings, key)) {
+          nextSettings[key] = localSettings[key];
+        }
       });
+      onSettingsChange(nextSettings);
     }
     // 在确认时触发重启（如果提供），并关闭弹窗
     if (typeof onRestart === 'function') onRestart();
-    onClose();
+    onClose(nextSettings);
   };
 
   return (

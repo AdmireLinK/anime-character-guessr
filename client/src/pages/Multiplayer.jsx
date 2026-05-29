@@ -42,7 +42,7 @@ const MULTIPLAYER_TEXT = {
     hostRoomName: (hostName, displayRoomName) => displayRoomName || `${hostName}的房间`,
     unknown: '未知',
     host: '房主',
-    players: '人数',
+    players: '玩家',
     join: '加入',
     spectate: '观战',
     previousPage: '上一页',
@@ -289,8 +289,6 @@ const Multiplayer = () => {
   const [imgHint, setImgHint] = useState(null);
   const [shouldResetTimer, setShouldResetTimer] = useState(false);
   const [gameEnd, setGameEnd] = useState(false);
-  const timeUpRef = useRef(0);
-  const lastTimeoutEmitRef = useRef(0);
   const gameEndedRef = useRef(false);
   const [scoreDetails, setScoreDetails] = useState(null);
   const [globalGameEnd, setGlobalGameEnd] = useState(false);
@@ -620,6 +618,7 @@ const Multiplayer = () => {
       setCanShowSelectedAnswer(!!isAnswerSetterFlag || effectiveObserver);
       if (players) {
         setPlayers(players);
+        latestPlayersRef.current = Array.isArray(players) ? players : [];
       }
       if (isPublic !== undefined) {
         setIsPublic(isPublic);
@@ -730,10 +729,33 @@ const Multiplayer = () => {
         }, 500);
         return;
       }
+
+      const normalizedMessage = typeof message === 'string' ? message : '';
+      const codeMatch = normalizedMessage.match(/^([^:]+):\s*(.*)$/);
+      const errorCode = codeMatch ? codeMatch[1].trim() : '';
+      const errorDetail = codeMatch ? codeMatch[2].trim() : normalizedMessage;
+      const isJoinRoomError = errorCode === 'joinRoom';
+      const isCreateRoomError = errorCode === 'createRoom';
+      const isAvatarError = normalizedMessage.includes('头像被用了😭😭😭') || normalizedMessage.includes('头像已被选用') || normalizedMessage.includes('头像信息不一致');
+
+      if (isJoinRoomError || isCreateRoomError) {
+        if (isAvatarError) {
+          sessionStorage.removeItem('avatarId');
+          sessionStorage.removeItem('avatarImage');
+        }
+        setIsJoined(false);
+        if (isJoinRoomError) {
+          setIsHost(false);
+        }
+        setError(errorDetail || normalizedMessage);
+        alert(text.socketError(errorDetail || normalizedMessage));
+        return;
+      }
+
       alert(text.socketError(message));
       setError(message);
       // 只在特定情况下将玩家踢出房间，游戏开始相关错误不应该踢出房主
-      if (message && message.includes('头像被用了😭😭😭')) {
+      if (isAvatarError) {
         sessionStorage.removeItem('avatarId');
         sessionStorage.removeItem('avatarImage');
         setIsJoined(false);
@@ -751,6 +773,7 @@ const Multiplayer = () => {
 
     newSocket.on('updateGameSettings', ({ settings }) => {
       console.log('Received game settings:', settings);
+      gameSettingsRef.current = settings;
       setGameSettings(settings);
     });
 
@@ -905,51 +928,45 @@ const Multiplayer = () => {
 
   useEffect(() => {
     if (!roomId) {
-      // Create new room if no roomId in URL
+      // Create new room when entering the multiplayer lobby
       const newRoomId = uuidv4();
       setIsHost(true);
       navigate(`/multiplayer/${newRoomId}${langQuery}`);
-    } else {
-      // Set room URL for sharing
-      setRoomUrl(window.location.href);
-      
-      // 检查是否有待加入的房间（从房间列表点击加入）
-      const pendingUsername = sessionStorage.getItem('pendingUsername');
-      const pendingRoomId = sessionStorage.getItem('pendingRoomId');
-      
-      if (pendingUsername && pendingRoomId === roomId) {
-        // 清除 sessionStorage
-        sessionStorage.removeItem('pendingUsername');
-        sessionStorage.removeItem('pendingRoomId');
-        
-        // 设置用户名并自动加入
-        setUsername(pendingUsername);
-        setIsHost(false);
-        
-        // 保存用户名到 cookie，有效期 30 天
-        const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
-        document.cookie = `multiplayerUsername=${encodeURIComponent(pendingUsername)}; expires=${expires}; path=/`;
-        
-        // 延迟执行加入，确保 socket 已连接
-        setTimeout(() => {
-          const avatarId = sessionStorage.getItem('avatarId');
-          const avatarImage = sessionStorage.getItem('avatarImage');
-          const avatarPayload = avatarId !== null ? { avatarId, avatarImage } : {};
-          
-          socketRef.current?.emit('joinRoom', { roomId, username: pendingUsername, ...avatarPayload });
-          socketRef.current?.emit('requestGameSettings', { roomId });
-          setIsJoined(true);
-        }, 100);
-      }
+      return;
     }
-  }, [roomId, navigate]);
 
-  useEffect(() => {
-    console.log('Game Settings:', gameSettings);
-    if (isHost && isJoined) {
-      socketRef.current?.emit('updateGameSettings', { roomId, settings: gameSettings });
+    // Set room URL for sharing
+    setRoomUrl(window.location.href);
+
+    // 检查是否有待加入的房间（从房间列表点击加入）
+    const pendingUsername = sessionStorage.getItem('pendingUsername');
+    const pendingRoomId = sessionStorage.getItem('pendingRoomId');
+
+    if (pendingUsername && pendingRoomId === roomId) {
+      // 清除 sessionStorage
+      sessionStorage.removeItem('pendingUsername');
+      sessionStorage.removeItem('pendingRoomId');
+
+      // 设置用户名并自动加入
+      setUsername(pendingUsername);
+      setIsHost(false);
+
+      // 保存用户名到 cookie，有效期 30 天
+      const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
+      document.cookie = `multiplayerUsername=${encodeURIComponent(pendingUsername)}; expires=${expires}; path=/`;
+
+      // 延迟执行加入，确保 socket 已连接
+      setTimeout(() => {
+        const avatarId = sessionStorage.getItem('avatarId');
+        const avatarImage = sessionStorage.getItem('avatarImage');
+        const avatarPayload = avatarId !== null ? { avatarId, avatarImage } : {};
+
+        socketRef.current?.emit('joinRoom', { roomId, username: pendingUsername, ...avatarPayload });
+        socketRef.current?.emit('requestGameSettings', { roomId });
+        setIsJoined(true);
+      }, 100);
     }
-  }, [showSettings]);
+  }, [roomId, navigate, langQuery]);
 
   useEffect(() => {
     gameSettingsRef.current = gameSettings;
@@ -1005,11 +1022,32 @@ const Multiplayer = () => {
     socketRef.current?.emit('toggleReady', { roomId });
   };
 
+  const saveGameSettings = (settingsToSave) => {
+    if (!isHost || !isJoined || !settingsToSave) return;
+    socketRef.current?.emit('updateGameSettings', { roomId, settings: settingsToSave }, (response) => {
+      if (response && response.ok === false) {
+        console.warn('Failed to update game settings:', response.message);
+        setError(response.message || 'Failed to update game settings');
+      }
+    });
+  };
+
   const handleSettingsChange = (key, value) => {
-    setGameSettings(prev => ({
-      ...prev,
-      [key]: value
-    }));
+    if (key && typeof key === 'object' && !Array.isArray(key)) {
+      const nextSettings = { ...gameSettingsRef.current, ...key };
+      gameSettingsRef.current = nextSettings;
+      setGameSettings(nextSettings);
+      return;
+    }
+
+    setGameSettings(prev => {
+      const nextSettings = {
+        ...prev,
+        [key]: value
+      };
+      gameSettingsRef.current = nextSettings;
+      return nextSettings;
+    });
   };
 
   const copyRoomUrl = () => {
@@ -1070,12 +1108,11 @@ const Multiplayer = () => {
         playerHistory.guesses.some(guessEntry => guessEntry?.guessData?.id === character.id)
       );
       const isCorrectAnswer = character.id === answerCharacter?.id;
-      // 非同步模式下，或（同步模式下自己已猜中/本轮已完成）才阻止
+      // 同步模式下所有猜测视为同时发生，角色BP由服务端跨轮次判定
+      // 非同步模式/血战模式仍由前端做客户端预拦截
       if (duplicateInHistory) {
-        if (
-          (gameSettings.syncMode && isCorrectAnswer) // 同步+全局BP+答对，允许
-        ) {
-          // 允许同步模式下多名玩家本轮内猜中
+        if (gameSettings.syncMode) {
+          // 同步模式：同轮可猜同角色，服务端会在跨轮时拦截
         } else if (gameSettings.nonstopMode && isCorrectAnswer) {
           // 血战模式下允许多人猜正确答案
         } else {
@@ -1195,30 +1232,7 @@ const Multiplayer = () => {
   };
 
   const handleTimeUp = () => {
-    if (timeUpRef.current >= 5 || gameEnd || gameEndedRef.current) return;
-
-    // 已结束/观战状态不再发送超时
-    const myId = socketRef.current?.id || socket?.id;
-    const me = latestPlayersRef.current.find(p => p?.id === myId);
-    const endedMarks = ['✌','👑','💀','🏳️','🏆'];
-    if (me && endedMarks.some(mark => (me.guesses || '').includes(mark))) return;
-
-    // 客户端侧防抖，避免网络卡顿导致短时间内多次触发
-    const now = Date.now();
-    if (now - lastTimeoutEmitRef.current < 1500) return;
-    lastTimeoutEmitRef.current = now;
-
-    timeUpRef.current += 1;
-
-    // 发送超时事件到服务器，由服务器统一处理次数扣除和死亡判定
-    // 不在客户端手动减少 guessesLeft，避免与服务器状态不同步
-    socketRef.current?.emit('timeOut', { roomId });
-
-    setShouldResetTimer(true);
-    setTimeout(() => {
-      setShouldResetTimer(false);
-      timeUpRef.current = 0;
-    }, 100);
+    // 多人模式超时由服务端权威计时并结算，前端计时器只负责显示。
   };
 
   const handleEnterObserverMode = () => {
@@ -1233,7 +1247,9 @@ const Multiplayer = () => {
 
   const handleSurrender = () => {
     if (gameEnd || gameEndedRef.current) return;
-    // 投降后进入旁观模式
+    // 投降后禁用前端交互，服务端权威处理
+    gameEndedRef.current = true;
+    setGameEnd(true);
     handleEnterObserverMode();
   };
 
@@ -1517,95 +1533,7 @@ const Multiplayer = () => {
   if (!roomId) {
     return (
       <div className="multiplayer-container" lang={isEnglish ? 'en' : 'zh-CN'}>
-        <div className="top-row">
-          <div className="room-info">
-            <h2>{text.lobbyTitle}</h2>
-            <p>{text.lobbySubtitle}</p>
-          </div>
-        </div>
-
-        <div className="settings-and-players">
-          <div className="settings-panel">
-            <div className="settings-header">
-              <h3>{text.joinOrCreate}</h3>
-            </div>
-            <div className="form-row">
-              <label htmlFor="username">{text.username}</label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder={text.usernamePlaceholder}
-              />
-            </div>
-            <div className="button-group">
-              <button className="primary-btn" onClick={() => navigate(`/multiplayer${langQuery}`, { replace: true, state: { autoCreate: true } })}>
-                {text.createNewRoom}
-              </button>
-              <button className="secondary-btn" onClick={handleQuickJoin}>
-                {text.quickJoinPublic}
-              </button>
-            </div>
-          </div>
-
-          <div className="player-list">
-            <div className="player-list-header">
-              <div>
-                <h3>{text.publicRooms} {roomList.length > 0 && `(${roomList.length})`}</h3>
-                <small>{text.refreshHint}</small>
-              </div>
-              <div className="button-group">
-                <button className="secondary-btn" onClick={() => { fetchRoomList(); setRoomListExpanded(true); }}>
-                  {text.refresh}
-                </button>
-              </div>
-            </div>
-
-            {loadingRooms ? (
-              <div className="loading">{text.loadingRooms}</div>
-            ) : roomList.length === 0 ? (
-              <div className="no-rooms">{text.noPublicRooms}</div>
-            ) : (
-              <>
-                <ul className="players">
-                  {roomList.slice(roomListPage * ROOMS_PER_PAGE, (roomListPage + 1) * ROOMS_PER_PAGE).map(room => (
-                    <li key={room.id} className="player">
-                      <div className="player-info">
-                        <div className="player-name">{getDisplayRoomName(room)}</div>
-                        <div className="player-meta">
-                          <span>ID: {room.id}</span>
-                          <span>{text.host}: {room.hostName || text.unknown}</span>
-                          <span>{text.players}: {room.playerCount}/{room.maxPlayers || 8}</span>
-                        </div>
-                      </div>
-                      <button className="primary-btn" onClick={() => handleJoinSpecificRoom(room.id)}>
-                        {text.join}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                {roomList.length > ROOMS_PER_PAGE && (
-                  <div className="pagination">
-                    <button
-                      disabled={roomListPage === 0}
-                      onClick={() => setRoomListPage(p => Math.max(0, p - 1))}
-                    >
-                      {text.previousPage}
-                    </button>
-                    <span>{roomListPage + 1} / {Math.max(1, Math.ceil(roomList.length / ROOMS_PER_PAGE))}</span>
-                    <button
-                      disabled={(roomListPage + 1) * ROOMS_PER_PAGE >= roomList.length}
-                      onClick={() => setRoomListPage(p => Math.min(Math.ceil(roomList.length / ROOMS_PER_PAGE) - 1, p + 1))}
-                    >
-                      {text.nextPage}
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
+        <div className="loading">{text.loading}</div>
       </div>
     );
   }
@@ -2374,7 +2302,10 @@ const Multiplayer = () => {
             <SettingsPopup
               gameSettings={gameSettings}
               onSettingsChange={handleSettingsChange}
-              onClose={() => setShowSettings(false)}
+              onClose={(settingsOverride) => {
+                if (settingsOverride) saveGameSettings(settingsOverride);
+                setShowSettings(false);
+              }}
               hideRestart={true}
               isMultiplayer={true}
               locale={locale}
