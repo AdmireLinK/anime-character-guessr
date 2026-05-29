@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import '../styles/Roulette.css';
 import axios from 'axios';
+import { fixImageUrl } from '../utils/imageUrl.js';
 
 const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
 
@@ -54,7 +55,12 @@ const Roulette = ({ defaultExpanded = false, locale = 'zh' }) => {
       setLoading(true);
       axios.get(`${serverUrl}/roulette`)
         .then((res) => {
-          setRouletteData(res.data);
+          const data = (res.data || []).map(char => ({
+            ...char,
+            image_medium: fixImageUrl(char.image_medium),
+            image_grid: fixImageUrl(char.image_grid)
+          }));
+          setRouletteData(data);
           setLoading(false);
         })
         .catch((err) => {

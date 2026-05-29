@@ -1,4 +1,6 @@
 // 由服务端API动态获取猜测排行榜（总榜）
+import { fixImageUrl } from '../utils/imageUrl.js';
+
 const API_BASE_URL = import.meta.env.VITE_SERVER_URL || '';
 
 export async function fetchLeaderboardGuesses(limit = 30) {
@@ -11,7 +13,7 @@ export async function fetchLeaderboardGuesses(limit = 30) {
       rank: idx + 1,
       name: item.characterName || '',
       nameCn: item.characterName || '',
-      image: item.image || '',
+      image: fixImageUrl(item.image || ''),
       link: `https://bgm.tv/character/${item._id}`,
       count: item.count
     }));
@@ -31,7 +33,7 @@ export async function fetchLeaderboardWeekly(limit = 30) {
       rank: idx + 1,
       name: item.characterName || '',
       nameCn: item.characterName || '',
-      image: item.image || '',
+      image: fixImageUrl(item.image || ''),
       link: `https://bgm.tv/character/${item._id}`,
       count: item.count
     }));

@@ -1,4 +1,6 @@
 // 由服务端API动态获取排行榜
+import { fixImageUrl } from '../utils/imageUrl.js';
+
 const API_BASE_URL = import.meta.env.VITE_SERVER_URL || '';
 
 export async function fetchLeaderboardCharacters(limit = 30) {
@@ -12,7 +14,7 @@ export async function fetchLeaderboardCharacters(limit = 30) {
       rank: idx + 1,
       name: item.characterName || '',
       nameCn: item.characterName || '',
-      image: item.image || '',
+      image: fixImageUrl(item.image || ''),
       link: `https://bgm.tv/character/${item._id}`,
       count: item.count
     }));
