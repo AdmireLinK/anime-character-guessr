@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import axios from '../utils/cached-axios';
+import { fixImageUrl } from '../utils/imageUrl.js';
 import { searchSubjects, getCharactersBySubjectId, getCharacterDetails } from '../utils/bangumi';
 import '../styles/search.css';
 import { submitGuessCharacterCount } from '../utils/db';
@@ -244,7 +245,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
       
       const newResults = response.data.data.map(character => ({
         id: character.id,
-        image: character.images?.grid || null,
+        image: fixImageUrl(character.images?.grid || null),
         name: character.name,
         nameCn: character.infobox.find(item => item.key === "简体中文名")?.value || character.name,
         nameEn: (() => {
@@ -309,7 +310,7 @@ function SearchBar({ onCharacterSelect, isGuessing, gameEnd, subjectSearch, fini
         const details = await getCharacterDetails(character.id);
         return {
           id: character.id,
-          image: character.images?.grid,
+          image: fixImageUrl(character.images?.grid),
           name: character.name,
           nameCn: details.nameCn,
           nameEn: details.nameEn,

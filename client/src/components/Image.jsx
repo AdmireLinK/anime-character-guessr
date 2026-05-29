@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { fixImageUrl } from '../utils/imageUrl.js';
 
 /**
  * 带重试功能的图片组件
@@ -29,7 +30,7 @@ function Image({
   // 当src改变时重置状态
   useEffect(() => {
     mountedRef.current = true;
-    setCurrentSrc(src);
+    setCurrentSrc(fixImageUrl(src));
     setRetryCount(0);
     setIsLoading(true);
     setHasFailed(false);
@@ -54,8 +55,9 @@ function Image({
         if (!mountedRef.current) return;
         setRetryCount(nextRetry);
         // 添加时间戳绕过缓存
-        const separator = src.includes('?') ? '&' : '?';
-        setCurrentSrc(`${src}${separator}_retry=${Date.now()}`);
+        const fixed = fixImageUrl(src);
+        const separator = fixed.includes('?') ? '&' : '?';
+        setCurrentSrc(`${fixed}${separator}_retry=${Date.now()}`);
       }, retryDelay * nextRetry); // 指数退避
     } else {
       // 已达到最大重试次数
