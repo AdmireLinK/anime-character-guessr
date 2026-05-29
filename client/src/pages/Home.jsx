@@ -3,20 +3,11 @@ import { useState, useEffect } from 'react';
 import '../styles/Home.css';
 import WelcomePopup from '../components/WelcomePopup';
 
-const LINE_OPTIONS = [
-  { url: 'https://anime-character-guessr.netlify.app/', name: 'Netlify', apiBase: 'https://api.bgm.tv' },
-  { url: 'https://ccb.baka.website/', name: 'Baka专线', apiBase: 'https://bgmapi.baka.website' }
-];
-
 const HOME_TEXT = {
   zh: {
     singleplayer: '单人',
     multiplayer: '多人',
     roomCount: '当前房间数',
-    lineSelector: '线路选择',
-    lineSelectorHint: '如搜索、猜测缓慢可尝试切换',
-    localDeploy: '本地部署',
-    betaLine: '抢先体验',
     showAnnouncements: '显示公告',
     status: '服务状态',
     howToPlay: '玩法简介',
@@ -48,8 +39,6 @@ const Home = ({ locale = 'zh' }) => {
   const text = HOME_TEXT[locale] || HOME_TEXT.zh;
   const [roomCount, setRoomCount] = useState(0);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
-  // 线路选择当前域名状态
-  const [currentOrigin, setCurrentOrigin] = useState('');
 
   useEffect(() => {
     const serverUrl = import.meta.env.VITE_SERVER_URL || '';
@@ -77,21 +66,9 @@ const Home = ({ locale = 'zh' }) => {
     return () => { mounted = false; clearInterval(intervalId); };
   }, [isEnglish]);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setCurrentOrigin(window.location.origin);
-    }
-  }, []);
-
   const handleCloseWelcomePopup = () => {
     setShowWelcomePopup(false);
   };
-
-  // 只在当前域名不在LINE_OPTIONS时才添加，否则只显示两条
-  const cleanedOrigin = (currentOrigin || '').replace(/\/$/, '');
-  const availableLines = LINE_OPTIONS.some(line => line.url.replace(/\/$/, '') === cleanedOrigin)
-    ? LINE_OPTIONS
-    : [...LINE_OPTIONS, { url: currentOrigin }];
 
   if (isEnglish) {
     return (
@@ -143,69 +120,6 @@ const Home = ({ locale = 'zh' }) => {
           <h2>{text.multiplayer}</h2>
           <small>{text.roomCount}: {roomCount}</small>
         </Link>
-      </div>
-
-      <div className="line-selector">
-        <div className="line-selector-header">
-          <span className="line-selector-title">{text.lineSelector}</span>
-          <span className="line-selector-hint">{text.lineSelectorHint}</span>
-        </div>
-        <div className="line-selector-list">
-          {availableLines.map((line, idx) => {
-            if (!line.url) return null;
-            const cleanedOrigin = (currentOrigin || '').replace(/\/$/, '');
-            const cleanedLine = line.url.replace(/\/$/, '');
-            const isCurrent = cleanedOrigin && cleanedOrigin === cleanedLine;
-            // 判断是否为本地/局域网
-            let displayName = line.name || line.url;
-            if (idx === 2 || (!line.name && availableLines.length > 2 && idx === availableLines.length - 1)) {
-              // 仅对第三线路或动态添加的线路做本地判断
-              try {
-                const urlObj = new URL(line.url, window.location.origin);
-                const host = urlObj.hostname;
-                if (
-                  host === 'localhost' ||
-                  host === '127.0.0.1' ||
-                  /^192\.168\./.test(host) ||
-                  /^10\./.test(host) ||
-                  /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)
-                ) {
-                  displayName = text.localDeploy;
-                }
-              } catch {
-                // Ignore malformed line URLs and keep the original display text.
-              }
-            }
-
-            // 仅对第三线路或动态添加的线路显示为“抢先体验”（如果匹配 ccbeta.baka.website）
-            if (idx === 2 || (!line.name && availableLines.length > 2 && idx === availableLines.length - 1)) {
-              try {
-                const lineHost = new URL(line.url, window.location.origin).hostname;
-                const originHost = currentOrigin ? new URL(currentOrigin).hostname : '';
-                if (lineHost === 'ccbeta.baka.website' || originHost === 'ccbeta.baka.website') {
-                  displayName = text.betaLine;
-                }
-              } catch {
-                // Ignore malformed line URLs and keep the original display text.
-              }
-            }
-
-            return (
-              <a
-                key={`${line.url}-${idx}`}
-                className={`domain-link${isCurrent ? ' active' : ''}`}
-                data-url={line.url}
-                href={isCurrent ? '#' : line.url}
-                onClick={e => { if (isCurrent) e.preventDefault(); }}
-                style={{ pointerEvents: isCurrent ? 'none' : 'auto' }}
-              >
-                <div className="domain-info">
-                  <span className="line-name">{displayName}</span>
-                </div>
-              </a>
-            );
-          })}
-        </div>
       </div>
       </div>
 

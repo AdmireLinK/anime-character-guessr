@@ -3,7 +3,7 @@
 const ATTEMPT_MARK_RE = /(?:⏱️?|💡|✔|❌)/g;
 // End marks: indicate the player/team has ended the round
 const END_MARKS = ['✌', '👑', '💀', '🏆', '🏳️'];
-const END_MARK_RE = /[✌👑💀🏆🏳️]/g;
+const END_MARK_RE = /(?:✌|👑|💀|🏆|🏳️?)/g;
 
 function countAttemptMarks(marks) {
     const s = String(marks || '');
@@ -23,6 +23,27 @@ function stripEndMarks(marks) {
 function appendEndMarkOnce(marks, endMark) {
     // Ensure we don't accumulate conflicting end marks (e.g. 💀 + ✌)
     return stripEndMarks(marks) + endMark;
+}
+
+function getEndResultFromMarks(marks) {
+    const s = String(marks || '');
+    if (s.includes('🏆')) return 'teamwin';
+    if (s.includes('💀')) return 'lose';
+    if (s.includes('🏳️') || s.includes('🏳')) return 'surrender';
+    return '';
+}
+
+function clearGameTimeoutTimers(currentGame) {
+    if (!currentGame) return;
+    if (currentGame._timeoutTick) {
+        clearTimeout(currentGame._timeoutTick);
+        currentGame._timeoutTick = null;
+    }
+    currentGame._timeoutNextAt = null;
+    const timers = currentGame._timeoutTimers;
+    if (timers instanceof Map) {
+        timers.clear();
+    }
 }
 
 /**
@@ -72,12 +93,14 @@ function enforceAttemptLimit(room, player, io, roomId, { isCorrect = false } = {
                 teammate.guesses = updated;
                 if (room.currentGame?.settings?.syncMode && room.currentGame?.syncPlayersCompleted) {
                     room.currentGame.syncPlayersCompleted.add(teammate.id);
+                    teammate.syncCompletedRound = room.currentGame.syncRound;
                 }
             });
     } else {
         player.guesses = appendEndMarkOnce(player.guesses || '', '💀');
         if (room.currentGame?.settings?.syncMode && room.currentGame?.syncPlayersCompleted) {
             room.currentGame.syncPlayersCompleted.add(player.id);
+            player.syncCompletedRound = room.currentGame.syncRound;
         }
     }
 
@@ -117,10 +140,11 @@ function handlePlayerTimeout(room, player, io, roomId) {
 
     if (isTeamMode) {
         room.currentGame.teamGuesses = room.currentGame.teamGuesses || {};
-        room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + timeoutMark;
+        const teammates = room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected);
+        const timeoutMarks = timeoutMark.repeat(Math.max(1, teammates.length));
+        room.currentGame.teamGuesses[player.team] = (room.currentGame.teamGuesses[player.team] || '') + timeoutMarks;
         const updated = room.currentGame.teamGuesses[player.team];
 
-        const teammates = room.players.filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected);
         teammates.forEach(teammate => {
             teammate.guesses = updated;
             affectedPlayers.push(teammate);
@@ -139,6 +163,14 @@ function handlePlayerTimeout(room, player, io, roomId) {
     if (room.currentGame?.settings?.syncMode && room.currentGame?.syncPlayersCompleted) {
         room.currentGame.syncPlayersCompleted.add(player.id);
         player.syncCompletedRound = room.currentGame.syncRound;
+        if (isTeamMode) {
+            room.players
+                .filter(p => p.team === player.team && !p.isAnswerSetter && !p.disconnected)
+                .forEach(teammate => {
+                    room.currentGame.syncPlayersCompleted.add(teammate.id);
+                    teammate.syncCompletedRound = room.currentGame.syncRound;
+                });
+        }
         needsSyncUpdate = true;
     }
 
@@ -474,7 +506,8 @@ function markTeamVictory(room, roomId, player, io) {
         // 只设置临时观战标记，不改变队伍
         teammate._tempObserver = true;
         if (room.currentGame.syncPlayersCompleted) {
-            room.currentGame.syncPlayersCompleted.delete(teammate.id);
+            room.currentGame.syncPlayersCompleted.add(teammate.id);
+            teammate.syncCompletedRound = room.currentGame.syncRound;
         }
         io.to(teammate.id).emit('teamWin', {
             winnerName: player.username,
@@ -550,18 +583,54 @@ function updateSyncProgress(room, roomId, io) {
 
             const pendingNewEntries = room.currentGame.tagBanStatePending
                 .filter(entry => entry && typeof entry.tag === 'string')
-                .map(entry => {
+                .reduce((merged, entry) => {
                     const tagName = entry.tag.trim();
                     if (!tagName || existingTags.has(tagName)) {
-                        return null;
+                        // Already committed, but still merge revealers into existing committed entry
+                        const committedEntry = currentState.find(item => item && typeof item.tag === 'string' && item.tag === tagName);
+                        if (committedEntry && Array.isArray(entry.revealer)) {
+                            const currentRevealers = Array.isArray(committedEntry.revealer) ? committedEntry.revealer : [];
+                            entry.revealer.forEach(id => {
+                                if (id && !currentRevealers.includes(id)) {
+                                    currentRevealers.push(id);
+                                }
+                            });
+                            committedEntry.revealer = currentRevealers;
+                        }
+                        return merged;
                     }
                     existingTags.add(tagName);
+                    const existingMerged = merged.find(m => m.tag === tagName);
+                    if (existingMerged) {
+                        // Merge revealers from duplicate pending entries (tag name collision after trim)
+                        if (Array.isArray(entry.revealer)) {
+                            entry.revealer.forEach(id => {
+                                if (id && !existingMerged.revealer.includes(id)) {
+                                    existingMerged.revealer.push(id);
+                                }
+                            });
+                        }
+                        return merged;
+                    }
                     const revealers = Array.isArray(entry.revealer)
                         ? Array.from(new Set(entry.revealer.filter(Boolean)))
                         : [];
-                    return { tag: tagName, revealer: revealers };
-                })
-                .filter(Boolean);
+                    merged.push({ tag: tagName, revealer: revealers });
+                    return merged;
+                }, []);
+
+            // 同步模式：所有同轮猜测视为同时发生，
+            // 本轮所有参战玩家均应能透视本轮发现的所有标签
+            if (room.currentGame?.settings?.syncMode && pendingNewEntries.length) {
+                const roundParticipantIds = room.players
+                    .filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected && !p._tempObserver)
+                    .map(p => p.id);
+                pendingNewEntries.forEach(entry => {
+                    const currentSet = new Set(entry.revealer);
+                    roundParticipantIds.forEach(id => currentSet.add(id));
+                    entry.revealer = Array.from(currentSet);
+                });
+            }
 
             if (pendingNewEntries.length) {
                 const updatedState = currentState.concat(pendingNewEntries);
@@ -769,7 +838,7 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
                 const tagName = entry.tag.trim();
                 if (!tagName) return;
                 const revealerList = Array.isArray(entry.revealer) ? entry.revealer.filter(Boolean) : [];
-                let targetEntry = room.currentGame.tagBanState.find(item => item && item.tag === tagName);
+                let targetEntry = room.currentGame.tagBanState.find(item => item && typeof item.tag === 'string' && item.tag.trim() === tagName);
                 if (!targetEntry) {
                     targetEntry = { tag: tagName, revealer: [] };
                     room.currentGame.tagBanState.push(targetEntry);
@@ -784,6 +853,24 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
                     tagBanChanged = true;
                 }
             });
+
+            // 同步模式：本轮所有参战玩家均可透视本轮发现的所有标签
+            if (room.currentGame?.settings?.syncMode && room.currentGame.tagBanState.length) {
+                const roundParticipantIds = room.players
+                    .filter(p => !p.isAnswerSetter && p.team !== '0' && !p.disconnected && !p._tempObserver)
+                    .map(p => p.id);
+                room.currentGame.tagBanState.forEach(entry => {
+                    if (!entry || !Array.isArray(entry.revealer)) return;
+                    const currentSet = new Set(entry.revealer);
+                    const prevSize = currentSet.size;
+                    roundParticipantIds.forEach(id => currentSet.add(id));
+                    if (currentSet.size !== prevSize) {
+                        entry.revealer = Array.from(currentSet);
+                        tagBanChanged = true;
+                    }
+                });
+            }
+
             room.currentGame.tagBanStatePending = [];
             if (tagBanChanged) {
                 io.to(roomId).emit('tagBanStateUpdate', {
@@ -815,7 +902,7 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
     if (syncMode) {
         actualWinners = activePlayers.filter(p => p.guesses.includes('✌') || p.guesses.includes('👑'));
     } else {
-        const answerId = room.currentGame?.character?.id;
+        const answerId = room.currentGame?.answerCharacterId;
         let bigwinner = firstWinner?.isBigWin
             ? activePlayers.find(p => p.id === firstWinner.id) || activePlayers.find(p => p.guesses.includes('👑'))
             : activePlayers.find(p => p.guesses.includes('👑'));
@@ -960,6 +1047,7 @@ function finalizeStandardGame(room, roomId, io, { force = false } = {}) {
         }
     });
 
+    clearGameTimeoutTimers(room.currentGame);
     room.currentGame = null;
     io.to(roomId).emit('updatePlayers', {
         players: room.players,
@@ -1014,12 +1102,11 @@ function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreRe
         });
         
         activePlayers.filter(p => !winnerIds.has(p.id)).forEach(p => {
-            const lastChar = p.guesses.slice(-1);
             const hasPartial = !!partialAwardees && partialAwardees.has(p.id);
             scoreChanges[p.id] = {
                 score: hasPartial ? 1 : 0,
                 breakdown: hasPartial ? { partial: 1 } : {},
-                result: lastChar === '💀' ? 'lose' : lastChar === '🏳️' ? 'surrender' : ''
+                result: getEndResultFromMarks(p.guesses)
             };
         });
     } else {
@@ -1038,12 +1125,11 @@ function buildScoreChanges({ players, actualWinner, actualWinners, winnerScoreRe
                     result: p.guesses.includes('👑') ? 'bigwin' : 'win'
                 };
             } else {
-                const lastChar = p.guesses.slice(-1);
                 const hasPartial = !!partialAwardees && partialAwardees.has(p.id);
                 scoreChanges[p.id] = {
                     score: hasPartial ? 1 : 0,
                     breakdown: hasPartial ? { partial: 1 } : {},
-                    result: { '🏆': 'teamwin', '💀': 'lose', '🏳️': 'surrender' }[lastChar] || ''
+                    result: getEndResultFromMarks(p.guesses)
                 };
             }
         });
@@ -1175,6 +1261,7 @@ function finalizeNonstopGame(room, roomId, io) {
         p.isAnswerSetter = false;
     });
     io.to(roomId).emit('resetReadyStatus');
+    clearGameTimeoutTimers(room.currentGame);
     room.currentGame = null;
     io.to(roomId).emit('updatePlayers', {
         players: room.players,
@@ -1206,5 +1293,6 @@ module.exports = {
     finalizeStandardGame,
     finalizeNonstopGame,
     buildScoreChanges,
-    runStandardFlow
+    runStandardFlow,
+    clearGameTimeoutTimers
 };

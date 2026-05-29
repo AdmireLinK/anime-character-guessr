@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 const {
     enforceAttemptLimit,
     handlePlayerTimeout,
-    countAttemptMarks
+    countAttemptMarks,
+    buildScoreChanges
 } = require('../utils/gameplay');
 
 function createMockIo() {
@@ -96,4 +97,40 @@ test('handlePlayerTimeout should append timeout and then apply death at max', ()
     assert.ok(player.guesses.includes('💀'));
     assert.equal(countAttemptMarks(player.guesses), 2);
     assert.ok(io.events.some(e => e.eventName === 'resetTimer') === false);
+});
+
+test('handlePlayerTimeout should consume one timeout attempt per active teammate', () => {
+    const io = createMockIo();
+    const room = {
+        currentGame: {
+            settings: { maxAttempts: 2, syncMode: false },
+            teamGuesses: { '1': '' }
+        },
+        players: [
+            { id: 'a', username: 'a', team: '1', guesses: '', isAnswerSetter: false, disconnected: false },
+            { id: 'b', username: 'b', team: '1', guesses: '', isAnswerSetter: false, disconnected: false }
+        ]
+    };
+
+    const result = handlePlayerTimeout(room, room.players[0], io, 'room-team-timeout');
+
+    assert.equal(result.needsSyncUpdate, false);
+    assert.equal(countAttemptMarks(room.currentGame.teamGuesses['1']), 2);
+    assert.equal(room.currentGame.teamGuesses['1'], '⏱️⏱️💀');
+    assert.equal(room.players[0].guesses, '⏱️⏱️💀');
+    assert.equal(room.players[1].guesses, '⏱️⏱️💀');
+});
+
+test('buildScoreChanges should keep partial score and classify surrender after emoji marks', () => {
+    const scoreChanges = buildScoreChanges({
+        players: [
+            { id: 'p1', username: 'partial-surrender', guesses: '💡🏳️', team: null, isAnswerSetter: false }
+        ],
+        partialAwardees: new Set(['p1']),
+        isNonstopMode: false
+    });
+
+    assert.equal(scoreChanges.p1.score, 1);
+    assert.deepEqual(scoreChanges.p1.breakdown, { partial: 1 });
+    assert.equal(scoreChanges.p1.result, 'surrender');
 });
