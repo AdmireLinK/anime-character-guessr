@@ -1,19 +1,19 @@
 {
   "124795": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "物理": "<img src='/assets/tag/hsr/物理.png' alt='物理' />物理",
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数",
-      "火": "<img src='/assets/tag/hsr/火.png' alt='火' />火",
-      "冰": "<img src='/assets/tag/hsr/冰.png' alt='冰' />冰"
+      "物理": "<img src='/assets/extra_tags/360097/物理.png' alt='物理' />物理",
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数",
+      "火": "<img src='/assets/extra_tags/360097/火.png' alt='火' />火",
+      "冰": "<img src='/assets/extra_tags/360097/冰.png' alt='冰' />冰"
     },
     "命途": {
-      "存护": "<img src='/assets/tag/hsr/存护.png' alt='存护' />存护",
-      "记忆": "<img src='/assets/tag/hsr/记忆.png' alt='记忆' />记忆",
-      "同谐": "<img src='/assets/tag/hsr/同谐.png' alt='同谐' />同谐",
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "存护": "<img src='/assets/extra_tags/360097/存护.png' alt='存护' />存护",
+      "记忆": "<img src='/assets/extra_tags/360097/记忆.png' alt='记忆' />记忆",
+      "同谐": "<img src='/assets/extra_tags/360097/同谐.png' alt='同谐' />同谐",
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "星穹列车": "星穹列车"
@@ -21,19 +21,19 @@
   },
   "124794": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "物理": "<img src='/assets/tag/hsr/物理.png' alt='物理' />物理",
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数",
-      "火": "<img src='/assets/tag/hsr/火.png' alt='火' />火",
-      "冰": "<img src='/assets/tag/hsr/冰.png' alt='冰' />冰"
+      "物理": "<img src='/assets/extra_tags/360097/物理.png' alt='物理' />物理",
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数",
+      "火": "<img src='/assets/extra_tags/360097/火.png' alt='火' />火",
+      "冰": "<img src='/assets/extra_tags/360097/冰.png' alt='冰' />冰"
     },
     "命途": {
-      "存护": "<img src='/assets/tag/hsr/存护.png' alt='存护' />存护",
-      "记忆": "<img src='/assets/tag/hsr/记忆.png' alt='记忆' />记忆",
-      "同谐": "<img src='/assets/tag/hsr/同谐.png' alt='同谐' />同谐",
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "存护": "<img src='/assets/extra_tags/360097/存护.png' alt='存护' />存护",
+      "记忆": "<img src='/assets/extra_tags/360097/记忆.png' alt='记忆' />记忆",
+      "同谐": "<img src='/assets/extra_tags/360097/同谐.png' alt='同谐' />同谐",
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "星穹列车": "星穹列车"
@@ -41,15 +41,15 @@
   },
   "109857": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数",
-      "冰": "<img src='/assets/tag/hsr/冰.png' alt='冰' />冰"
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数",
+      "冰": "<img src='/assets/extra_tags/360097/冰.png' alt='冰' />冰"
     },
     "命途": {
-      "存护": "<img src='/assets/tag/hsr/存护.png' alt='存护' />存护",
-      "巡猎": "<img src='/assets/tag/hsr/巡猎.png' alt='巡猎' />巡猎"
+      "存护": "<img src='/assets/extra_tags/360097/存护.png' alt='存护' />存护",
+      "巡猎": "<img src='/assets/extra_tags/360097/巡猎.png' alt='巡猎' />巡猎"
     },
     "阵营": {
       "星穹列车": "星穹列车"
@@ -57,15 +57,15 @@
   },
   "111041": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "风": "<img src='/assets/tag/hsr/风.png' alt='风' />风",
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数"
+      "风": "<img src='/assets/extra_tags/360097/风.png' alt='风' />风",
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数"
     },
     "命途": {
-      "巡猎": "<img src='/assets/tag/hsr/巡猎.png' alt='巡猎' />巡猎",
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "巡猎": "<img src='/assets/extra_tags/360097/巡猎.png' alt='巡猎' />巡猎",
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -73,13 +73,13 @@
   },
   "111043": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "火": "<img src='/assets/tag/hsr/火.png' alt='火' />火"
+      "火": "<img src='/assets/extra_tags/360097/火.png' alt='火' />火"
     },
     "命途": {
-      "智识": "<img src='/assets/tag/hsr/智识.png' alt='智识' />智识"
+      "智识": "<img src='/assets/extra_tags/360097/智识.png' alt='智识' />智识"
     },
     "阵营": {
       "星穹列车": "星穹列车"
@@ -87,13 +87,13 @@
   },
   "89783": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数"
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数"
     },
     "命途": {
-      "虚无": "<img src='/assets/tag/hsr/虚无.png' alt='虚无' />虚无"
+      "虚无": "<img src='/assets/extra_tags/360097/虚无.png' alt='虚无' />虚无"
     },
     "阵营": {
       "星穹列车": "星穹列车"
@@ -101,13 +101,13 @@
   },
   "125943": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "火": "<img src='/assets/tag/hsr/火.png' alt='火' />火"
+      "火": "<img src='/assets/extra_tags/360097/火.png' alt='火' />火"
     },
     "命途": {
-      "同谐": "<img src='/assets/tag/hsr/同谐.png' alt='同谐' />同谐"
+      "同谐": "<img src='/assets/extra_tags/360097/同谐.png' alt='同谐' />同谐"
     },
     "阵营": {
       "空间站「黑塔」": "空间站「黑塔」"
@@ -115,13 +115,13 @@
   },
   "111047": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "雷": "<img src='/assets/tag/hsr/雷.png' alt='雷' />雷"
+      "雷": "<img src='/assets/extra_tags/360097/雷.png' alt='雷' />雷"
     },
     "命途": {
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "空间站「黑塔」": "空间站「黑塔」"
@@ -129,13 +129,13 @@
   },
   "111048": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "冰": "<img src='/assets/tag/hsr/冰.png' alt='冰' />冰"
+      "冰": "<img src='/assets/extra_tags/360097/冰.png' alt='冰' />冰"
     },
     "命途": {
-      "智识": "<img src='/assets/tag/hsr/智识.png' alt='智识' />智识"
+      "智识": "<img src='/assets/extra_tags/360097/智识.png' alt='智识' />智识"
     },
     "阵营": {
       "空间站「黑塔」": "空间站「黑塔」"
@@ -143,13 +143,13 @@
   },
   "125859": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "冰": "<img src='/assets/tag/hsr/冰.png' alt='冰' />冰"
+      "冰": "<img src='/assets/extra_tags/360097/冰.png' alt='冰' />冰"
     },
     "命途": {
-      "存护": "<img src='/assets/tag/hsr/存护.png' alt='存护' />存护"
+      "存护": "<img src='/assets/extra_tags/360097/存护.png' alt='存护' />存护"
     },
     "阵营": {
       "贝洛伯格": "贝洛伯格"
@@ -157,13 +157,13 @@
   },
   "111103": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "雷": "<img src='/assets/tag/hsr/雷.png' alt='雷' />雷"
+      "雷": "<img src='/assets/extra_tags/360097/雷.png' alt='雷' />雷"
     },
     "命途": {
-      "智识": "<img src='/assets/tag/hsr/智识.png' alt='智识' />智识"
+      "智识": "<img src='/assets/extra_tags/360097/智识.png' alt='智识' />智识"
     },
     "阵营": {
       "贝洛伯格": "贝洛伯格"
@@ -171,13 +171,13 @@
   },
   "125862": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "冰": "<img src='/assets/tag/hsr/冰.png' alt='冰' />冰"
+      "冰": "<img src='/assets/extra_tags/360097/冰.png' alt='冰' />冰"
     },
     "命途": {
-      "虚无": "<img src='/assets/tag/hsr/虚无.png' alt='虚无' />虚无"
+      "虚无": "<img src='/assets/extra_tags/360097/虚无.png' alt='虚无' />虚无"
     },
     "阵营": {
       "贝洛伯格": "贝洛伯格"
@@ -185,13 +185,13 @@
   },
   "125858": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "风": "<img src='/assets/tag/hsr/风.png' alt='风' />风"
+      "风": "<img src='/assets/extra_tags/360097/风.png' alt='风' />风"
     },
     "命途": {
-      "同谐": "<img src='/assets/tag/hsr/同谐.png' alt='同谐' />同谐"
+      "同谐": "<img src='/assets/extra_tags/360097/同谐.png' alt='同谐' />同谐"
     },
     "阵营": {
       "贝洛伯格": "贝洛伯格"
@@ -199,13 +199,13 @@
   },
   "125861": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "风": "<img src='/assets/tag/hsr/风.png' alt='风' />风"
+      "风": "<img src='/assets/extra_tags/360097/风.png' alt='风' />风"
     },
     "命途": {
-      "虚无": "<img src='/assets/tag/hsr/虚无.png' alt='虚无' />虚无"
+      "虚无": "<img src='/assets/extra_tags/360097/虚无.png' alt='虚无' />虚无"
     },
     "阵营": {
       "贝洛伯格": "贝洛伯格"
@@ -213,13 +213,13 @@
   },
   "125863": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "物理": "<img src='/assets/tag/hsr/物理.png' alt='物理' />物理"
+      "物理": "<img src='/assets/extra_tags/360097/物理.png' alt='物理' />物理"
     },
     "命途": {
-      "丰饶": "<img src='/assets/tag/hsr/丰饶.png' alt='丰饶' />丰饶"
+      "丰饶": "<img src='/assets/extra_tags/360097/丰饶.png' alt='丰饶' />丰饶"
     },
     "阵营": {
       "贝洛伯格": "贝洛伯格"
@@ -227,13 +227,13 @@
   },
   "111044": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "火": "<img src='/assets/tag/hsr/火.png' alt='火' />火"
+      "火": "<img src='/assets/extra_tags/360097/火.png' alt='火' />火"
     },
     "命途": {
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "贝洛伯格": "贝洛伯格"
@@ -241,13 +241,13 @@
   },
   "111045": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "物理": "<img src='/assets/tag/hsr/物理.png' alt='物理' />物理"
+      "物理": "<img src='/assets/extra_tags/360097/物理.png' alt='物理' />物理"
     },
     "命途": {
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "贝洛伯格": "贝洛伯格"
@@ -255,13 +255,13 @@
   },
   "125856": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "量子": "<img src='/assets/tag/hsr/量子.png' alt='量子' />量子"
+      "量子": "<img src='/assets/extra_tags/360097/量子.png' alt='量子' />量子"
     },
     "命途": {
-      "巡猎": "<img src='/assets/tag/hsr/巡猎.png' alt='巡猎' />巡猎"
+      "巡猎": "<img src='/assets/extra_tags/360097/巡猎.png' alt='巡猎' />巡猎"
     },
     "阵营": {
       "贝洛伯格": "贝洛伯格"
@@ -269,13 +269,13 @@
   },
   "125940": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "雷": "<img src='/assets/tag/hsr/雷.png' alt='雷' />雷"
+      "雷": "<img src='/assets/extra_tags/360097/雷.png' alt='雷' />雷"
     },
     "命途": {
-      "同谐": "<img src='/assets/tag/hsr/同谐.png' alt='同谐' />同谐"
+      "同谐": "<img src='/assets/extra_tags/360097/同谐.png' alt='同谐' />同谐"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -283,13 +283,13 @@
   },
   "125941": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "物理": "<img src='/assets/tag/hsr/物理.png' alt='物理' />物理"
+      "物理": "<img src='/assets/extra_tags/360097/物理.png' alt='物理' />物理"
     },
     "命途": {
-      "巡猎": "<img src='/assets/tag/hsr/巡猎.png' alt='巡猎' />巡猎"
+      "巡猎": "<img src='/assets/extra_tags/360097/巡猎.png' alt='巡猎' />巡猎"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -297,13 +297,13 @@
   },
   "125942": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "量子": "<img src='/assets/tag/hsr/量子.png' alt='量子' />量子"
+      "量子": "<img src='/assets/extra_tags/360097/量子.png' alt='量子' />量子"
     },
     "命途": {
-      "智识": "<img src='/assets/tag/hsr/智识.png' alt='智识' />智识"
+      "智识": "<img src='/assets/extra_tags/360097/智识.png' alt='智识' />智识"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -311,13 +311,13 @@
   },
   "125939": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "雷": "<img src='/assets/tag/hsr/雷.png' alt='雷' />雷"
+      "雷": "<img src='/assets/extra_tags/360097/雷.png' alt='雷' />雷"
     },
     "命途": {
-      "丰饶": "<img src='/assets/tag/hsr/丰饶.png' alt='丰饶' />丰饶"
+      "丰饶": "<img src='/assets/extra_tags/360097/丰饶.png' alt='丰饶' />丰饶"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -325,13 +325,13 @@
   },
   "125938": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "冰": "<img src='/assets/tag/hsr/冰.png' alt='冰' />冰"
+      "冰": "<img src='/assets/extra_tags/360097/冰.png' alt='冰' />冰"
     },
     "命途": {
-      "巡猎": "<img src='/assets/tag/hsr/巡猎.png' alt='巡猎' />巡猎"
+      "巡猎": "<img src='/assets/extra_tags/360097/巡猎.png' alt='巡猎' />巡猎"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -339,13 +339,13 @@
   },
   "125937": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "雷": "<img src='/assets/tag/hsr/雷.png' alt='雷' />雷"
+      "雷": "<img src='/assets/extra_tags/360097/雷.png' alt='雷' />雷"
     },
     "命途": {
-      "智识": "<img src='/assets/tag/hsr/智识.png' alt='智识' />智识"
+      "智识": "<img src='/assets/extra_tags/360097/智识.png' alt='智识' />智识"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -353,13 +353,13 @@
   },
   "111046": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "量子": "<img src='/assets/tag/hsr/量子.png' alt='量子' />量子"
+      "量子": "<img src='/assets/extra_tags/360097/量子.png' alt='量子' />量子"
     },
     "命途": {
-      "虚无": "<img src='/assets/tag/hsr/虚无.png' alt='虚无' />虚无"
+      "虚无": "<img src='/assets/extra_tags/360097/虚无.png' alt='虚无' />虚无"
     },
     "阵营": {
       "星核猎手": "星核猎手"
@@ -367,13 +367,13 @@
   },
   "125936": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数"
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数"
     },
     "命途": {
-      "丰饶": "<img src='/assets/tag/hsr/丰饶.png' alt='丰饶' />丰饶"
+      "丰饶": "<img src='/assets/extra_tags/360097/丰饶.png' alt='丰饶' />丰饶"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -381,13 +381,13 @@
   },
   "129631": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数"
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数"
     },
     "命途": {
-      "同谐": "<img src='/assets/tag/hsr/同谐.png' alt='同谐' />同谐"
+      "同谐": "<img src='/assets/extra_tags/360097/同谐.png' alt='同谐' />同谐"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -395,13 +395,13 @@
   },
   "125944": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "风": "<img src='/assets/tag/hsr/风.png' alt='风' />风"
+      "风": "<img src='/assets/extra_tags/360097/风.png' alt='风' />风"
     },
     "命途": {
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "星核猎手": "星核猎手"
@@ -409,13 +409,13 @@
   },
   "111346": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "雷": "<img src='/assets/tag/hsr/雷.png' alt='雷' />雷"
+      "雷": "<img src='/assets/extra_tags/360097/雷.png' alt='雷' />雷"
     },
     "命途": {
-      "虚无": "<img src='/assets/tag/hsr/虚无.png' alt='虚无' />虚无"
+      "虚无": "<img src='/assets/extra_tags/360097/虚无.png' alt='虚无' />虚无"
     },
     "阵营": {
       "星核猎手": "星核猎手"
@@ -423,13 +423,13 @@
   },
   "131353": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "物理": "<img src='/assets/tag/hsr/物理.png' alt='物理' />物理"
+      "物理": "<img src='/assets/extra_tags/360097/物理.png' alt='物理' />物理"
     },
     "命途": {
-      "虚无": "<img src='/assets/tag/hsr/虚无.png' alt='虚无' />虚无"
+      "虚无": "<img src='/assets/extra_tags/360097/虚无.png' alt='虚无' />虚无"
     },
     "阵营": {
       "贝洛伯格": "贝洛伯格"
@@ -437,13 +437,13 @@
   },
   "129043": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "量子": "<img src='/assets/tag/hsr/量子.png' alt='量子' />量子"
+      "量子": "<img src='/assets/extra_tags/360097/量子.png' alt='量子' />量子"
     },
     "命途": {
-      "存护": "<img src='/assets/tag/hsr/存护.png' alt='存护' />存护"
+      "存护": "<img src='/assets/extra_tags/360097/存护.png' alt='存护' />存护"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -451,13 +451,13 @@
   },
   "132904": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "量子": "<img src='/assets/tag/hsr/量子.png' alt='量子' />量子"
+      "量子": "<img src='/assets/extra_tags/360097/量子.png' alt='量子' />量子"
     },
     "命途": {
-      "丰饶": "<img src='/assets/tag/hsr/丰饶.png' alt='丰饶' />丰饶"
+      "丰饶": "<img src='/assets/extra_tags/360097/丰饶.png' alt='丰饶' />丰饶"
     },
     "阵营": {
       "贝洛伯格": "贝洛伯格"
@@ -465,13 +465,13 @@
   },
   "129630": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "冰": "<img src='/assets/tag/hsr/冰.png' alt='冰' />冰"
+      "冰": "<img src='/assets/extra_tags/360097/冰.png' alt='冰' />冰"
     },
     "命途": {
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -479,13 +479,13 @@
   },
   "135556": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "火": "<img src='/assets/tag/hsr/火.png' alt='火' />火"
+      "火": "<img src='/assets/extra_tags/360097/火.png' alt='火' />火"
     },
     "命途": {
-      "虚无": "<img src='/assets/tag/hsr/虚无.png' alt='虚无' />虚无"
+      "虚无": "<img src='/assets/extra_tags/360097/虚无.png' alt='虚无' />虚无"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -493,13 +493,13 @@
   },
   "138707": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "风": "<img src='/assets/tag/hsr/风.png' alt='风' />风"
+      "风": "<img src='/assets/extra_tags/360097/风.png' alt='风' />风"
     },
     "命途": {
-      "丰饶": "<img src='/assets/tag/hsr/丰饶.png' alt='丰饶' />丰饶"
+      "丰饶": "<img src='/assets/extra_tags/360097/丰饶.png' alt='丰饶' />丰饶"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -507,13 +507,13 @@
   },
   "138855": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "物理": "<img src='/assets/tag/hsr/物理.png' alt='物理' />物理"
+      "物理": "<img src='/assets/extra_tags/360097/物理.png' alt='物理' />物理"
     },
     "命途": {
-      "智识": "<img src='/assets/tag/hsr/智识.png' alt='智识' />智识"
+      "智识": "<img src='/assets/extra_tags/360097/智识.png' alt='智识' />智识"
     },
     "阵营": {
       "纯美骑士团": "纯美骑士团"
@@ -521,13 +521,13 @@
   },
   "138856": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "物理": "<img src='/assets/tag/hsr/物理.png' alt='物理' />物理"
+      "物理": "<img src='/assets/extra_tags/360097/物理.png' alt='物理' />物理"
     },
     "命途": {
-      "同谐": "<img src='/assets/tag/hsr/同谐.png' alt='同谐' />同谐"
+      "同谐": "<img src='/assets/extra_tags/360097/同谐.png' alt='同谐' />同谐"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -535,13 +535,13 @@
   },
   "132890": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "量子": "<img src='/assets/tag/hsr/量子.png' alt='量子' />量子"
+      "量子": "<img src='/assets/extra_tags/360097/量子.png' alt='量子' />量子"
     },
     "命途": {
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -549,13 +549,13 @@
   },
   "142780": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数"
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数"
     },
     "命途": {
-      "巡猎": "<img src='/assets/tag/hsr/巡猎.png' alt='巡猎' />巡猎"
+      "巡猎": "<img src='/assets/extra_tags/360097/巡猎.png' alt='巡猎' />巡猎"
     },
     "阵营": {
       "博识学会": "博识学会"
@@ -563,13 +563,13 @@
   },
   "148288": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "冰": "<img src='/assets/tag/hsr/冰.png' alt='冰' />冰"
+      "冰": "<img src='/assets/extra_tags/360097/冰.png' alt='冰' />冰"
     },
     "命途": {
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "匹诺康尼": "匹诺康尼"
@@ -577,13 +577,13 @@
   },
   "148102": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "风": "<img src='/assets/tag/hsr/风.png' alt='风' />风"
+      "风": "<img src='/assets/extra_tags/360097/风.png' alt='风' />风"
     },
     "命途": {
-      "虚无": "<img src='/assets/tag/hsr/虚无.png' alt='虚无' />虚无"
+      "虚无": "<img src='/assets/extra_tags/360097/虚无.png' alt='虚无' />虚无"
     },
     "阵营": {
       "流光忆庭": "流光忆庭"
@@ -591,13 +591,13 @@
   },
   "151781": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "火": "<img src='/assets/tag/hsr/火.png' alt='火' />火"
+      "火": "<img src='/assets/extra_tags/360097/火.png' alt='火' />火"
     },
     "命途": {
-      "丰饶": "<img src='/assets/tag/hsr/丰饶.png' alt='丰饶' />丰饶"
+      "丰饶": "<img src='/assets/extra_tags/360097/丰饶.png' alt='丰饶' />丰饶"
     },
     "阵营": {
       "匹诺康尼": "匹诺康尼"
@@ -605,13 +605,13 @@
   },
   "148287": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "量子": "<img src='/assets/tag/hsr/量子.png' alt='量子' />量子"
+      "量子": "<img src='/assets/extra_tags/360097/量子.png' alt='量子' />量子"
     },
     "命途": {
-      "同谐": "<img src='/assets/tag/hsr/同谐.png' alt='同谐' />同谐"
+      "同谐": "<img src='/assets/extra_tags/360097/同谐.png' alt='同谐' />同谐"
     },
     "阵营": {
       "假面愚者": "假面愚者"
@@ -619,13 +619,13 @@
   },
   "151482": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "雷": "<img src='/assets/tag/hsr/雷.png' alt='雷' />雷"
+      "雷": "<img src='/assets/extra_tags/360097/雷.png' alt='雷' />雷"
     },
     "命途": {
-      "虚无": "<img src='/assets/tag/hsr/虚无.png' alt='虚无' />虚无"
+      "虚无": "<img src='/assets/extra_tags/360097/虚无.png' alt='虚无' />虚无"
     },
     "阵营": {
       "自灭者": "自灭者"
@@ -633,13 +633,13 @@
   },
   "151563": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数"
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数"
     },
     "命途": {
-      "存护": "<img src='/assets/tag/hsr/存护.png' alt='存护' />存护"
+      "存护": "<img src='/assets/extra_tags/360097/存护.png' alt='存护' />存护"
     },
     "阵营": {
       "星际和平公司": "星际和平公司"
@@ -647,13 +647,13 @@
   },
   "152028": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "物理": "<img src='/assets/tag/hsr/物理.png' alt='物理' />物理"
+      "物理": "<img src='/assets/extra_tags/360097/物理.png' alt='物理' />物理"
     },
     "命途": {
-      "同谐": "<img src='/assets/tag/hsr/同谐.png' alt='同谐' />同谐"
+      "同谐": "<img src='/assets/extra_tags/360097/同谐.png' alt='同谐' />同谐"
     },
     "阵营": {
       "匹诺康尼": "匹诺康尼"
@@ -661,13 +661,13 @@
   },
   "153915": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "物理": "<img src='/assets/tag/hsr/物理.png' alt='物理' />物理"
+      "物理": "<img src='/assets/extra_tags/360097/物理.png' alt='物理' />物理"
     },
     "命途": {
-      "巡猎": "<img src='/assets/tag/hsr/巡猎.png' alt='巡猎' />巡猎"
+      "巡猎": "<img src='/assets/extra_tags/360097/巡猎.png' alt='巡猎' />巡猎"
     },
     "阵营": {
       "巡海游侠": "巡海游侠"
@@ -675,13 +675,13 @@
   },
   "152027": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "火": "<img src='/assets/tag/hsr/火.png' alt='火' />火"
+      "火": "<img src='/assets/extra_tags/360097/火.png' alt='火' />火"
     },
     "命途": {
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "星核猎手": "星核猎手"
@@ -689,13 +689,13 @@
   },
   "156387": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "量子": "<img src='/assets/tag/hsr/量子.png' alt='量子' />量子"
+      "量子": "<img src='/assets/extra_tags/360097/量子.png' alt='量子' />量子"
     },
     "命途": {
-      "智识": "<img src='/assets/tag/hsr/智识.png' alt='智识' />智识"
+      "智识": "<img src='/assets/extra_tags/360097/智识.png' alt='智识' />智识"
     },
     "阵营": {
       "星际和平公司": "星际和平公司"
@@ -703,13 +703,13 @@
   },
   "161588": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "物理": "<img src='/assets/tag/hsr/物理.png' alt='物理' />物理"
+      "物理": "<img src='/assets/extra_tags/360097/物理.png' alt='物理' />物理"
     },
     "命途": {
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "仙舟「朱明」": "仙舟「朱明」"
@@ -717,13 +717,13 @@
   },
   "161589": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "火": "<img src='/assets/tag/hsr/火.png' alt='火' />火"
+      "火": "<img src='/assets/extra_tags/360097/火.png' alt='火' />火"
     },
     "命途": {
-      "虚无": "<img src='/assets/tag/hsr/虚无.png' alt='虚无' />虚无"
+      "虚无": "<img src='/assets/extra_tags/360097/虚无.png' alt='虚无' />虚无"
     },
     "阵营": {
       "仙舟「曜青」": "仙舟「曜青」"
@@ -731,13 +731,13 @@
   },
   "161591": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "风": "<img src='/assets/tag/hsr/风.png' alt='风' />风"
+      "风": "<img src='/assets/extra_tags/360097/风.png' alt='风' />风"
     },
     "命途": {
-      "巡猎": "<img src='/assets/tag/hsr/巡猎.png' alt='巡猎' />巡猎"
+      "巡猎": "<img src='/assets/extra_tags/360097/巡猎.png' alt='巡猎' />巡猎"
     },
     "阵营": {
       "仙舟「曜青」": "仙舟「曜青」"
@@ -745,13 +745,13 @@
   },
   "161590": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "火": "<img src='/assets/tag/hsr/火.png' alt='火' />火"
+      "火": "<img src='/assets/extra_tags/360097/火.png' alt='火' />火"
     },
     "命途": {
-      "丰饶": "<img src='/assets/tag/hsr/丰饶.png' alt='丰饶' />丰饶"
+      "丰饶": "<img src='/assets/extra_tags/360097/丰饶.png' alt='丰饶' />丰饶"
     },
     "阵营": {
       "仙舟「罗浮」": "仙舟「罗浮」"
@@ -759,13 +759,13 @@
   },
   "161592": {
     "稀有度": {
-      "4星": "<img src='/assets/tag/hsr/4星.png' alt='4星' />"
+      "4星": "<img src='/assets/extra_tags/360097/4星.png' alt='4星' />"
     },
     "属性": {
-      "雷": "<img src='/assets/tag/hsr/雷.png' alt='雷' />雷"
+      "雷": "<img src='/assets/extra_tags/360097/雷.png' alt='雷' />雷"
     },
     "命途": {
-      "巡猎": "<img src='/assets/tag/hsr/巡猎.png' alt='巡猎' />巡猎"
+      "巡猎": "<img src='/assets/extra_tags/360097/巡猎.png' alt='巡猎' />巡猎"
     },
     "阵营": {
       "仙舟「曜青」": "仙舟「曜青」"
@@ -773,13 +773,13 @@
   },
   "164311": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数"
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数"
     },
     "命途": {
-      "智识": "<img src='/assets/tag/hsr/智识.png' alt='智识' />智识"
+      "智识": "<img src='/assets/extra_tags/360097/智识.png' alt='智识' />智识"
     },
     "阵营": {
       "巡海游侠": "巡海游侠"
@@ -787,13 +787,13 @@
   },
   "152056": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数"
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数"
     },
     "命途": {
-      "同谐": "<img src='/assets/tag/hsr/同谐.png' alt='同谐' />同谐"
+      "同谐": "<img src='/assets/extra_tags/360097/同谐.png' alt='同谐' />同谐"
     },
     "阵营": {
       "银河": "银河"
@@ -801,13 +801,13 @@
   },
   "167198": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "雷": "<img src='/assets/tag/hsr/雷.png' alt='雷' />雷"
+      "雷": "<img src='/assets/extra_tags/360097/雷.png' alt='雷' />雷"
     },
     "命途": {
-      "记忆": "<img src='/assets/tag/hsr/记忆.png' alt='记忆' />记忆"
+      "记忆": "<img src='/assets/extra_tags/360097/记忆.png' alt='记忆' />记忆"
     },
     "阵营": {
       "翁法罗斯": "翁法罗斯"
@@ -815,13 +815,13 @@
   },
   "169103": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "量子": "<img src='/assets/tag/hsr/量子.png' alt='量子' />量子"
+      "量子": "<img src='/assets/extra_tags/360097/量子.png' alt='量子' />量子"
     },
     "命途": {
-      "同谐": "<img src='/assets/tag/hsr/同谐.png' alt='同谐' />同谐"
+      "同谐": "<img src='/assets/extra_tags/360097/同谐.png' alt='同谐' />同谐"
     },
     "阵营": {
       "翁法罗斯": "翁法罗斯"
@@ -829,13 +829,13 @@
   },
   "169143": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "虚数": "<img src='/assets/tag/hsr/虚数.png' alt='虚数' />虚数"
+      "虚数": "<img src='/assets/extra_tags/360097/虚数.png' alt='虚数' />虚数"
     },
     "命途": {
-      "毁灭": "<img src='/assets/tag/hsr/毁灭.png' alt='毁灭' />毁灭"
+      "毁灭": "<img src='/assets/extra_tags/360097/毁灭.png' alt='毁灭' />毁灭"
     },
     "阵营": {
       "翁法罗斯": "翁法罗斯"
@@ -843,13 +843,13 @@
   },
   "169631": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "量子": "<img src='/assets/tag/hsr/量子.png' alt='量子' />量子"
+      "量子": "<img src='/assets/extra_tags/360097/量子.png' alt='量子' />量子"
     },
     "命途": {
-      "记忆": "<img src='/assets/tag/hsr/记忆.png' alt='记忆' />记忆"
+      "记忆": "<img src='/assets/extra_tags/360097/记忆.png' alt='记忆' />记忆"
     },
     "阵营": {
       "翁法罗斯": "翁法罗斯"
@@ -857,13 +857,13 @@
   },
   "169633": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "风": "<img src='/assets/tag/hsr/风.png' alt='风' />风"
+      "风": "<img src='/assets/extra_tags/360097/风.png' alt='风' />风"
     },
     "命途": {
-      "智识": "<img src='/assets/tag/hsr/智识.png' alt='智识' />智识"
+      "智识": "<img src='/assets/extra_tags/360097/智识.png' alt='智识' />智识"
     },
     "阵营": {
       "翁法罗斯": "翁法罗斯"
@@ -871,13 +871,13 @@
   },
   "169635": {
     "稀有度": {
-      "5星": "<img src='/assets/tag/hsr/5星.png' alt='5星' />"
+      "5星": "<img src='/assets/extra_tags/360097/5星.png' alt='5星' />"
     },
     "属性": {
-      "风": "<img src='/assets/tag/hsr/风.png' alt='风' />风"
+      "风": "<img src='/assets/extra_tags/360097/风.png' alt='风' />风"
     },
     "命途": {
-      "记忆": "<img src='/assets/tag/hsr/记忆.png' alt='记忆' />记忆"
+      "记忆": "<img src='/assets/extra_tags/360097/记忆.png' alt='记忆' />记忆"
     },
     "阵营": {
       "翁法罗斯": "翁法罗斯"
