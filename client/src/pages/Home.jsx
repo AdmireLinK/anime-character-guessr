@@ -7,7 +7,7 @@ const HOME_TEXT = {
   zh: {
     singleplayer: '单人',
     multiplayer: '多人',
-    roomCount: '当前房间数',
+    roomCount: '公开房间数',
     showAnnouncements: '显示公告',
     status: '服务状态',
     howToPlay: '玩法简介',
@@ -24,7 +24,7 @@ const HOME_TEXT = {
   en: {
     singleplayer: 'Singleplayer',
     multiplayer: 'Multiplayer',
-    roomCount: 'Active rooms',
+    roomCount: 'Public rooms',
     dataSource: 'Data from',
     bangumi: 'Bangumi',
     tagTranslationNote: 'Some parts are not translated. Please use the translation feature of your browser.',

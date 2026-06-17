@@ -94,7 +94,8 @@ app.get('/quick-join', (req, res) => {
 });
 
 app.get('/room-count', (req, res) => {
-    res.json({count: rooms.size});
+    const publicRoomCount = Array.from(rooms.values()).filter(room => room.isPublic).length;
+    res.json({count: publicRoomCount});
 });
 
 app.get('/clean-rooms', (req, res) => {
