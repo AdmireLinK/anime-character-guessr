@@ -9,16 +9,16 @@
     "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {
-    "axios": "^1.6.2",
-    "cors": "^2.8.5",
+    "axios": "^1.18.0",
+    "cors": "^2.8.6",
     "crypto-js": "^4.2.0",
-    "dotenv": "^16.5.0",
-    "express": "^4.22.1",
-    "mongodb": "^6.16.0",
-    "socket.io": "^4.7.2"
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongodb": "^7.3.0",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2",
+    "nodemon": "^3.1.14",
     "socket.io-client": "^4.8.1"
   }
 }

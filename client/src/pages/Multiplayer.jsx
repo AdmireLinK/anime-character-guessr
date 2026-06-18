@@ -1107,12 +1107,23 @@ const Multiplayer = () => {
         Array.isArray(playerHistory.guesses) &&
         playerHistory.guesses.some(guessEntry => guessEntry?.guessData?.id === character.id)
       );
+      const duplicateInPreviousRounds = guessesHistory.filter(playerHistory => playerHistory.username !== username).some(playerHistory =>
+        Array.isArray(playerHistory.guesses) &&
+        playerHistory.guesses.some(guessEntry => 
+          guessEntry?.guessData?.id === character.id &&
+          (guessEntry?.round === undefined || guessEntry?.round === null || guessEntry.round < (syncStatus.round || 1))
+        )
+      );
       const isCorrectAnswer = character.id === answerCharacter?.id;
       // 同步模式下所有猜测视为同时发生，角色BP由服务端跨轮次判定
       // 非同步模式/血战模式仍由前端做客户端预拦截
       if (duplicateInHistory) {
         if (gameSettings.syncMode) {
-          // 同步模式：同轮可猜同角色，服务端会在跨轮时拦截
+          // 同步模式：同轮可猜同角色，如果是之前轮次被猜过了，前端需要预拦截
+          if (duplicateInPreviousRounds) {
+            alert(text.globalPickUsed);
+            return;
+          }
         } else if (gameSettings.nonstopMode && isCorrectAnswer) {
           // 血战模式下允许多人猜正确答案
         } else {
@@ -1123,7 +1134,6 @@ const Multiplayer = () => {
     }
 
     setIsGuessing(true);
-    setShouldResetTimer(true);
 
     try {
       const appearances = await getCharacterAppearances(character.id, gameSettings);
@@ -1136,6 +1146,7 @@ const Multiplayer = () => {
       };
       if (!guessData || !guessData.id || !guessData.name) {
         console.warn('Invalid guessData, not emitting');
+        setIsGuessing(false);
         return;
       }
       const rawTagsMap = new Map(rawTagsEntries);
@@ -1159,75 +1170,81 @@ const Multiplayer = () => {
           isPartialCorrect: feedback.shared_appearances?.count > 0,
           guessData
         }
+      }, (response) => {
+        setIsGuessing(false);
+        if (response && response.ok) {
+          // 仅当服务端校验成功时，才重置倒计时并写入历史
+          setShouldResetTimer(true);
+          setTimeout(() => setShouldResetTimer(false), 100);
+
+          guessData.rawTags = rawTagsMap;
+          if (isCorrect) {
+            setGuesses(prevGuesses => [...prevGuesses, {
+              id: guessData.id,
+              icon: guessData.image,
+              name: guessData.name,
+              nameCn: guessData.nameCn,
+              nameEn: guessData.nameEn,
+              gender: guessData.gender,
+              genderFeedback: 'yes',
+              latestAppearance: guessData.latestAppearance,
+              latestAppearanceFeedback: '=',
+              earliestAppearance: guessData.earliestAppearance,
+              earliestAppearanceFeedback: '=',
+              highestRating: guessData.highestRating,
+              ratingFeedback: '=',
+              appearancesCount: guessData.appearances.length,
+              appearancesCountFeedback: '=',
+              popularity: guessData.popularity,
+              popularityFeedback: '=',
+              appearanceIds: guessData.appearanceIds,
+              appearances: guessData.appearances,
+              appearancesCn: guessData.appearancesCn,
+              sharedAppearances: {
+                first: appearances.appearances[0] || '',
+                firstOriginal: appearances.appearances[0] || '',
+                firstCn: appearances.appearancesCn?.[0] || appearances.appearances[0] || '',
+                count: appearances.appearances.length
+              },
+              metaTags: guessData.metaTags,
+              sharedMetaTags: guessData.metaTags,
+              isAnswer: true
+            }]);
+            handleGameEnd(true);
+          } else {
+            setGuesses(prevGuesses => [...prevGuesses, {
+              id: guessData.id,
+              icon: guessData.image,
+              name: guessData.name,
+              nameCn: guessData.nameCn,
+              nameEn: guessData.nameEn,
+              gender: guessData.gender,
+              genderFeedback: feedback.gender.feedback,
+              latestAppearance: guessData.latestAppearance,
+              latestAppearanceFeedback: feedback.latestAppearance.feedback,
+              earliestAppearance: guessData.earliestAppearance,
+              earliestAppearanceFeedback: feedback.earliestAppearance.feedback,
+              highestRating: guessData.highestRating,
+              ratingFeedback: feedback.rating.feedback,
+              appearancesCount: guessData.appearances.length,
+              appearancesCountFeedback: feedback.appearancesCount.feedback,
+              popularity: guessData.popularity,
+              popularityFeedback: feedback.popularity.feedback,
+              appearanceIds: guessData.appearanceIds,
+              appearances: guessData.appearances,
+              appearancesCn: guessData.appearancesCn,
+              sharedAppearances: feedback.shared_appearances,
+              metaTags: feedback.metaTags.guess,
+              sharedMetaTags: feedback.metaTags.shared,
+              isAnswer: false
+            }]);
+          }
+        }
       });
-      guessData.rawTags = rawTagsMap;
-      if (isCorrect) {
-        setGuesses(prevGuesses => [...prevGuesses, {
-          id: guessData.id,
-          icon: guessData.image,
-          name: guessData.name,
-          nameCn: guessData.nameCn,
-          nameEn: guessData.nameEn,
-          gender: guessData.gender,
-          genderFeedback: 'yes',
-          latestAppearance: guessData.latestAppearance,
-          latestAppearanceFeedback: '=',
-          earliestAppearance: guessData.earliestAppearance,
-          earliestAppearanceFeedback: '=',
-          highestRating: guessData.highestRating,
-          ratingFeedback: '=',
-          appearancesCount: guessData.appearances.length,
-          appearancesCountFeedback: '=',
-          popularity: guessData.popularity,
-          popularityFeedback: '=',
-          appearanceIds: guessData.appearanceIds,
-          appearances: guessData.appearances,
-          appearancesCn: guessData.appearancesCn,
-          sharedAppearances: {
-            first: appearances.appearances[0] || '',
-            firstOriginal: appearances.appearances[0] || '',
-            firstCn: appearances.appearancesCn?.[0] || appearances.appearances[0] || '',
-            count: appearances.appearances.length
-          },
-          metaTags: guessData.metaTags,
-          sharedMetaTags: guessData.metaTags,
-          isAnswer: true
-        }]);
-        handleGameEnd(true);
-      } else {
-        setGuesses(prevGuesses => [...prevGuesses, {
-          id: guessData.id,
-          icon: guessData.image,
-          name: guessData.name,
-          nameCn: guessData.nameCn,
-          nameEn: guessData.nameEn,
-          gender: guessData.gender,
-          genderFeedback: feedback.gender.feedback,
-          latestAppearance: guessData.latestAppearance,
-          latestAppearanceFeedback: feedback.latestAppearance.feedback,
-          earliestAppearance: guessData.earliestAppearance,
-          earliestAppearanceFeedback: feedback.earliestAppearance.feedback,
-          highestRating: guessData.highestRating,
-          ratingFeedback: feedback.rating.feedback,
-          appearancesCount: guessData.appearances.length,
-          appearancesCountFeedback: feedback.appearancesCount.feedback,
-          popularity: guessData.popularity,
-          popularityFeedback: feedback.popularity.feedback,
-          appearanceIds: guessData.appearanceIds,
-          appearances: guessData.appearances,
-          appearancesCn: guessData.appearancesCn,
-          sharedAppearances: feedback.shared_appearances,
-          metaTags: feedback.metaTags.guess,
-          sharedMetaTags: feedback.metaTags.shared,
-          isAnswer: false
-        }]);
-      }
     } catch (error) {
       console.error('Error processing guess:', error);
       alert(text.errorRetry);
-    } finally {
       setIsGuessing(false);
-      setShouldResetTimer(false);
     }
   };
 
